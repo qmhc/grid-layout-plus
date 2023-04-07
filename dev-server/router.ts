@@ -2,13 +2,23 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 
 document.title = 'dev | Grip Layout Plus'
 
+const demos = import.meta.glob('../docs/demos/*.vue')
+
 export const router = createRouter({
   history: createWebHashHistory('/'),
   routes: [
+    ...Object.keys(demos).map(path => {
+      const name = path.split('/').at(-1)!.replace(/.vue$/, '')
+
+      return {
+        path: name === 'basic' ? '/' : `/${name}`,
+        name,
+        component: demos[path]
+      }
+    }),
     {
-      path: '/',
-      name: 'basic',
-      component: () => import('../docs/demos/basic.vue')
+      path: '/:catchAll(.*)',
+      redirect: '/'
     }
   ]
 })

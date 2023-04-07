@@ -3,10 +3,9 @@
 import { ref, reactive, toRefs, watch, provide, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import GridItem from './grid-item.vue'
 import { useResize } from '@vexip-ui/hooks'
-import { createEventEmitter, isNull, deepClone } from '@vexip-ui/utils'
+import { createEventEmitter, isNull } from '@vexip-ui/utils'
 import { LAYOUT_KEY, EMITTER_KEY, bottom, compact, getLayoutItem, moveElement, validateLayout, cloneLayout, getAllCollisions } from '@/helpers/common'
 import { getBreakpointFromWidth, getColsFromBreakpoint, findOrGenerateResponsiveLayout } from '@/helpers/responsive'
-// import { addWindowEventListener, removeWindowEventListener } from "@/utils/dom";
 
 import type { PropType } from 'vue'
 import type { Layout, Breakpoint, Breakpoints, LayoutInstance } from '@/helpers/types'
@@ -118,12 +117,12 @@ const state = reactive({
   originalLayout: null! as Layout // store original Layout
 })
 
+const itemInstances = new Map<number | string, any>()
+
 const currentLayout = ref(props.layout)
-
-const { observeResize, unobserveResize } = useResize()
-
 const wrapper = ref<HTMLElement>()
 
+const { observeResize, unobserveResize } = useResize()
 const emitter = createEventEmitter()
 
 emitter.on('resizeEvent', resizeEventHandler)
@@ -200,8 +199,8 @@ watch(() => state.width, (newval, oldval) => {
     updateHeight()
   })
 })
-watch(() => props.layout, value => {
-  currentLayout.value = deepClone(value)
+watch(() => [props.layout, props.layout.length], () => {
+  currentLayout.value = props.layout
   layoutUpdate()
 })
 watch(() => props.colNum, (val) => {
@@ -236,15 +235,29 @@ watch(() => props.margin, updateHeight)
 
 provide(LAYOUT_KEY, reactive({
   ...toRefs(props),
-  ...toRefs(state)
+  ...toRefs(state),
+  increaseItem,
+  decreaseItem
 }) as LayoutInstance)
 provide(EMITTER_KEY, emitter)
+
+defineExpose({ state, getItem, dragEvent })
+
+function increaseItem(item: any) {
+  itemInstances.set(item.i, item)
+}
+
+function decreaseItem(item: any) {
+  itemInstances.delete(item.i)
+}
+
+function getItem(id: number | string) {
+  return itemInstances.get(id)
+}
 
 function layoutUpdate() {
   if (currentLayout.value !== undefined && state.originalLayout !== null) {
     if (currentLayout.value.length !== state.originalLayout.length) {
-      // console.log("### LAYOUT UPDATE!", currentLayout.value.length, this.originalLayout.length);
-
       const diff = findDifference(currentLayout.value, state.originalLayout)
       if (diff.length > 0) {
         // console.log(diff);
@@ -470,7 +483,16 @@ function findDifference(layout: Layout, originalLayout: Layout) {
 
 <template>
   <div ref="wrapper" class="vue-grid-layout" :style="state.mergedStyle">
-    <slot></slot>
+    <slot v-if="$slots.default"></slot>
+    <template v-else>
+      <GridItem
+        v-for="item in currentLayout"
+        :key="item.i"
+        v-bind="item"
+      >
+        <slot name="item" :item="item"></slot>
+      </GridItem>
+    </template>
     <GridItem
       v-show="state.isDragging"
       class="vue-grid-placeholder"

@@ -1,11 +1,13 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import dts from 'vite-plugin-dts'
 import cssInject from 'vite-plugin-css-injected-by-js'
 import autoprefixer from 'autoprefixer'
 
 export default defineConfig(async () => {
   return {
+    publicDir: false,
     resolve: {
       alias: [
         { find: /^@\/(.+)/, replacement: resolve(__dirname, 'src/$1') }
@@ -21,36 +23,33 @@ export default defineConfig(async () => {
       }
     },
     build: {
-      outDir: 'es',
+      outDir: 'dist',
       sourcemap: true,
       lib: {
         entry: resolve(__dirname, 'src/index.ts'),
-        formats: ['es']
+        formats: ['es', 'cjs', 'iife'],
+        name: 'GridLayoutPlus',
+        fileName: format => `grid-layout-plus.${format === 'es' ? 'mjs' : format === 'cjs' ? 'cjs' : 'js'}`
       },
       rollupOptions: {
-        input: [resolve(__dirname, 'src/index.ts')],
         external: ['vue'],
-        output: [
-          {
-            format: 'cjs',
-            preserveModules: true,
-            preserveModulesRoot: resolve(__dirname, 'src'),
-            dir: 'lib',
-            entryFileNames: '[name].js'
-          },
-          {
-            format: 'es',
-            preserveModules: true,
-            preserveModulesRoot: resolve(__dirname, 'src'),
-            dir: 'es',
-            entryFileNames: '[name].mjs'
+        output: {
+          globals: {
+            vue: 'Vue'
           }
-        ]
+        }
       },
       commonjsOptions: {
         sourceMap: false
-      }
+      },
+      chunkSizeWarningLimit: 10000
     },
-    plugins: [vue(), cssInject()]
+    plugins: [
+      vue(),
+      cssInject(),
+      dts({
+        exclude: ['node_modules', 'dev-server', 'scripts']
+      })
+    ]
   }
 })

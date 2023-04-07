@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { ref, reactive } from 'vue'
+
+const draggable = ref(true)
+const resizable = ref(true)
+const mirrored = ref(true)
 
 const layout = reactive([
   { x: 0, y: 0, w: 2, h: 2, i: '0', static: false },
@@ -26,17 +30,22 @@ const layout = reactive([
 </script>
 
 <template>
+  <input v-model="draggable" type="checkbox" /> Draggable
+  <input v-model="resizable" type="checkbox" /> Resizable
+  <input v-model="mirrored" type="checkbox" /> Mirrored
+  <br />
   <GridLayout
     v-model:layout="layout"
     :col-num="12"
     :row-height="30"
-    is-draggable
-    is-resizable
+    :is-draggable="draggable"
+    :is-resizable="resizable"
+    :is-mirrored="mirrored"
     vertical-compact
     use-css-transforms
   >
     <template #item="{ item }">
-      <span class="text">{{ `${item.i}${item.static ? '- Static' : ''}` }}</span>
+      <span class="text">{{ item.i }}</span>
     </template>
   </GridLayout>
 </template>

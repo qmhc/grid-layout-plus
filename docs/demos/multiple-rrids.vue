@@ -19,22 +19,14 @@ const layout2 = reactive([
       v-model:layout="layout"
       :col-num="12"
       :row-height="30"
-      :is-draggable="true"
-      :is-resizable="true"
-      :vertical-compact="true"
-      :use-css-transforms="true"
+      is-draggable
+      is-resizable
+      vertical-compact
+      use-css-transforms
     >
-      <GridItem
-        v-for="item in layout"
-        :key="item.i"
-        :x="item.x"
-        :y="item.y"
-        :w="item.w"
-        :h="item.h"
-        :i="item.i"
-      >
+      <template #item="{ item }">
         <span class="text">{{ item.i }}</span>
-      </GridItem>
+      </template>
     </GridLayout>
   </div>
   <div style="margin-top:10px;">
@@ -43,22 +35,14 @@ const layout2 = reactive([
       :layout="layout2"
       :col-num="12"
       :row-height="30"
-      :is-draggable="true"
-      :is-resizable="true"
-      :vertical-compact="true"
-      :use-css-transforms="true"
+      is-draggable
+      is-resizable
+      vertical-compact
+      use-css-transforms
     >
-      <GridItem
-        v-for="item in layout2"
-        :key="item.i"
-        :x="item.x"
-        :y="item.y"
-        :w="item.w"
-        :h="item.h"
-        :i="item.i"
-      >
+      <template #item="{ item }">
         <span class="text">{{ item.i }}</span>
-      </GridItem>
+      </template>
     </GridLayout>
   </div>
 </template>
@@ -68,20 +52,20 @@ const layout2 = reactive([
   background: #eee;
 }
 
-.vue-grid-item:not(.vue-grid-placeholder) {
+:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
   background: #ccc;
   border: 1px solid black;
 }
 
-.vue-grid-item .resizing {
+:deep(.vue-grid-item.resizing) {
   opacity: 90%;
 }
 
-.vue-grid-item .static {
+:deep(.vue-grid-item.static) {
   background: #cce;
 }
 
-.vue-grid-item .text {
+.text {
   position: absolute;
   inset: 0;
   width: 100%;

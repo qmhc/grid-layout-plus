@@ -28,5 +28,7 @@ export interface LayoutInstance {
   useCssTransforms: boolean,
   useStyleCursor: boolean,
   maxRows: number,
-  isMirrored: boolean
+  isMirrored: boolean,
+  increaseItem: (item: any) => void,
+  decreaseItem: (item: any) => void
 }

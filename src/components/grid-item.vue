@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch, inject, onBeforeMount, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, toRef, computed, watch, inject, onBeforeMount, onMounted, onBeforeUnmount } from 'vue'
 import { LAYOUT_KEY, EMITTER_KEY, setTopLeft, setTopRight, setTransformRtl, setTransform } from '@/helpers/common'
 import { getControlPosition, createCoreData } from '@/helpers/draggable'
 import { getColsFromBreakpoint } from '@/helpers/responsive'
@@ -144,6 +144,13 @@ const state = reactive({
 
 const wrapper = ref<HTMLElement>()
 
+const instance = reactive({
+  i: toRef(props, 'i'),
+  state,
+  wrapper,
+  calcXY
+})
+
 function updateWidthHandler(width: number) {
   updateWidth(width)
 }
@@ -202,6 +209,8 @@ emitter.on('setMaxRows', setMaxRowsHandler)
 emitter.on('directionchange', directionchangeHandler)
 emitter.on('setColNum', setColNum)
 
+layout.increaseItem(instance)
+
 onBeforeMount(() => {
   state.rtl = getDocumentDir() === 'rtl'
 })
@@ -238,6 +247,8 @@ onMounted(() => {
   createStyle()
 })
 
+defineExpose({ state, wrapper })
+
 onBeforeUnmount(() => {
   emitter.off('updateWidth', updateWidthHandler)
   emitter.off('compact', compactHandler)
@@ -254,6 +265,8 @@ onBeforeUnmount(() => {
     interactObj.value.unset() // destroy interact intance
     interactObj.value = null
   }
+
+  layout.decreaseItem(instance)
 })
 
 const isAndroid = navigator.userAgent.toLowerCase().includes('android')
@@ -334,8 +347,7 @@ watch(() => props.w, (value) => {
   state.innerW = value
   createStyle()
 })
-watch(() => renderRtl, () => {
-  // console.log("### renderRtl");
+watch(renderRtl, () => {
   tryMakeResizable()
   createStyle()
 })

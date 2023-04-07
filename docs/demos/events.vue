@@ -3,9 +3,6 @@ import { ref, reactive, watch } from 'vue'
 
 import type { Layout } from 'grid-layout-plus'
 
-const draggable = ref(true)
-const resizable = ref(true)
-
 const layout = reactive([
   { x: 0, y: 0, w: 2, h: 2, i: '0', static: false },
   { x: 2, y: 0, w: 2, h: 4, i: '1', static: true },
@@ -29,11 +26,11 @@ const layout = reactive([
   { x: 2, y: 6, w: 2, h: 2, i: '19', static: false }
 ])
 
-const eventLog = reactive<string[]>([])
+const eventLogs = reactive<string[]>([])
 
 const eventsDiv = ref<HTMLElement>()
 
-watch(() => eventLog.length, () => {
+watch(() => eventLogs.length, () => {
   requestAnimationFrame(() => {
     if (eventsDiv.value) {
       eventsDiv.value.scrollTop = eventsDiv.value.scrollHeight
@@ -43,100 +40,98 @@ watch(() => eventLog.length, () => {
 
 function moveEvent(i: string, newX: number, newY: number) {
   const msg = 'MOVE i=' + i + ', X=' + newX + ', Y=' + newY
-  this.eventLog.push(msg)
+  eventLogs.push(msg)
   console.info(msg)
 }
 
 function movedEvent(i: string, newX: number, newY: number) {
   const msg = 'MOVED i=' + i + ', X=' + newX + ', Y=' + newY
-  this.eventLog.push(msg)
+  eventLogs.push(msg)
   console.info(msg)
 }
 
 function resizeEvent(i: string, newH: number, newW: number, newHPx: number, newWPx: number) {
   const msg = 'RESIZE i=' + i + ', H=' + newH + ', W=' + newW + ', H(px)=' + newHPx + ', W(px)=' + newWPx
-  this.eventLog.push(msg)
+  eventLogs.push(msg)
   console.info(msg)
 }
 
 function resizedEvent(i: string, newX: number, newY: number, newHPx: number, newWPx: number) {
   const msg = 'RESIZED i=' + i + ', X=' + newX + ', Y=' + newY + ', H(px)=' + newHPx + ', W(px)=' + newWPx
-  this.eventLog.push(msg)
+  eventLogs.push(msg)
   console.info(msg)
 }
 
 function containerResizedEvent(i: string, newH: number, newW: number, newHPx: number, newWPx: number) {
   const msg = 'CONTAINER RESIZED i=' + i + ', H=' + newH + ', W=' + newW + ', H(px)=' + newHPx + ', W(px)=' + newWPx
-  this.eventLog.push(msg)
+  eventLogs.push(msg)
   console.info(msg)
 }
 
 function layoutCreatedEvent(newLayout: Layout) {
-  this.eventLog.push('Created layout')
+  eventLogs.push('Created layout')
   console.info('Created layout: ', newLayout)
 }
 
 function layoutBeforeMountEvent(newLayout: Layout) {
-  this.eventLog.push('beforeMount layout')
+  eventLogs.push('beforeMount layout')
   console.info('beforeMount layout: ', newLayout)
 }
 
 function layoutMountedEvent(newLayout: Layout) {
-  this.eventLog.push('Mounted layout')
+  eventLogs.push('Mounted layout')
   console.info('Mounted layout: ', newLayout)
 }
 
 function layoutReadyEvent(newLayout: Layout) {
-  this.eventLog.push('Ready layout')
+  eventLogs.push('Ready layout')
   console.info('Ready layout: ', newLayout)
 }
 
 function layoutUpdatedEvent(newLayout: Layout) {
-  this.eventLog.push('Updated layout')
+  eventLogs.push('Updated layout')
   console.info('Updated layout: ', newLayout)
 }
 </script>
 
 <template>
-  <div>
-    <div ref="eventsDiv" class="event-logs">
-      <div v-for="(event, index) in eventLog" :key="index">
-        {{ event }}
-      </div>
+  <div ref="eventsDiv" class="event-logs">
+    <div v-for="(event, index) in eventLogs" :key="index">
+      {{ event }}
     </div>
-    <div style="margin-top:10px;">
-      <grid-layout
-        v-model:layout="layout"
-        :col-num="12"
-        :row-height="30"
-        :is-draggable="draggable"
-        :is-resizable="resizable"
-        :vertical-compact="true"
-        :use-css-transforms="true"
-        @layout-created="layoutCreatedEvent"
-        @layout-before-mount="layoutBeforeMountEvent"
-        @layout-mounted="layoutMountedEvent"
-        @layout-ready="layoutReadyEvent"
-        @layout-updated="layoutUpdatedEvent"
+  </div>
+  <div style="margin-top:10px;">
+    <GridLayout
+      v-model:layout="layout"
+      :col-num="12"
+      :row-height="30"
+      is-draggable
+      is-resizable
+      vertical-compact
+      use-css-transforms
+      @layout-created="layoutCreatedEvent"
+      @layout-before-mount="layoutBeforeMountEvent"
+      @layout-mounted="layoutMountedEvent"
+      @layout-ready="layoutReadyEvent"
+      @layout-updated="layoutUpdatedEvent"
+    >
+      <GridItem
+        v-for="item in layout"
+        :key="item.i"
+        :x="item.x"
+        :y="item.y"
+        :w="item.w"
+        :h="item.h"
+        :i="item.i"
+        @resize="resizeEvent"
+        @move="moveEvent"
+        @resized="resizedEvent"
+        @container-resized="containerResizedEvent"
+        @moved="movedEvent"
       >
-        <GridItem
-          v-for="item in layout"
-          :key="item.i"
-          :x="item.x"
-          :y="item.y"
-          :w="item.w"
-          :h="item.h"
-          :i="item.i"
-          @resize="resizeEvent"
-          @move="moveEvent"
-          @resized="resizedEvent"
-          @container-resized="containerResizedEvent"
-          @moved="movedEvent"
-        >
-          <span class="text">{{ item.i }}</span>
-        </GridItem>
-      </grid-layout>
-    </div>
+        <span class="text">{{ item.i }}</span>
+      </GridItem>
+    </GridLayout>
   </div>
 </template>
 
@@ -145,20 +140,20 @@ function layoutUpdatedEvent(newLayout: Layout) {
   background: #eee;
 }
 
-.vue-grid-item:not(.vue-grid-placeholder) {
+:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
   background: #ccc;
   border: 1px solid black;
 }
 
-.vue-grid-item .resizing {
+:deep(.vue-grid-item.resizing) {
   opacity: 90%;
 }
 
-.vue-grid-item .static {
+:deep(.vue-grid-item.static) {
   background: #cce;
 }
 
-.vue-grid-item .text {
+.text {
   position: absolute;
   inset: 0;
   width: 100%;

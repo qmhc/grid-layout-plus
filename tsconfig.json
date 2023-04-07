@@ -19,7 +19,7 @@
       "@/*": ["src/*"]
     },
     "types": [
-      "vite/client"
+      "node"
     ],
     "lib": [
       "esnext",
@@ -27,6 +27,7 @@
     ]
   },
   "include": [
+    "dev-server",
     "src"
   ],
   "exclude": [

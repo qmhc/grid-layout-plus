@@ -32,11 +32,13 @@ const layout = reactive([
     :row-height="30"
     is-draggable
     is-resizable
-    vertical-compact
+    :responsive="false"
+    :vertical-compact="false"
+    prevent-collision
     use-css-transforms
   >
     <template #item="{ item }">
-      <span class="text">{{ `${item.i}${item.static ? '- Static' : ''}` }}</span>
+      <span class="text">{{ item.i }}</span>
     </template>
   </GridLayout>
 </template>

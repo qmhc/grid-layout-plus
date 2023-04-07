@@ -5,6 +5,7 @@ importers:
   .:
     specifiers:
       '@interactjs/types': ^1.10.17
+      '@types/node': ^18.15.11
       '@vexip-ui/commitlint-config': ^0.1.0
       '@vexip-ui/eslint-config': ^0.5.2
       '@vexip-ui/hooks': ^1.8.2
@@ -15,6 +16,7 @@ importers:
       '@vue/test-utils': ^2.3.2
       autoprefixer: ^10.4.14
       eslint: ^8.37.0
+      execa: ^7.1.1
       happy-dom: ^8.9.0
       husky: ^8.0.3
       interactjs: ^1.10.17
@@ -37,6 +39,7 @@ importers:
       interactjs: 1.10.17
     devDependencies:
       '@interactjs/types': 1.10.17
+      '@types/node': 18.15.11
       '@vexip-ui/commitlint-config': 0.1.0
       '@vexip-ui/eslint-config': 0.5.2_ip5up2nocltd47wbnuyybe5dxu
       '@vexip-ui/prettier-config': 0.1.0_prettier@2.8.7
@@ -45,6 +48,7 @@ importers:
       '@vue/test-utils': 2.3.2_vue@3.2.47
       autoprefixer: 10.4.14_postcss@8.4.21
       eslint: 8.37.0
+      execa: 7.1.1
       happy-dom: 8.9.0
       husky: 8.0.3
       lint-staged: 13.2.0
@@ -55,9 +59,9 @@ importers:
       stylelint-prettier: 3.0.0_6i4typnqotoqmooak3ignv77xy
       tsx: 3.12.6
       typescript: 4.9.5
-      vite: 4.2.1_sass@1.61.0
+      vite: 4.2.1_4q5mxzltflcgkzvnigcbiggbqa
       vite-plugin-css-injected-by-js: 3.1.0_vite@4.2.1
-      vite-plugin-dts: 2.1.0_vite@4.2.1
+      vite-plugin-dts: 2.1.0_ystswk2k4pxhc2ewq562lqi3vm
       vitest: 0.29.8_ougvu6eo5j2n5am4bvys2o3yfq
       vue: 3.2.47
 
@@ -892,24 +896,24 @@ packages:
     resolution: {integrity: sha512-dfLbk+PwWvFzSxwk3n5ySL0hfBog779o8h68wK/7/APo/7cgyWp5jcXockbxdk5kFRkbeXWm4Fbi9FrdN381sA==}
     dev: false
 
-  /@microsoft/api-extractor-model/7.26.4:
+  /@microsoft/api-extractor-model/7.26.4_@types+node@18.15.11:
     resolution: {integrity: sha512-PDCgCzXDo+SLY5bsfl4bS7hxaeEtnXj7XtuzEE+BtALp7B5mK/NrS2kHWU69pohgsRmEALycQdaQPXoyT2i5MQ==}
     dependencies:
       '@microsoft/tsdoc': 0.14.2
       '@microsoft/tsdoc-config': 0.16.2
-      '@rushstack/node-core-library': 3.55.2
+      '@rushstack/node-core-library': 3.55.2_@types+node@18.15.11
     transitivePeerDependencies:
       - '@types/node'
     dev: true
 
-  /@microsoft/api-extractor/7.34.4:
+  /@microsoft/api-extractor/7.34.4_@types+node@18.15.11:
     resolution: {integrity: sha512-HOdcci2nT40ejhwPC3Xja9G+WSJmWhCUKKryRfQYsmE9cD+pxmBaKBKCbuS9jUcl6bLLb4Gz+h7xEN5r0QiXnQ==}
     hasBin: true
     dependencies:
-      '@microsoft/api-extractor-model': 7.26.4
+      '@microsoft/api-extractor-model': 7.26.4_@types+node@18.15.11
       '@microsoft/tsdoc': 0.14.2
       '@microsoft/tsdoc-config': 0.16.2
-      '@rushstack/node-core-library': 3.55.2
+      '@rushstack/node-core-library': 3.55.2_@types+node@18.15.11
       '@rushstack/rig-package': 0.3.18
       '@rushstack/ts-command-line': 4.13.2
       colors: 1.2.5
@@ -974,7 +978,7 @@ packages:
       picomatch: 2.3.1
     dev: true
 
-  /@rushstack/node-core-library/3.55.2:
+  /@rushstack/node-core-library/3.55.2_@types+node@18.15.11:
     resolution: {integrity: sha512-SaLe/x/Q/uBVdNFK5V1xXvsVps0y7h1sN7aSJllQyFbugyOaxhNRF25bwEDnicARNEjJw0pk0lYnJQ9Kr6ev0A==}
     peerDependencies:
       '@types/node': '*'
@@ -982,6 +986,7 @@ packages:
       '@types/node':
         optional: true
     dependencies:
+      '@types/node': 18.15.11
       colors: 1.2.5
       fs-extra: 7.0.1
       import-lazy: 4.0.0
@@ -1326,7 +1331,7 @@ packages:
       vue:
         optional: true
     dependencies:
-      vite: 4.2.1_sass@1.61.0
+      vite: 4.2.1_4q5mxzltflcgkzvnigcbiggbqa
       vue: 3.2.47
     dev: true
 
@@ -5288,26 +5293,26 @@ packages:
     peerDependencies:
       vite: '>2.0.0-0'
     dependencies:
-      vite: 4.2.1_sass@1.61.0
+      vite: 4.2.1_4q5mxzltflcgkzvnigcbiggbqa
     dev: true
 
-  /vite-plugin-dts/2.1.0_vite@4.2.1:
+  /vite-plugin-dts/2.1.0_ystswk2k4pxhc2ewq562lqi3vm:
     resolution: {integrity: sha512-Vw0FdCuM3VLR4hTFHh0yMEzfwI7NyFvPIMFwvE+Q0t4qtoHIfYOP/JXs7nTnHuQk87FSjlhGeIJ1fLBcktgPgA==}
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: '>=2.9.0'
     dependencies:
       '@babel/parser': 7.21.3
-      '@microsoft/api-extractor': 7.34.4
+      '@microsoft/api-extractor': 7.34.4_@types+node@18.15.11
       '@rollup/pluginutils': 5.0.2
-      '@rushstack/node-core-library': 3.55.2
+      '@rushstack/node-core-library': 3.55.2_@types+node@18.15.11
       debug: 4.3.4
       fast-glob: 3.2.12
       fs-extra: 10.1.0
       kolorist: 1.7.0
       magic-string: 0.29.0
       ts-morph: 17.0.1
-      vite: 4.2.1_sass@1.61.0
+      vite: 4.2.1_4q5mxzltflcgkzvnigcbiggbqa
     transitivePeerDependencies:
       - '@types/node'
       - rollup
@@ -5373,40 +5378,6 @@ packages:
         optional: true
     dependencies:
       '@types/node': 18.15.11
-      esbuild: 0.17.14
-      postcss: 8.4.21
-      resolve: 1.22.1
-      rollup: 3.20.2
-      sass: 1.61.0
-    optionalDependencies:
-      fsevents: 2.3.2
-    dev: true
-
-  /vite/4.2.1_sass@1.61.0:
-    resolution: {integrity: sha512-7MKhqdy0ISo4wnvwtqZkjke6XN4taqQ2TBaTccLIpOKv7Vp2h4Y+NpmWCnGDeSvvn45KxvWgGyb0MkHvY1vgbg==}
-    engines: {node: ^14.18.0 || >=16.0.0}
-    hasBin: true
-    peerDependencies:
-      '@types/node': '>= 14'
-      less: '*'
-      sass: '*'
-      stylus: '*'
-      sugarss: '*'
-      terser: ^5.4.0
-    peerDependenciesMeta:
-      '@types/node':
-        optional: true
-      less:
-        optional: true
-      sass:
-        optional: true
-      stylus:
-        optional: true
-      sugarss:
-        optional: true
-      terser:
-        optional: true
-    dependencies:
       esbuild: 0.17.14
       postcss: 8.4.21
       resolve: 1.22.1
