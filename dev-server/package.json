@@ -1,0 +1,11 @@
+{
+  "name": "grip-layout-plus-dev-server",
+  "private": true,
+  "scripts": {
+    "serve": "vite"
+  },
+  "dependencies": {
+    "vexip-ui": "^2.1.12",
+    "vue-router": "^4.1.5"
+  }
+}

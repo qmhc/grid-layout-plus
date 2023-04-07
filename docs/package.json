@@ -1,0 +1,16 @@
+{
+  "name": "grip-layout-plus-docs",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "dependencies": {
+    "grid-layout-plus": "workspace:*",
+    "vexip-ui": "^2.1.12",
+    "vue": "^3.2.47"
+  },
+  "devDependencies": {
+    "vitepress": "1.0.0-alpha.65"
+  }
+}

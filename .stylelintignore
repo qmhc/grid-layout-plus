@@ -1,0 +1,16 @@
+dist
+es
+lib
+css
+public
+node_modules
+.husky
+
+*.js
+*.cjs
+*.mjs
+*.ts
+*.tsx
+*.svg
+*.gif
+*.md

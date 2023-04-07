@@ -1,0 +1,75 @@
+{
+  "name": "grid-layout-plus",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "qmhc",
+  "packageManager": "pnpm@7.14.2",
+  "scripts": {
+    "build": "vite build",
+    "serve": "pnpm -C dev-server serve"
+  },
+  "main": "lib/index.cjs",
+  "module": "es/index.mjs",
+  "types": "dist/components/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./es/index.mjs",
+      "require": "./lib/index.cjs",
+      "types": "./dist/components/index.d.ts"
+    },
+    "./es": "./es/index.mjs",
+    "./lib": "./lib/index.cjs",
+    "./es/*.mjs": "./es/*.mjs",
+    "./es/*": "./es/*.mjs",
+    "./lib/*.cjs": "./lib/*.cjs",
+    "./lib/*": "./lib/*.cjs",
+    "./package.json": "./package.json",
+    "./*": "./*"
+  },
+  "dependencies": {
+    "@vexip-ui/hooks": "^1.8.2",
+    "@vexip-ui/utils": "^1.10.2",
+    "interactjs": "^1.10.17"
+  },
+  "devDependencies": {
+    "@interactjs/types": "^1.10.17",
+    "@vexip-ui/commitlint-config": "^0.1.0",
+    "@vexip-ui/eslint-config": "^0.5.2",
+    "@vexip-ui/prettier-config": "^0.1.0",
+    "@vexip-ui/stylelint-config": "^0.2.1",
+    "@vitejs/plugin-vue": "^4.1.0",
+    "@vue/test-utils": "^2.3.2",
+    "autoprefixer": "^10.4.14",
+    "eslint": "^8.37.0",
+    "happy-dom": "^8.9.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.0",
+    "postcss": "^8.4.21",
+    "prettier": "^2.8.7",
+    "sass": "^1.61.0",
+    "stylelint": "^15.3.0",
+    "stylelint-prettier": "^3.0.0",
+    "tsx": "^3.12.6",
+    "typescript": "4.9.5",
+    "vite": "^4.2.1",
+    "vite-plugin-css-injected-by-js": "^3.1.0",
+    "vite-plugin-dts": "^2.1.0",
+    "vitest": "^0.29.8",
+    "vue": "^3.2.47"
+  },
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "@algolia/client-search",
+        "vue"
+      ],
+      "allowAny": [
+        "@csstools/*"
+      ]
+    }
+  }
+}
