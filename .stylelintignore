@@ -1,9 +1,9 @@
 dist
 es
 lib
-css
 public
 node_modules
+cache
 .husky
 
 *.js
