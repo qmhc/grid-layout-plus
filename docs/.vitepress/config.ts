@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   vite: {
+    logLevel: 'error',
     resolve: {
       alias: {
         'grid-layout-plus': resolve(__dirname, '../../src')
@@ -111,7 +112,7 @@ export default defineConfig({
           }
         ],
         editLink: {
-          pattern: 'https://github.com/qmhc/grid-layout-plus/edit/main/docs/zh/:path',
+          pattern: 'https://github.com/qmhc/grid-layout-plus/edit/main/docs/:path',
           text: '在 GitHub 上编辑此页'
         },
         socialLinks: [

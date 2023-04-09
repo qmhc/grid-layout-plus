@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Grid Layout Plus
-  text: A draggable and resizable grid layout for Vue 3.
+  text: A draggable and resizable grid layout for Vue 3
   tagline: A grid layout system for Vue 3. Heavily inspired by React Grid Layout.
   actions:
     - theme: brand

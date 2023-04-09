@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="./docs/public/grid-layout-plus.svg" width="180" style="width: 120px;" />
+  <a href="https://grid-layout-plus.netlify.app/" target="_blank" rel="noopener noreferrer">
+    <img src="./docs/public/grid-layout-plus.svg" width="180" style="width: 120px;" />
+  </a>
 </p>
 
 <h1 align="center">Grip Layout Plus</h1>
@@ -28,6 +30,10 @@ Grid Layout Plus comes from [Vue Grid Layout](https://github.com/jbaysolutions/v
 - Layout can be serialized and restored
 - Automatic RTL support
 - Responsive
+
+## Documentation
+
+Check out the online documentation [here](https://grid-layout-plus.netlify.app/).
 
 ## License
 

@@ -2,11 +2,13 @@
 node_modules
 dist
 temp
+.temp
 .dev
 .yarn
 coverage
 /es
 /lib
+cache
 
 yarn.lock
 package-lock.json
