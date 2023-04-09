@@ -1,0 +1,76 @@
+<script setup lang="ts">
+import { reactive } from 'vue'
+
+const layout = reactive([
+  { x: 0, y: 0, w: 2, h: 2, i: '0', static: false },
+  { x: 2, y: 0, w: 2, h: 4, i: '1', static: true },
+  { x: 4, y: 0, w: 2, h: 5, i: '2', static: false },
+  { x: 6, y: 0, w: 2, h: 3, i: '3', static: false },
+  { x: 8, y: 0, w: 2, h: 3, i: '4', static: false },
+  { x: 10, y: 0, w: 2, h: 3, i: '5', static: false },
+  { x: 0, y: 5, w: 2, h: 5, i: '6', static: false },
+  { x: 2, y: 5, w: 2, h: 5, i: '7', static: false },
+  { x: 4, y: 5, w: 2, h: 5, i: '8', static: false },
+  { x: 6, y: 3, w: 2, h: 4, i: '9', static: true },
+  { x: 8, y: 4, w: 2, h: 4, i: '10', static: false },
+  { x: 10, y: 4, w: 2, h: 4, i: '11', static: false },
+  { x: 0, y: 10, w: 2, h: 5, i: '12', static: false },
+  { x: 2, y: 10, w: 2, h: 5, i: '13', static: false },
+  { x: 4, y: 8, w: 2, h: 4, i: '14', static: false },
+  { x: 6, y: 8, w: 2, h: 4, i: '15', static: false },
+  { x: 8, y: 10, w: 2, h: 5, i: '16', static: false },
+  { x: 10, y: 4, w: 2, h: 2, i: '17', static: false },
+  { x: 0, y: 9, w: 2, h: 3, i: '18', static: false },
+  { x: 2, y: 6, w: 2, h: 2, i: '19', static: false }
+])
+</script>
+
+<template>
+  <GridLayout v-model:layout="layout" :row-height="30">
+    <template #item="{ item }">
+      <span class="text">{{ `${item.i}${item.static ? '- Static' : ''}` }}</span>
+    </template>
+  </GridLayout>
+</template>
+
+<style scoped>
+.vue-grid-layout {
+  background-color: #eee;
+}
+
+.vue-grid-layout::before {
+  position: absolute;
+  width: calc(100% - 5px);
+  height: calc(100% - 5px);
+  margin: 5px;
+  content: '';
+  background-image:
+    linear-gradient(to right, lightgrey 1px, transparent 1px),
+    linear-gradient(to bottom, lightgrey 1px, transparent 1px);
+  background-repeat: repeat;
+  background-size: calc(calc(100% - 5px) / 12) 40px;
+}
+
+:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
+  background-color: #ccc;
+  border: 1px solid black;
+}
+
+:deep(.vue-grid-item.resizing) {
+  opacity: 90%;
+}
+
+:deep(.vue-grid-item.static) {
+  background-color: #cce;
+}
+
+.text {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: auto;
+  font-size: 24px;
+  text-align: center;
+}
+</style>

@@ -54,8 +54,6 @@ function removeItem(id: string) {
     :row-height="30"
     :is-draggable="draggable"
     :is-resizable="resizable"
-    vertical-compact
-    use-css-transforms
   >
     <template #item="{ item }">
       <span class="text">{{ item.i }}</span>
@@ -66,11 +64,11 @@ function removeItem(id: string) {
 
 <style scoped>
 .vue-grid-layout {
-  background: #eee;
+  background-color: #eee;
 }
 
 :deep(.vue-grid-item:not(.vue-grid-placeholder)) {
-  background: #ccc;
+  background-color: #ccc;
   border: 1px solid black;
 }
 
@@ -79,7 +77,7 @@ function removeItem(id: string) {
 }
 
 :deep(.vue-grid-item.static) {
-  background: #cce;
+  background-color: #cce;
 }
 
 .text {

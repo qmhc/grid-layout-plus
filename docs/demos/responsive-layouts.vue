@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 
-import type { BreakPoint, Layout } from 'grid-layout-plus'
+import type { Breakpoint, Layout } from 'grid-layout-plus'
 
 const presetLayouts = reactive({
   md: [
@@ -52,7 +52,7 @@ const presetLayouts = reactive({
 
 const layout = ref(presetLayouts.lg)
 
-function breakpointChangedEvent(newBreakpoint: BreakPoint, newLayout: Layout) {
+function breakpointChangedEvent(newBreakpoint: Breakpoint, newLayout: Layout) {
   console.info('BREAKPOINT CHANGED breakpoint=', newBreakpoint, ', layout: ', newLayout)
 }
 </script>
@@ -61,12 +61,7 @@ function breakpointChangedEvent(newBreakpoint: BreakPoint, newLayout: Layout) {
   <GridLayout
     v-model:layout="layout"
     :responsive-layouts="presetLayouts"
-    :col-num="12"
     :row-height="30"
-    is-draggable
-    is-resizable
-    vertical-compact
-    use-css-transforms
     responsive
     @breakpoint-changed="breakpointChangedEvent"
   >
@@ -78,11 +73,11 @@ function breakpointChangedEvent(newBreakpoint: BreakPoint, newLayout: Layout) {
 
 <style scoped>
 .vue-grid-layout {
-  background: #eee;
+  background-color: #eee;
 }
 
 :deep(.vue-grid-item:not(.vue-grid-placeholder)) {
-  background: #ccc;
+  background-color: #ccc;
   border: 1px solid black;
 }
 
@@ -91,7 +86,7 @@ function breakpointChangedEvent(newBreakpoint: BreakPoint, newLayout: Layout) {
 }
 
 :deep(.vue-grid-item.static) {
-  background: #cce;
+  background-color: #cce;
 }
 
 .text {

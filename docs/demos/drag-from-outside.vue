@@ -131,16 +131,7 @@ function dragEnd() {
     (Drag me!)
   </div>
   <div ref="wrapper">
-    <GridLayout
-      ref="gridLayout"
-      v-model:layout="layout"
-      :col-num="12"
-      :row-height="30"
-      is-draggable
-      is-resizable
-      vertical-compact
-      use-css-transforms
-    >
+    <GridLayout ref="gridLayout" v-model:layout="layout" :row-height="30">
       <template #item="{ item }">
         <span class="text">{{ item.i }}</span>
       </template>
@@ -150,11 +141,11 @@ function dragEnd() {
 
 <style scoped>
 .vue-grid-layout {
-  background: #eee;
+  background-color: #eee;
 }
 
 :deep(.vue-grid-item:not(.vue-grid-placeholder)) {
-  background: #ccc;
+  background-color: #ccc;
   border: 1px solid black;
 }
 
@@ -163,7 +154,7 @@ function dragEnd() {
 }
 
 :deep(.vue-grid-item.static) {
-  background: #cce;
+  background-color: #cce;
 }
 
 .text {

@@ -15,11 +15,9 @@
     "allowSyntheticDefaultImports": true,
     "sourceMap": false,
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    },
     "types": [
-      "node"
+      "node",
+      "vite/client"
     ],
     "lib": [
       "esnext",

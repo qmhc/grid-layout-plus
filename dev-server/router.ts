@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-document.title = 'dev | Grip Layout Plus'
+document.title = 'dev | Grid Layout Plus'
 
 const demos = import.meta.glob('../docs/demos/*.vue')
 
@@ -24,5 +24,5 @@ export const router = createRouter({
 })
 
 router.afterEach(to => {
-  document.title = `select - ${typeof to.name === 'string' ? to.name : 'dev'} | Grip Layout Plus`
+  document.title = `select - ${typeof to.name === 'string' ? to.name : 'dev'} | Grid Layout Plus`
 })

@@ -15,15 +15,7 @@ const layout2 = reactive([
 <template>
   <div style="margin-top:10px;">
     <h4>Grid #1</h4>
-    <GridLayout
-      v-model:layout="layout"
-      :col-num="12"
-      :row-height="30"
-      is-draggable
-      is-resizable
-      vertical-compact
-      use-css-transforms
-    >
+    <GridLayout v-model:layout="layout" :row-height="30">
       <template #item="{ item }">
         <span class="text">{{ item.i }}</span>
       </template>
@@ -31,15 +23,7 @@ const layout2 = reactive([
   </div>
   <div style="margin-top:10px;">
     <h4>Grid #2</h4>
-    <GridLayout
-      :layout="layout2"
-      :col-num="12"
-      :row-height="30"
-      is-draggable
-      is-resizable
-      vertical-compact
-      use-css-transforms
-    >
+    <GridLayout :layout="layout2" :row-height="30">
       <template #item="{ item }">
         <span class="text">{{ item.i }}</span>
       </template>
@@ -49,11 +33,11 @@ const layout2 = reactive([
 
 <style scoped>
 .vue-grid-layout {
-  background: #eee;
+  background-color: #eee;
 }
 
 :deep(.vue-grid-item:not(.vue-grid-placeholder)) {
-  background: #ccc;
+  background-color: #ccc;
   border: 1px solid black;
 }
 
@@ -62,7 +46,7 @@ const layout2 = reactive([
 }
 
 :deep(.vue-grid-item.static) {
-  background: #cce;
+  background-color: #cce;
 }
 
 .text {

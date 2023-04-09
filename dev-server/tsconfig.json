@@ -1,9 +1,4 @@
 {
   "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "@/*": ["../src/*"]
-    }
-  },
   "include": ["*.vue", "*.ts", "global.d.ts"]
 }

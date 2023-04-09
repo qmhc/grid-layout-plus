@@ -1,5 +1,5 @@
 {
-  "name": "grip-layout-plus-dev-server",
+  "name": "grid-layout-plus-dev-server",
   "private": true,
   "scripts": {
     "serve": "vite"

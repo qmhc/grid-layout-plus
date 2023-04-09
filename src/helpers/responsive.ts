@@ -1,5 +1,3 @@
-// @flow
-
 import { cloneLayout, compact, correctBounds } from './common'
 
 import type { Layout, Breakpoint, Breakpoints, ResponsiveLayout } from './types'

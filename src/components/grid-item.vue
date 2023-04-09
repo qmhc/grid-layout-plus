@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive, toRef, computed, watch, inject, onBeforeMount, onMounted, onBeforeUnmount } from 'vue'
-import { LAYOUT_KEY, EMITTER_KEY, setTopLeft, setTopRight, setTransformRtl, setTransform } from '@/helpers/common'
-import { getControlPosition, createCoreData } from '@/helpers/draggable'
-import { getColsFromBreakpoint } from '@/helpers/responsive'
-import { getDocumentDir } from '@/helpers/dom'
+import { LAYOUT_KEY, EMITTER_KEY, setTopLeft, setTopRight, setTransformRtl, setTransform } from '../helpers/common'
+import { getControlPosition, createCoreData } from '../helpers/draggable'
+import { getColsFromBreakpoint } from '../helpers/responsive'
+import { getDocumentDir } from '../helpers/dom'
 
 import interact from 'interactjs'
 

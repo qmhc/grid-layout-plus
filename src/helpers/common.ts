@@ -56,7 +56,7 @@ export function collides(l1: LayoutItem, l2: LayoutItem): boolean {
  * @param minPositions
  * @return Compacted Layout.
  */
-export function compact(layout: Layout, verticalCompact: boolean, minPositions?: any): Layout {
+export function compact(layout: Layout, verticalCompact?: boolean, minPositions?: any): Layout {
   // Statics go in the compareWith array right away so items flow around them.
   const compareWith = getStatics(layout)
   // We go through the items by row and column.
@@ -89,7 +89,7 @@ export function compact(layout: Layout, verticalCompact: boolean, minPositions?:
 /**
  * Compact an item in the layout.
  */
-export function compactItem(compareWith: Layout, l: LayoutItem, verticalCompact: boolean, minPositions?: any): LayoutItem {
+export function compactItem(compareWith: Layout, l: LayoutItem, verticalCompact?: boolean, minPositions?: any): LayoutItem {
   if (verticalCompact) {
     // Move the element up as far as it can go without colliding.
     while (l.y > 0 && !getFirstCollision(compareWith, l)) {
@@ -183,23 +183,23 @@ export function getStatics(layout: Layout): Array<LayoutItem> {
  * Move an element. Responsible for doing cascading movements of other elements.
  *
  * @param        layout Full layout to modify.
- * @param   l      element to move.
+ * @param   layoutItem      element to move.
  * @param       x    X position in grid units.
  * @param       y    Y position in grid units.
  * @param      isUserAction If true, designates that the item we're moving is
  *                                     being dragged/resized by th euser.
  */
-export function moveElement(layout: Layout, l: LayoutItem, x?: number, y?: number, isUserAction = false, preventCollision = false): Layout {
-  if (l.static) return layout
+export function moveElement(layout: Layout, layoutItem: LayoutItem, x?: number, y?: number, isUserAction = false, preventCollision = false): Layout {
+  if (layoutItem.static) return layout
 
-  const oldX = l.x
-  const oldY = l.y
+  const oldX = layoutItem.x
+  const oldY = layoutItem.y
 
-  const movingUp = y && l.y > y
+  const movingUp = y && layoutItem.y > y
   // This is quite a bit faster than extending the object
-  if (typeof x === 'number') l.x = x
-  if (typeof y === 'number') l.y = y
-  l.moved = true
+  if (typeof x === 'number') layoutItem.x = x
+  if (typeof y === 'number') layoutItem.y = y
+  layoutItem.moved = true
 
   // If this collides with anything, move it.
   // When doing this comparison, we have to sort the items we compare with
@@ -207,12 +207,12 @@ export function moveElement(layout: Layout, l: LayoutItem, x?: number, y?: numbe
   // nearest collision.
   let sorted = sortLayoutItemsByRowCol(layout)
   if (movingUp) sorted = sorted.reverse()
-  const collisions = getAllCollisions(sorted, l)
+  const collisions = getAllCollisions(sorted, layoutItem)
 
   if (preventCollision && collisions.length) {
-    l.x = oldX
-    l.y = oldY
-    l.moved = false
+    layoutItem.x = oldX
+    layoutItem.y = oldY
+    layoutItem.moved = false
     return layout
   }
 
@@ -225,13 +225,13 @@ export function moveElement(layout: Layout, l: LayoutItem, x?: number, y?: numbe
     if (collision.moved) continue
 
     // This makes it feel a bit more precise by waiting to swap for just a bit when moving up.
-    if (l.y > collision.y && l.y - collision.y > collision.h / 4) continue
+    if (layoutItem.y > collision.y && layoutItem.y - collision.y > collision.h / 4) continue
 
     // Don't move static items - we have to move *this* element away
     if (collision.static) {
-      layout = moveElementAwayFromCollision(layout, collision, l, isUserAction)
+      layout = moveElementAwayFromCollision(layout, collision, layoutItem, isUserAction)
     } else {
-      layout = moveElementAwayFromCollision(layout, l, collision, isUserAction)
+      layout = moveElementAwayFromCollision(layout, layoutItem, collision, isUserAction)
     }
   }
 

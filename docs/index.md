@@ -1,25 +1,36 @@
 ---
-# https://vitepress.dev/reference/default-theme-home-page
 layout: home
 
 hero:
-  name: "Grip Layout Plus"
-  text: "A VitePress Site"
-  tagline: My great project tagline
+  name: Grid Layout Plus
+  text: A draggable and resizable grid layout for Vue 3.
+  tagline: A grid layout system for Vue 3. Heavily inspired by React-Grid-Layout.
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
+      text: Get Started
+      link: /guide/installation
     - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: View on GitHub
+      link: https://github.com/qmhc/grid-layout-plus
 
 features:
-  - title: Feature A
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature B
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
+  - title: ✥ Draggable widgets
+    details:
+  - title: ⇲ Resizable widgets
+    details:
+  - title: Static widgets
+    details: 
+  - title: Bounds checking for dragging and resizing
+    details: 
+  - title: Widgets can be added or removed without rebuilding grid
+    details: 
+  - title: Layout can be serialized and restored
+    details: 
+  - title: Automatic RTL support
+    details: 
+  - title: Responsive
+    details: 
+  - title: Min/max w/h per item
+    details: 
 ---
 

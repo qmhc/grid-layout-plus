@@ -1,5 +1,4 @@
 let currentDir: 'ltr' | 'rtl' | 'auto' = 'auto'
-// let currentDir = "auto";
 
 function hasDocument() {
   return (typeof document !== 'undefined')

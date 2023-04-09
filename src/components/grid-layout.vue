@@ -1,14 +1,14 @@
 
 <script setup lang="ts">
-import { ref, reactive, toRefs, watch, provide, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, toRefs, watch, provide, onBeforeMount, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import GridItem from './grid-item.vue'
 import { useResize } from '@vexip-ui/hooks'
 import { createEventEmitter, isNull } from '@vexip-ui/utils'
-import { LAYOUT_KEY, EMITTER_KEY, bottom, compact, getLayoutItem, moveElement, validateLayout, cloneLayout, getAllCollisions } from '@/helpers/common'
-import { getBreakpointFromWidth, getColsFromBreakpoint, findOrGenerateResponsiveLayout } from '@/helpers/responsive'
+import { LAYOUT_KEY, EMITTER_KEY, bottom, compact, getLayoutItem, moveElement, validateLayout, cloneLayout, getAllCollisions } from '../helpers/common'
+import { getBreakpointFromWidth, getColsFromBreakpoint, findOrGenerateResponsiveLayout } from '../helpers/responsive'
 
 import type { PropType } from 'vue'
-import type { Layout, Breakpoint, Breakpoints, LayoutInstance } from '@/helpers/types'
+import type { Layout, Breakpoint, Breakpoints, ResponsiveLayout, LayoutInstance } from '../helpers/types'
 
 const props = defineProps({
   autoSize: {
@@ -68,7 +68,7 @@ const props = defineProps({
     default: false
   },
   responsiveLayouts: {
-    type: Object as PropType<Partial<Record<Breakpoint, Layout>>>,
+    type: Object as PropType<Partial<ResponsiveLayout>>,
     default: () => ({})
   },
   transformScale: {
@@ -94,6 +94,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
+  'layout-before-mount',
+  'layout-mounted',
   'layout-updated',
   'breakpoint-changed',
   'update:layout',
@@ -128,7 +130,13 @@ const emitter = createEventEmitter()
 emitter.on('resizeEvent', resizeEventHandler)
 emitter.on('dragEvent', dragEventHandler)
 
+onBeforeMount(() => {
+  emit('layout-before-mount', currentLayout.value)
+})
+
 onMounted(() => {
+  emit('layout-mounted', currentLayout.value)
+
   nextTick(() => {
     validateLayout(currentLayout.value)
 
@@ -141,16 +149,6 @@ onMounted(() => {
       emit('layout-updated', currentLayout.value)
       updateHeight()
       onWindowResize()
-      // nextTick(() => {
-      //   this.erd = elementResizeDetectorMaker({
-      //     strategy: "scroll", //<- For ultra performance.
-      //     // See https://github.com/wnr/element-resize-detector/issues/110 about callOnAdd.
-      //     callOnAdd: false,
-      //   });
-      //   this.erd.listenTo(self.$refs.item, function () {
-      //     self.onWindowResize();
-      //   });
-      // });
     })
   })
 })

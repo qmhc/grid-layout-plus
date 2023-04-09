@@ -68,11 +68,6 @@ function containerResizedEvent(i: string, newH: number, newW: number, newHPx: nu
   console.info(msg)
 }
 
-function layoutCreatedEvent(newLayout: Layout) {
-  eventLogs.push('Created layout')
-  console.info('Created layout: ', newLayout)
-}
-
 function layoutBeforeMountEvent(newLayout: Layout) {
   eventLogs.push('beforeMount layout')
   console.info('beforeMount layout: ', newLayout)
@@ -103,13 +98,7 @@ function layoutUpdatedEvent(newLayout: Layout) {
   <div style="margin-top:10px;">
     <GridLayout
       v-model:layout="layout"
-      :col-num="12"
       :row-height="30"
-      is-draggable
-      is-resizable
-      vertical-compact
-      use-css-transforms
-      @layout-created="layoutCreatedEvent"
       @layout-before-mount="layoutBeforeMountEvent"
       @layout-mounted="layoutMountedEvent"
       @layout-ready="layoutReadyEvent"
@@ -137,11 +126,11 @@ function layoutUpdatedEvent(newLayout: Layout) {
 
 <style scoped>
 .vue-grid-layout {
-  background: #eee;
+  background-color: #eee;
 }
 
 :deep(.vue-grid-item:not(.vue-grid-placeholder)) {
-  background: #ccc;
+  background-color: #ccc;
   border: 1px solid black;
 }
 
@@ -150,7 +139,7 @@ function layoutUpdatedEvent(newLayout: Layout) {
 }
 
 :deep(.vue-grid-item.static) {
-  background: #cce;
+  background-color: #cce;
 }
 
 .text {

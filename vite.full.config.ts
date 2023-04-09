@@ -8,11 +8,6 @@ import autoprefixer from 'autoprefixer'
 export default defineConfig(async () => {
   return {
     publicDir: false,
-    resolve: {
-      alias: [
-        { find: /^@\/(.+)/, replacement: resolve(__dirname, 'src/$1') }
-      ]
-    },
     esbuild: {
       drop: ['debugger'],
       pure: ['console.log']

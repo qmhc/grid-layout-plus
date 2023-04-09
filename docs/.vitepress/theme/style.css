@@ -1,3 +1,6 @@
+/* stylelint-disable no-duplicate-selectors */
+/* stylelint-disable selector-class-pattern */
+
 /**
  * Customize default theme styling by overriding CSS variables:
  * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
@@ -8,13 +11,15 @@
  * -------------------------------------------------------------------------- */
 
  :root {
+  --vp-layout-max-width: 1600px;
+
   --vp-c-brand: #646cff;
   --vp-c-brand-light: #747bff;
   --vp-c-brand-lighter: #9499ff;
   --vp-c-brand-lightest: #bcc0ff;
   --vp-c-brand-dark: #535bf2;
   --vp-c-brand-darker: #454ce1;
-  --vp-c-brand-dimm: rgba(100, 108, 255, 0.08);
+  --vp-c-brand-dimm: rgba(100, 108, 255, 8%);
 }
 
 /**
@@ -39,7 +44,7 @@
 
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(
+  --vp-home-hero-name-background: linear-gradient(
     120deg,
     #bd34fe 30%,
     #41d1ff
@@ -89,3 +94,6 @@
   --docsearch-primary-color: var(--vp-c-brand) !important;
 }
 
+.VPDoc.has-aside .content-container {
+  max-width: 828px !important;
+}

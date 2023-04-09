@@ -36,13 +36,10 @@ const layout = reactive([
   <br />
   <GridLayout
     v-model:layout="layout"
-    :col-num="12"
     :row-height="30"
     :is-draggable="draggable"
     :is-resizable="resizable"
     :is-mirrored="mirrored"
-    vertical-compact
-    use-css-transforms
   >
     <template #item="{ item }">
       <span class="text">{{ item.i }}</span>
@@ -52,11 +49,11 @@ const layout = reactive([
 
 <style scoped>
 .vue-grid-layout {
-  background: #eee;
+  background-color: #eee;
 }
 
 :deep(.vue-grid-item:not(.vue-grid-placeholder)) {
-  background: #ccc;
+  background-color: #ccc;
   border: 1px solid black;
 }
 
@@ -65,7 +62,7 @@ const layout = reactive([
 }
 
 :deep(.vue-grid-item.static) {
-  background: #cce;
+  background-color: #cce;
 }
 
 .text {
