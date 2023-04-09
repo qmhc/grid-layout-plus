@@ -9,6 +9,8 @@ importers:
       '@types/minimist': ^1.2.2
       '@types/node': ^18.15.11
       '@types/prettier': ^2.7.2
+      '@types/prompts': ^2.4.4
+      '@types/semver': ^7.3.13
       '@vexip-ui/commitlint-config': ^0.1.0
       '@vexip-ui/eslint-config': ^0.5.2
       '@vexip-ui/hooks': ^1.8.2
@@ -25,9 +27,11 @@ importers:
       happy-dom: ^8.9.0
       husky: ^8.0.3
       interactjs: ^1.10.17
+      is-ci: ^3.0.1
       kolorist: ^1.7.0
       lint-staged: ^13.2.0
       minimist: ^1.2.8
+      pinst: ^3.0.0
       postcss: ^8.4.21
       prettier: ^2.8.7
       prompts: ^2.4.2
@@ -52,6 +56,8 @@ importers:
       '@types/minimist': 1.2.2
       '@types/node': 18.15.11
       '@types/prettier': 2.7.2
+      '@types/prompts': 2.4.4
+      '@types/semver': 7.3.13
       '@vexip-ui/commitlint-config': 0.1.0
       '@vexip-ui/eslint-config': 0.5.2_ip5up2nocltd47wbnuyybe5dxu
       '@vexip-ui/prettier-config': 0.1.0_prettier@2.8.7
@@ -65,9 +71,11 @@ importers:
       execa: 7.1.1
       happy-dom: 8.9.0
       husky: 8.0.3
+      is-ci: 3.0.1
       kolorist: 1.7.0
       lint-staged: 13.2.0
       minimist: 1.2.8
+      pinst: 3.0.0
       postcss: 8.4.21
       prettier: 2.8.7
       prompts: 2.4.2
@@ -1594,6 +1602,13 @@ packages:
     resolution: {integrity: sha512-KufADq8uQqo1pYKVIYzfKbJfBAc0sOeXqGbFaSpv8MRmC/zXgowNZmFcbngndGk922QDmOASEXUZCaY48gs4cg==}
     dev: true
 
+  /@types/prompts/2.4.4:
+    resolution: {integrity: sha512-p5N9uoTH76lLvSAaYSZtBCdEXzpOOufsRjnhjVSrZGXikVGHX9+cc9ERtHRV4hvBKHyZb1bg4K+56Bd2TqUn4A==}
+    dependencies:
+      '@types/node': 18.15.11
+      kleur: 3.0.3
+    dev: true
+
   /@types/semver/7.3.13:
     resolution: {integrity: sha512-21cFJr9z3g5dW8B0CVI9g2O9beqaThGQ6ZFBqHfwhzLDKUxaqTIy3vnfah/UPkfOiF2pLq+tGz+W8RyCskuslw==}
     dev: true
@@ -2470,6 +2485,11 @@ packages:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.2
+    dev: true
+
+  /ci-info/3.8.0:
+    resolution: {integrity: sha512-eXTggHWSooYhq49F2opQhuHWgzucfF2YgODK4e1566GQs5BIfP30B0oenwBJHfWxAs2fyPB1s7Mg949zLf61Yw==}
+    engines: {node: '>=8'}
     dev: true
 
   /clean-stack/2.2.0:
@@ -4108,6 +4128,13 @@ packages:
     engines: {node: '>= 0.4'}
     dev: true
 
+  /is-ci/3.0.1:
+    resolution: {integrity: sha512-ZYvCgrefwqoQ6yTyYUbQu64HsITZ3NfKX1lzaEYdkTDcfKzzCI/wthRRYKkdjHKFVgNiXKAKm65Zo1pk2as/QQ==}
+    hasBin: true
+    dependencies:
+      ci-info: 3.8.0
+    dev: true
+
   /is-core-module/2.11.0:
     resolution: {integrity: sha512-RRjxlvLDkD1YJwDbroBHMb+cukurkDWNyHx7D3oNB5x9rb5ogcksMC5wHCadcXoo67gVr/+3GFySh3134zi6rw==}
     dependencies:
@@ -5081,6 +5108,12 @@ packages:
   /pify/3.0.0:
     resolution: {integrity: sha512-C3FsVNH1udSEX48gGX1xfvwTWfsYWj5U+8/uK15BGzIGrKoUpghX8hWZwa/OFnakBiiVNmBvemTJR5mcy7iPcg==}
     engines: {node: '>=4'}
+    dev: true
+
+  /pinst/3.0.0:
+    resolution: {integrity: sha512-cengSmBxtCyaJqtRSvJorIIZXMXg+lJ3sIljGmtBGUVonMnMsVJbnzl6jGN1HkOWwxNuJynCJ2hXxxqCQrFDdw==}
+    engines: {node: '>=12.0.0'}
+    hasBin: true
     dev: true
 
   /pkg-types/1.0.2:
