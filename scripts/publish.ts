@@ -15,7 +15,7 @@ const releaseTag = args.tag || args.t
 
 async function main() {
   const pkg = JSON.parse(await readFile(resolve(rootDir, 'package.json'), 'utf-8'))
-  const currentVersion = pkg.version
+  const currentVersion: string = pkg.version
 
   logger.withStartLn(() => logger.infoText('Publishing package...'))
 
@@ -34,6 +34,11 @@ async function main() {
 
   if (releaseTag) {
     publishArgs.push('--tag', releaseTag)
+  } else if (currentVersion.includes('-')) {
+    const [, preversion] = currentVersion.split('-')
+    const tag = preversion && preversion.split('.')[0]
+
+    tag && publishArgs.push('--tag', tag)
   }
 
   try {
