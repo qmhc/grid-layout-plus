@@ -21,6 +21,7 @@
     "prepublishOnly": "pinst --disable",
     "prettier": "prettier --write \"{src,dev-server,docs}/**/*.{ts,js,json,css,pcss,scss,vue,html,md}\"",
     "prettier:scripts": "prettier --write \"scripts/**/*.{ts,js,json}\"",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s --commit-path .",
     "publish:ci": "tsx scripts/publish.ts",
     "release": "tsx scripts/release.ts",
     "test": "vitest run",
