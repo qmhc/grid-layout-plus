@@ -43,7 +43,7 @@ const layout = reactive([
   <input v-model="resizable" type="checkbox" /> Resizable
   <input v-model="responsive" type="checkbox" /> Responsive
   <br />
-  <div style="width:100%; height:100%; margin-top: 10px;">
+  <div style="margin-top: 10px">
     <GridLayout
       v-model:layout="layout"
       :row-height="30"

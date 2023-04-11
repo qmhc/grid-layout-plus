@@ -47,9 +47,16 @@
     "./*": "./*"
   },
   "dependencies": {
+    "@interactjs/actions": "^1.10.17",
+    "@interactjs/auto-scroll": "^1.10.17",
+    "@interactjs/auto-start": "^1.10.17",
+    "@interactjs/core": "^1.10.17",
+    "@interactjs/dev-tools": "^1.10.17",
+    "@interactjs/interact": "^1.10.17",
+    "@interactjs/modifiers": "^1.10.17",
+    "@interactjs/utils": "^1.10.17",
     "@vexip-ui/hooks": "^1.8.2",
-    "@vexip-ui/utils": "^1.10.2",
-    "interactjs": "^1.10.17"
+    "@vexip-ui/utils": "^1.10.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.5.1",

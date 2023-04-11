@@ -1,11 +1,35 @@
 <script setup lang="ts">
-import { ref, reactive, toRef, computed, watch, inject, onBeforeMount, onMounted, onBeforeUnmount } from 'vue'
-import { LAYOUT_KEY, EMITTER_KEY, setTopLeft, setTopRight, setTransformRtl, setTransform } from '../helpers/common'
+import {
+  ref,
+  reactive,
+  toRef,
+  computed,
+  watch,
+  inject,
+  onBeforeMount,
+  onMounted,
+  onBeforeUnmount
+} from 'vue'
+import {
+  LAYOUT_KEY,
+  EMITTER_KEY,
+  setTopLeft,
+  setTopRight,
+  setTransformRtl,
+  setTransform
+} from '../helpers/common'
 import { getControlPosition, createCoreData } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
 import { getDocumentDir } from '../helpers/dom'
 
-import interact from 'interactjs'
+import '@interactjs/auto-start'
+import '@interactjs/auto-scroll'
+import '@interactjs/actions/drag'
+import '@interactjs/actions/resize'
+import '@interactjs/modifiers'
+import '@interactjs/dev-tools'
+
+import interact from '@interactjs/interact'
 
 const props = defineProps({
   isDraggable: {
@@ -86,18 +110,12 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits([
-  'container-resized',
-  'resize',
-  'resized',
-  'move',
-  'moved'
-])
+const emit = defineEmits(['container-resized', 'resize', 'resized', 'move', 'moved'])
 
 const layout = inject(LAYOUT_KEY)!
 const emitter = inject(EMITTER_KEY)!
 
-const interactObj = ref<ReturnType<typeof interact> | null>(null)
+const interactObj = ref<InstanceType<typeof import('@interactjs/types').Interactable> | null>(null)
 
 const state = reactive({
   cols: 1,
@@ -293,89 +311,141 @@ const classObj = computed(() => {
   }
 })
 const resizableHandleClass = computed(() => {
-  return renderRtl.value
-    ? 'vue-resizable-handle vue-rtl-resizable-handle'
-    : 'vue-resizable-handle'
+  return renderRtl.value ? 'vue-resizable-handle vue-rtl-resizable-handle' : 'vue-resizable-handle'
 })
 
-watch(() => props.isDraggable, value => {
-  state.draggable = value
-})
-watch(() => props.static, () => {
-  tryMakeDraggable()
-  tryMakeResizable()
-})
-watch(() => state.draggable, () => {
-  tryMakeDraggable()
-})
-watch(() => props.isResizable, value => {
-  state.resizable = value
-})
-watch(() => props.isBounded, value => {
-  state.bounded = value
-})
-watch(() => state.resizable, () => {
-  tryMakeResizable()
-})
-watch(() => state.rowHeight, () => {
-  createStyle()
-  emitContainerResized()
-})
-watch(() => state.cols, () => {
-  tryMakeResizable()
-  createStyle()
-  emitContainerResized()
-})
-watch(() => state.containerWidth, () => {
-  tryMakeResizable()
-  createStyle()
-  emitContainerResized()
-})
-watch(() => props.x, (value) => {
-  state.innerX = value
-  createStyle()
-})
-watch(() => props.y, (value) => {
-  state.innerY = value
-  createStyle()
-})
-watch(() => props.h, (value) => {
-  state.innerH = value
-  createStyle()
-})
-watch(() => props.w, (value) => {
-  state.innerW = value
-  createStyle()
-})
+watch(
+  () => props.isDraggable,
+  value => {
+    state.draggable = value
+  }
+)
+watch(
+  () => props.static,
+  () => {
+    tryMakeDraggable()
+    tryMakeResizable()
+  }
+)
+watch(
+  () => state.draggable,
+  () => {
+    tryMakeDraggable()
+  }
+)
+watch(
+  () => props.isResizable,
+  value => {
+    state.resizable = value
+  }
+)
+watch(
+  () => props.isBounded,
+  value => {
+    state.bounded = value
+  }
+)
+watch(
+  () => state.resizable,
+  () => {
+    tryMakeResizable()
+  }
+)
+watch(
+  () => state.rowHeight,
+  () => {
+    createStyle()
+    emitContainerResized()
+  }
+)
+watch(
+  () => state.cols,
+  () => {
+    tryMakeResizable()
+    createStyle()
+    emitContainerResized()
+  }
+)
+watch(
+  () => state.containerWidth,
+  () => {
+    tryMakeResizable()
+    createStyle()
+    emitContainerResized()
+  }
+)
+watch(
+  () => props.x,
+  value => {
+    state.innerX = value
+    createStyle()
+  }
+)
+watch(
+  () => props.y,
+  value => {
+    state.innerY = value
+    createStyle()
+  }
+)
+watch(
+  () => props.h,
+  value => {
+    state.innerH = value
+    createStyle()
+  }
+)
+watch(
+  () => props.w,
+  value => {
+    state.innerW = value
+    createStyle()
+  }
+)
 watch(renderRtl, () => {
   tryMakeResizable()
   createStyle()
 })
-watch(() => props.minH, () => {
-  tryMakeResizable()
-})
-watch(() => props.maxH, () => {
-  tryMakeResizable()
-})
-watch(() => props.minW, () => {
-  tryMakeResizable()
-})
-watch(() => props.maxW, () => {
-  tryMakeResizable()
-})
-watch(() => layout.margin, value => {
-  if (!value || (value[0] === state.margin[0] && value[1] === state.margin[1])) {
-    return
+watch(
+  () => props.minH,
+  () => {
+    tryMakeResizable()
   }
-  state.margin = value.map(m => Number(m))
-  createStyle()
-  emitContainerResized()
-})
+)
+watch(
+  () => props.maxH,
+  () => {
+    tryMakeResizable()
+  }
+)
+watch(
+  () => props.minW,
+  () => {
+    tryMakeResizable()
+  }
+)
+watch(
+  () => props.maxW,
+  () => {
+    tryMakeResizable()
+  }
+)
+watch(
+  () => layout.margin,
+  value => {
+    if (!value || (value[0] === state.margin[0] && value[1] === state.margin[1])) {
+      return
+    }
+    state.margin = value.map(m => Number(m))
+    createStyle()
+    emitContainerResized()
+  }
+)
 
 function createStyle() {
   if (props.x + props.w > state.cols) {
     state.innerX = 0
-    state.innerW = (props.w > state.cols) ? state.cols : props.w
+    state.innerW = props.w > state.cols ? state.cols : props.w
   } else {
     state.innerX = props.x
     state.innerW = props.w
@@ -406,7 +476,8 @@ function createStyle() {
     } else {
       style = setTransform(pos.top, pos.left!, pos.width, pos.height)
     }
-  } else { // top,left (slow)
+  } else {
+    // top,left (slow)
     //                    Add rtl support
     if (renderRtl.value) {
       style = setTopRight(pos.top, pos.right!, pos.width, pos.height)
@@ -424,7 +495,9 @@ function emitContainerResized() {
   for (const prop of ['width', 'height']) {
     const val = state.style[prop]
     const matches = val.match(/^(\d+)px$/)
-    if (!matches) { return }
+    if (!matches) {
+      return
+    }
     styleProps[prop] = matches[1]
   }
   emit('container-resized', props.i, props.h, props.w, styleProps.height, styleProps.width)
@@ -505,7 +578,10 @@ function handleResize(event: MouseEvent) {
   if (state.innerW !== pos.w || state.innerH !== pos.h) {
     emit('resize', props.i, pos.h, pos.w, newSize.height, newSize.width)
   }
-  if (event.type === 'resizeend' && (state.previousW !== state.innerW || state.previousH !== state.innerH)) {
+  if (
+    event.type === 'resizeend' &&
+    (state.previousW !== state.innerW || state.previousH !== state.innerH)
+  ) {
     emit('resized', props.i, pos.h, pos.w, newSize.height, newSize.width)
   }
   emitter.emit('resizeEvent', event.type, props.i, state.innerX, state.innerY, pos.h, pos.w)
@@ -586,10 +662,13 @@ function handleDrag(event: MouseEvent) {
       }
       newPosition.top = state.dragging.top + coreEvent.deltaY / state.transformScale
       if (state.bounded) {
-        const bottomBoundary = target.offsetParent.clientHeight - calcGridItemWHPx(props.h, state.rowHeight, state.margin[1])
+        const bottomBoundary =
+          target.offsetParent.clientHeight -
+          calcGridItemWHPx(props.h, state.rowHeight, state.margin[1])
         newPosition.top = clamp(newPosition.top, 0, bottomBoundary)
         const colWidth = calcColWidth()
-        const rightBoundary = state.containerWidth - calcGridItemWHPx(props.w, colWidth, state.margin[0])
+        const rightBoundary =
+          state.containerWidth - calcGridItemWHPx(props.w, colWidth, state.margin[0])
         newPosition.left = clamp(newPosition.left, 0, rightBoundary)
       }
       //                        console.log("### drag => " + event.type + ", x=" + x + ", y=" + y);
@@ -614,7 +693,10 @@ function handleDrag(event: MouseEvent) {
   if (state.innerX !== pos.x || state.innerY !== pos.y) {
     emit('move', props.i, pos.x, pos.y)
   }
-  if (event.type === 'dragend' && (state.previousX !== state.innerX || state.previousY !== state.innerY)) {
+  if (
+    event.type === 'dragend' &&
+    (state.previousX !== state.innerX || state.previousY !== state.innerY)
+  ) {
     emit('moved', props.i, pos.x, pos.y)
   }
   emitter.emit('dragEvent', event.type, props.i, pos.x, pos.y, state.innerH, state.innerW)
@@ -632,7 +714,8 @@ function calcPosition(x: number, y: number, w: number, h: number) {
       // Fix this if it occurs.
       // Note we do it here rather than later because Math.round(Infinity) causes deopt
       width: w === Infinity ? w : Math.round(colWidth * w + Math.max(0, w - 1) * state.margin[0]),
-      height: h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1])
+      height:
+        h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1])
     }
   } else {
     out = {
@@ -642,7 +725,8 @@ function calcPosition(x: number, y: number, w: number, h: number) {
       // Fix this if it occurs.
       // Note we do it here rather than later because Math.round(Infinity) causes deopt
       width: w === Infinity ? w : Math.round(colWidth * w + Math.max(0, w - 1) * state.margin[0]),
-      height: h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1])
+      height:
+        h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1])
     }
   }
 
@@ -677,7 +761,7 @@ function calcXY(top: number, left: number) {
 }
 
 function calcColWidth() {
-  const colWidth = (state.containerWidth - (state.margin[0] * (state.cols + 1))) / state.cols
+  const colWidth = (state.containerWidth - state.margin[0] * (state.cols + 1)) / state.cols
   // console.log("### COLS=" + this.cols + " COL WIDTH=" + colWidth + " MARGIN " + this.margin[0]);
   return colWidth
 }
@@ -685,9 +769,7 @@ function calcColWidth() {
 function calcGridItemWHPx(gridUnits: number, colOrRowSize: number, marginPx: number) {
   // 0 * Infinity === NaN, which causes problems with resize contraints
   if (!Number.isFinite(gridUnits)) return gridUnits
-  return Math.round(
-    colOrRowSize * gridUnits + Math.max(0, gridUnits - 1) * marginPx
-  )
+  return Math.round(colOrRowSize * gridUnits + Math.max(0, gridUnits - 1) * marginPx)
 }
 
 function clamp(num: number, lowerBound: number, upperBound: number) {
@@ -756,7 +838,7 @@ function tryMakeDraggable() {
     /* interactObj.value.draggable({allowFrom: '.vue-draggable-handle'}); */
     if (!state.dragEventSet) {
       state.dragEventSet = true
-      interactObj.value.on('dragstart dragmove dragend', (event) => {
+      interactObj.value.on('dragstart dragmove dragend', event => {
         handleDrag(event)
       })
     }
@@ -812,10 +894,9 @@ function tryMakeResizable() {
     interactObj.value.resizable(opts)
     if (!state.resizeEventSet) {
       state.resizeEventSet = true
-      interactObj.value
-        .on('resizestart resizemove resizeend', (event) => {
-          handleResize(event)
-        })
+      interactObj.value.on('resizestart resizemove resizeend', event => {
+        handleResize(event)
+      })
     }
   } else {
     interactObj.value.resizable({
