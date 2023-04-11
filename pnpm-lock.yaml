@@ -39,6 +39,7 @@ importers:
       execa: ^7.1.1
       happy-dom: ^8.9.0
       husky: ^8.0.3
+      interactjs: ^1.10.17
       is-ci: ^3.0.1
       kolorist: ^1.7.0
       lint-staged: ^13.2.0
@@ -69,6 +70,7 @@ importers:
       '@interactjs/utils': 1.10.17
       '@vexip-ui/hooks': 1.8.2_vue@3.2.47
       '@vexip-ui/utils': 1.10.2
+      interactjs: 1.10.17
     devDependencies:
       '@commitlint/cli': 17.5.1
       '@interactjs/types': 1.10.17
@@ -4172,6 +4174,12 @@ packages:
   /ini/1.3.8:
     resolution: {integrity: sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew==}
     dev: true
+
+  /interactjs/1.10.17:
+    resolution: {integrity: sha512-grjHJgnWkCoQLmAlk2yalNd1r0ztUhXLJNVjSOfWn1wfNNgU2tx1cDEkro9WYerDNC9UG3MZTeD4O6zOM5gbIA==}
+    dependencies:
+      '@interactjs/types': 1.10.17
+    dev: false
 
   /internal-slot/1.0.5:
     resolution: {integrity: sha512-Y+R5hJrzs52QCG2laLn4udYVnxsfny9CpOhNhUvk/SSSVyF6T27FzRbF0sroPidSu3X8oEAkOn2K804mjpt6UQ==}

@@ -1,5 +1,6 @@
 {
   "name": "grid-layout-plus-docs",
+  "type": "module",
   "scripts": {
     "build": "vitepress build",
     "preview": "vitepress preview",

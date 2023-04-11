@@ -22,14 +22,7 @@ import { getControlPosition, createCoreData } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
 import { getDocumentDir } from '../helpers/dom'
 
-import '@interactjs/auto-start'
-import '@interactjs/auto-scroll'
-import '@interactjs/actions/drag'
-import '@interactjs/actions/resize'
-import '@interactjs/modifiers'
-import '@interactjs/dev-tools'
-
-import interact from '@interactjs/interact'
+import interact from 'interactjs'
 
 const props = defineProps({
   isDraggable: {
