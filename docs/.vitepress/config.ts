@@ -1,18 +1,27 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'vitepress'
+import autoprefixer from 'autoprefixer'
 
 export default defineConfig({
   vite: {
-    logLevel: 'error',
+    logLevel: process.env.NODE_ENV === 'production' ? 'error' : undefined,
     resolve: {
       alias: {
         'grid-layout-plus': resolve(__dirname, '../../src')
       }
+    },
+    css: {
+      postcss: {
+        plugins: [autoprefixer]
+      }
+    },
+    server: {
+      fs: {
+        allow: ['..']
+      }
     }
   },
-  head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/grid-layout-plus.svg' }]
-  ],
+  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/grid-layout-plus.svg' }]],
   title: 'Grid Layout Plus',
   lastUpdated: true,
   themeConfig: {
@@ -63,9 +72,7 @@ export default defineConfig({
           pattern: 'https://github.com/qmhc/grid-layout-plus/edit/main/docs/en/:path',
           text: 'Edit this page on GitHub'
         },
-        socialLinks: [
-          { icon: 'github', link: 'https://github.com/qmhc/grid-layout-plus' }
-        ],
+        socialLinks: [{ icon: 'github', link: 'https://github.com/qmhc/grid-layout-plus' }],
         footer: {
           message: 'Released under the MIT License.',
           copyright: 'Copyright © 2023-present qmhc'
@@ -115,9 +122,7 @@ export default defineConfig({
           pattern: 'https://github.com/qmhc/grid-layout-plus/edit/main/docs/:path',
           text: '在 GitHub 上编辑此页'
         },
-        socialLinks: [
-          { icon: 'github', link: 'https://github.com/qmhc/grid-layout-plus' }
-        ],
+        socialLinks: [{ icon: 'github', link: 'https://github.com/qmhc/grid-layout-plus' }],
         docFooter: {
           prev: '上一页',
           next: '下一页'

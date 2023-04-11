@@ -20,7 +20,10 @@ export default defineConfig({
       reporter: ['text'],
       extension: ['ts', 'tsx', 'vue']
     },
-    testTimeout: 10000
+    testTimeout: 10000,
+    deps: {
+      inline: [/@interactjs\//]
+    }
   },
   plugins: [vue(), vueJsx()]
 })
