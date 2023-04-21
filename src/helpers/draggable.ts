@@ -6,7 +6,10 @@ export function getControlPosition(e: MouseEvent) {
 // Get from offsetParent
 export function offsetXYFromParentOf(evt: MouseEvent) {
   const offsetParent = (evt.target as HTMLElement)?.offsetParent || document.body
-  const offsetParentRect = (evt as any).offsetParent === document.body ? { left: 0, top: 0 } : offsetParent.getBoundingClientRect()
+  const offsetParentRect =
+    (evt as any).offsetParent === document.body
+      ? { left: 0, top: 0 }
+      : offsetParent.getBoundingClientRect()
 
   const x = evt.clientX + offsetParent.scrollLeft - offsetParentRect.left
   const y = evt.clientY + offsetParent.scrollTop - offsetParentRect.top
@@ -46,5 +49,5 @@ export function createCoreData(lastX: number, lastY: number, x: number, y: numbe
 }
 
 function isNum(num: unknown): num is number {
-  return typeof num === 'number' && !isNaN(num)
+  return typeof num === 'number' && !Number.isNaN(num)
 }

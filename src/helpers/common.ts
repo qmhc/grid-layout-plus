@@ -12,7 +12,8 @@ export const EMITTER_KEY = Symbol('EMITTER_KEY') as InjectionKey<EventEmitter>
  * @return Bottom coordinate.
  */
 export function bottom(layout: Layout): number {
-  let max = 0; let bottomY
+  let max = 0
+  let bottomY
   for (let i = 0, len = layout.length; i < len; i++) {
     bottomY = layout[i].y + layout[i].h
     if (bottomY > max) max = bottomY
@@ -30,7 +31,8 @@ export function cloneLayout(layout: Layout): Layout {
 
 // Fast path to cloning, since this is monomorphic
 export function cloneLayoutItem(layoutItem: LayoutItem): LayoutItem {
-  return JSON.parse(JSON.stringify(layoutItem))
+  // return JSON.parse(JSON.stringify(layoutItem))
+  return { ...layoutItem }
 }
 
 /**
@@ -89,7 +91,12 @@ export function compact(layout: Layout, verticalCompact?: boolean, minPositions?
 /**
  * Compact an item in the layout.
  */
-export function compactItem(compareWith: Layout, l: LayoutItem, verticalCompact?: boolean, minPositions?: any): LayoutItem {
+export function compactItem(
+  compareWith: Layout,
+  l: LayoutItem,
+  verticalCompact?: boolean,
+  minPositions?: any
+): LayoutItem {
   if (verticalCompact) {
     // Move the element up as far as it can go without colliding.
     while (l.y > 0 && !getFirstCollision(compareWith, l)) {
@@ -167,7 +174,7 @@ export function getFirstCollision(layout: Layout, layoutItem: LayoutItem): Layou
 }
 
 export function getAllCollisions(layout: Layout, layoutItem: LayoutItem): Array<LayoutItem> {
-  return layout.filter((l) => collides(l, layoutItem))
+  return layout.filter(l => collides(l, layoutItem))
 }
 
 /**
@@ -176,7 +183,7 @@ export function getAllCollisions(layout: Layout, layoutItem: LayoutItem): Array<
  * @return         Array of static layout items..
  */
 export function getStatics(layout: Layout): Array<LayoutItem> {
-  return layout.filter((l) => l.static)
+  return layout.filter(l => l.static)
 }
 
 /**
@@ -189,7 +196,14 @@ export function getStatics(layout: Layout): Array<LayoutItem> {
  * @param      isUserAction If true, designates that the item we're moving is
  *                                     being dragged/resized by th euser.
  */
-export function moveElement(layout: Layout, layoutItem: LayoutItem, x?: number, y?: number, isUserAction = false, preventCollision = false): Layout {
+export function moveElement(
+  layout: Layout,
+  layoutItem: LayoutItem,
+  x?: number,
+  y?: number,
+  isUserAction = false,
+  preventCollision = false
+): Layout {
   if (layoutItem.static) return layout
 
   const oldX = layoutItem.x
@@ -248,8 +262,12 @@ export function moveElement(layout: Layout, layoutItem: LayoutItem, x?: number, 
  * @param  isUserAction  If true, designates that the item we're moving is being dragged/resized
  *                                   by the user.
  */
-export function moveElementAwayFromCollision(layout: Layout, collidesWith: LayoutItem,
-  itemToMove: LayoutItem, isUserAction?: boolean): Layout {
+export function moveElementAwayFromCollision(
+  layout: Layout,
+  collidesWith: LayoutItem,
+  itemToMove: LayoutItem,
+  isUserAction?: boolean
+): Layout {
   const preventCollision = false // we're already colliding
   // If there is enough space above the collision to put this element, move it there.
   // We only do this on the main collision as this can get funky in cascades and cause
@@ -386,7 +404,9 @@ export function validateLayout(layout: Layout, contextName?: string): void {
     const item = layout[i]
     for (let j = 0; j < subProps.length; j++) {
       if (typeof (item as any)[subProps[j]] !== 'number') {
-        throw new Error('VueGridLayout: ' + contextName + '[' + i + '].' + subProps[j] + ' must be a number!')
+        throw new Error(
+          'VueGridLayout: ' + contextName + '[' + i + '].' + subProps[j] + ' must be a number!'
+        )
       }
     }
 
@@ -410,8 +430,11 @@ export function validateLayout(layout: Layout, contextName?: string): void {
 }
 
 // Flow can't really figure this out, so we just use Object
-export function autoBindHandlers(el: Record<string, (...args: any[]) => any>, fns: Array<string>): void {
-  fns.forEach((key) => el[key] = el[key].bind(el))
+export function autoBindHandlers(
+  el: Record<string, (...args: any[]) => any>,
+  fns: Array<string>
+): void {
+  fns.forEach(key => (el[key] = el[key].bind(el)))
 }
 
 /**
@@ -422,7 +445,8 @@ export function autoBindHandlers(el: Record<string, (...args: any[]) => any>, fn
 export function createMarkup(obj: Record<string, any>) {
   const keys = Object.keys(obj)
   if (!keys.length) return ''
-  let i; const len = keys.length
+  let i
+  const len = keys.length
   let result = ''
 
   for (i = 0; i < len; i++) {
@@ -496,7 +520,9 @@ export function hyphenate(str: string) {
 
 export function findItemInArray(array: any[], property: string, value: any) {
   for (let i = 0; i < array.length; i++) {
-    if (array[i][property] === value) { return true }
+    if (array[i][property] === value) {
+      return true
+    }
   }
 
   return false

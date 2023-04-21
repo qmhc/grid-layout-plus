@@ -1,14 +1,43 @@
-
 <script setup lang="ts">
-import { ref, reactive, toRefs, watch, provide, onBeforeMount, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import {
+  ref,
+  reactive,
+  toRefs,
+  watch,
+  provide,
+  onBeforeMount,
+  onMounted,
+  onBeforeUnmount,
+  nextTick
+} from 'vue'
 import GridItem from './grid-item.vue'
 import { useResize } from '@vexip-ui/hooks'
 import { createEventEmitter, isNull } from '@vexip-ui/utils'
-import { LAYOUT_KEY, EMITTER_KEY, bottom, compact, getLayoutItem, moveElement, validateLayout, cloneLayout, getAllCollisions } from '../helpers/common'
-import { getBreakpointFromWidth, getColsFromBreakpoint, findOrGenerateResponsiveLayout } from '../helpers/responsive'
+import {
+  LAYOUT_KEY,
+  EMITTER_KEY,
+  bottom,
+  compact,
+  getLayoutItem,
+  moveElement,
+  validateLayout,
+  cloneLayout,
+  getAllCollisions
+} from '../helpers/common'
+import {
+  getBreakpointFromWidth,
+  getColsFromBreakpoint,
+  findOrGenerateResponsiveLayout
+} from '../helpers/responsive'
 
 import type { PropType } from 'vue'
-import type { Layout, Breakpoint, Breakpoints, ResponsiveLayout, LayoutInstance } from '../helpers/types'
+import type {
+  Layout,
+  Breakpoint,
+  Breakpoints,
+  ResponsiveLayout,
+  LayoutInstance
+} from '../helpers/types'
 
 const props = defineProps({
   autoSize: {
@@ -158,19 +187,35 @@ onBeforeUnmount(() => {
   wrapper.value && unobserveResize(wrapper.value)
 })
 
-function resizeEventHandler(eventType: string, i: number | string, x: number, y: number, h: number, w: number) {
+function resizeEventHandler(
+  eventType: string,
+  i: number | string,
+  x: number,
+  y: number,
+  h: number,
+  w: number
+) {
   resizeEvent(eventType, i, x, y, h, w)
 }
 
-function dragEventHandler(eventType: string, i: number | string, x: number, y: number, h: number, w: number) {
+function dragEventHandler(
+  eventType: string,
+  i: number | string,
+  x: number,
+  y: number,
+  h: number,
+  w: number
+) {
   dragEvent(eventType, i, x, y, h, w)
 }
 
-watch(() => state.width, (newval, oldval) => {
-  nextTick(() => {
-    emitter.emit('updateWidth', newval)
-    if (oldval === null) {
-      /*
+watch(
+  () => state.width,
+  (newval, oldval) => {
+    nextTick(() => {
+      emitter.emit('updateWidth', newval)
+      if (oldval === null) {
+        /*
         If oldval == null is when the width has never been
         set before. That only occurs when mouting is
         finished, and onWindowResize has been called and
@@ -190,53 +235,84 @@ watch(() => state.width, (newval, oldval) => {
         This way any client event handlers can reliably
         invistigate stable sizes of GridItem-s.
       */
-      nextTick(() => {
-        emit('layout-ready', currentLayout.value)
-      })
-    }
-    updateHeight()
-  })
-})
-watch(() => [props.layout, props.layout.length], () => {
-  currentLayout.value = props.layout
-  layoutUpdate()
-})
-watch(() => props.colNum, (val) => {
-  emitter.emit('setColNum', val)
-})
-watch(() => props.rowHeight, (value) => {
-  emitter.emit('setRowHeight', value)
-})
-watch(() => props.isDraggable, value => {
-  emitter.emit('setDraggable', value)
-})
-watch(() => props.isResizable, value => {
-  emitter.emit('setResizable', value)
-})
-watch(() => props.isBounded, value => {
-  emitter.emit('setBounded', value)
-})
-watch(() => props.transformScale, value => {
-  emitter.emit('setTransformScale', value)
-})
-watch(() => props.responsive, value => {
-  if (!value) {
-    emit('update:layout', state.originalLayout)
-    emitter.emit('setColNum', props.colNum)
+        nextTick(() => {
+          emit('layout-ready', currentLayout.value)
+        })
+      }
+      updateHeight()
+    })
   }
-  onWindowResize()
-})
-watch(() => props.maxRows, value => {
-  emitter.emit('setMaxRows', value)
-})
+)
+watch(
+  () => [props.layout, props.layout.length],
+  () => {
+    currentLayout.value = props.layout
+    layoutUpdate()
+  }
+)
+watch(
+  () => props.colNum,
+  val => {
+    emitter.emit('setColNum', val)
+  }
+)
+watch(
+  () => props.rowHeight,
+  value => {
+    emitter.emit('setRowHeight', value)
+  }
+)
+watch(
+  () => props.isDraggable,
+  value => {
+    emitter.emit('setDraggable', value)
+  }
+)
+watch(
+  () => props.isResizable,
+  value => {
+    emitter.emit('setResizable', value)
+  }
+)
+watch(
+  () => props.isBounded,
+  value => {
+    emitter.emit('setBounded', value)
+  }
+)
+watch(
+  () => props.transformScale,
+  value => {
+    emitter.emit('setTransformScale', value)
+  }
+)
+watch(
+  () => props.responsive,
+  value => {
+    if (!value) {
+      emit('update:layout', state.originalLayout)
+      emitter.emit('setColNum', props.colNum)
+    }
+    onWindowResize()
+  }
+)
+watch(
+  () => props.maxRows,
+  value => {
+    emitter.emit('setMaxRows', value)
+  }
+)
 watch(() => props.margin, updateHeight)
 
-provide(LAYOUT_KEY, reactive({
-  ...toRefs(props),
-  ...toRefs(state),
-  increaseItem,
-  decreaseItem
-}) as LayoutInstance)
+provide(
+  LAYOUT_KEY,
+  reactive({
+    ...toRefs(props),
+    ...toRefs(state),
+    increaseItem,
+    decreaseItem
+  }) as LayoutInstance
+)
 provide(EMITTER_KEY, emitter)
 
 defineExpose({ state, getItem, dragEvent })
@@ -254,19 +330,16 @@ function getItem(id: number | string) {
 }
 
 function layoutUpdate() {
-  if (currentLayout.value !== undefined && state.originalLayout !== null) {
+  if (!isNull(currentLayout.value) && !isNull(state.originalLayout)) {
     if (currentLayout.value.length !== state.originalLayout.length) {
       const diff = findDifference(currentLayout.value, state.originalLayout)
+
       if (diff.length > 0) {
-        // console.log(diff);
         if (currentLayout.value.length > state.originalLayout.length) {
           state.originalLayout = state.originalLayout.concat(diff)
         } else {
-          state.originalLayout = state.originalLayout.filter(obj => {
-            return !diff.some(obj2 => {
-              return obj.i === obj2.i
-            })
-          })
+          const ids = new Set(diff.map(item => item.i))
+          state.originalLayout = state.originalLayout.filter(item => !ids.has(item.i))
         }
       }
 
@@ -299,25 +372,36 @@ function onWindowResize() {
 function containerHeight() {
   if (!props.autoSize) return
 
-  const containerHeight = bottom(currentLayout.value) * (props.rowHeight + props.margin[1]) + props.margin[1] + 'px'
+  const containerHeight =
+    bottom(currentLayout.value) * (props.rowHeight + props.margin[1]) + props.margin[1] + 'px'
   return containerHeight
 }
 
 let positionsBeforeDrag: Record<string, { x: number, y: number }> | undefined
 
-function dragEvent(eventName: string, id: number | string, x: number, y: number, h: number, w: number) {
+function dragEvent(
+  eventName: string,
+  id: number | string,
+  x: number,
+  y: number,
+  h: number,
+  w: number
+) {
   let l = getLayoutItem(currentLayout.value, id)!
 
   // GetLayoutItem sometimes returns null object
-  if (l === undefined || l === null) {
+  if (isNull(l)) {
     l = { h: 0, w: 0, x: 0, y: 0, i: '' }
   }
 
   if (eventName === 'dragstart' && !props.verticalCompact) {
-    positionsBeforeDrag = currentLayout.value.reduce((result, { i, x, y }) => ({
-      ...result,
-      [i]: { x, y }
-    }), {})
+    positionsBeforeDrag = currentLayout.value.reduce(
+      (result, { i, x, y }) => ({
+        ...result,
+        [i]: { x, y }
+      }),
+      {}
+    )
   }
 
   if (eventName === 'dragmove' || eventName === 'dragstart') {
@@ -326,10 +410,11 @@ function dragEvent(eventName: string, id: number | string, x: number, y: number,
     state.placeholder.y = l.y
     state.placeholder.w = w
     state.placeholder.h = h
+
     nextTick(() => {
       state.isDragging = true
     })
-    // this.$broadcast("updateWidth", this.width);
+
     emitter.emit('updateWidth', state.width)
   } else {
     nextTick(() => {
@@ -359,7 +444,14 @@ function dragEvent(eventName: string, id: number | string, x: number, y: number,
   }
 }
 
-function resizeEvent(eventName: string, id: number | string, x: number, y: number, h: number, w: number) {
+function resizeEvent(
+  eventName: string,
+  id: number | string,
+  x: number,
+  y: number,
+  h: number,
+  w: number
+) {
   let l = getLayoutItem(currentLayout.value, id)!
   // GetLayoutItem sometimes return null object
   if (isNull(l)) {
@@ -425,7 +517,7 @@ function responsiveGridLayout() {
   const newCols = getColsFromBreakpoint(newBreakpoint, props.cols)
 
   // save actual layout in layouts
-  if (state.lastBreakpoint != null && !state.layouts[state.lastBreakpoint]) {
+  if (!isNull(state.lastBreakpoint) && !state.layouts[state.lastBreakpoint]) {
     state.layouts[state.lastBreakpoint] = cloneLayout(currentLayout.value)
   }
 
@@ -460,19 +552,14 @@ function initResponsiveFeatures() {
 }
 
 function findDifference(layout: Layout, originalLayout: Layout) {
+  const originalIds = new Set(originalLayout.map(item => item.i))
+  const ids = new Set(layout.map(item => item.i))
+
   // Find values that are in result1 but not in result2
-  const uniqueResultOne = layout.filter((obj) => {
-    return !originalLayout.some((obj2) => {
-      return obj.i === obj2.i
-    })
-  })
+  const uniqueResultOne = layout.filter(item => !originalIds.has(item.i))
 
   // Find values that are in result2 but not in result1
-  const uniqueResultTwo = originalLayout.filter((obj) => {
-    return !layout.some((obj2) => {
-      return obj.i === obj2.i
-    })
-  })
+  const uniqueResultTwo = originalLayout.filter(item => !ids.has(item.i))
 
   // Combine the two arrays of unique entries#
   return uniqueResultOne.concat(uniqueResultTwo)
@@ -483,11 +570,7 @@ function findDifference(layout: Layout, originalLayout: Layout) {
   <div ref="wrapper" class="vue-grid-layout" :style="state.mergedStyle">
     <slot v-if="$slots.default"></slot>
     <template v-else>
-      <GridItem
-        v-for="item in currentLayout"
-        :key="item.i"
-        v-bind="item"
-      >
+      <GridItem v-for="item in currentLayout" :key="item.i" v-bind="item">
         <slot name="item" :item="item"></slot>
       </GridItem>
     </template>

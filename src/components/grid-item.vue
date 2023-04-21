@@ -5,11 +5,13 @@ import {
   toRef,
   computed,
   watch,
+  watchEffect,
   inject,
   onBeforeMount,
   onMounted,
   onBeforeUnmount
 } from 'vue'
+import { isNull, nextTickOnce } from '@vexip-ui/utils'
 import {
   LAYOUT_KEY,
   EMITTER_KEY,
@@ -124,34 +126,37 @@ const state = reactive({
   useStyleCursor: true,
 
   isDragging: false,
-  dragging: {
-    top: -1,
-    left: -1
-  },
   isResizing: false,
-  resizing: {
-    width: -1,
-    height: -1
-  },
-  lastX: NaN,
-  lastY: NaN,
-  lastW: NaN,
-  lastH: NaN,
   style: {} as Record<string, string>,
   rtl: false,
 
   dragEventSet: false,
-  resizeEventSet: false,
-
-  previousW: -1,
-  previousH: -1,
-  previousX: -1,
-  previousY: -1,
-  innerX: props.x,
-  innerY: props.y,
-  innerW: props.w,
-  innerH: props.h
+  resizeEventSet: false
 })
+
+let lastX = NaN
+let lastY = NaN
+let lastW = NaN
+let lastH = NaN
+
+let previousW = -1
+let previousH = -1
+let previousX = -1
+let previousY = -1
+
+let innerX = props.x
+let innerY = props.y
+let innerW = props.w
+let innerH = props.h
+
+let dragging = {
+  top: -1,
+  left: -1
+}
+let resizing = {
+  width: -1,
+  height: -1
+}
 
 const wrapper = ref<HTMLElement>()
 
@@ -171,19 +176,19 @@ function compactHandler() {
 }
 
 function setDraggableHandler(isDraggable: boolean) {
-  if (props.isDraggable === null) {
+  if (isNull(props.isDraggable)) {
     state.draggable = isDraggable
   }
 }
 
 function setResizableHandler(isResizable: boolean) {
-  if (props.isResizable === null) {
+  if (isNull(props.isResizable)) {
     state.resizable = isResizable
   }
 }
 
 function setBoundedHandler(isBounded: boolean) {
-  if (props.isBounded === null) {
+  if (isNull(props.isBounded)) {
     state.bounded = isBounded
   }
 }
@@ -237,17 +242,17 @@ onMounted(() => {
   state.margin = layout.margin !== undefined ? layout.margin : [10, 10]
   state.maxRows = layout.maxRows
 
-  if (props.isDraggable === null) {
+  if (isNull(props.isDraggable)) {
     state.draggable = layout.isDraggable
   } else {
     state.draggable = props.isDraggable
   }
-  if (props.isResizable === null) {
+  if (isNull(props.isResizable)) {
     state.resizable = layout.isResizable
   } else {
     state.resizable = props.isResizable
   }
-  if (props.isBounded === null) {
+  if (isNull(props.isBounded)) {
     state.bounded = layout.isBounded
   } else {
     state.bounded = props.isBounded
@@ -255,7 +260,15 @@ onMounted(() => {
   state.transformScale = layout.transformScale
   state.useCssTransforms = layout.useCssTransforms
   state.useStyleCursor = layout.useStyleCursor
-  createStyle()
+
+  watchEffect(() => {
+    innerX = props.x
+    innerY = props.y
+    innerH = props.h
+    innerW = props.w
+    nextTickOnce(createStyle)
+  })
+  // createStyle()
 })
 
 defineExpose({ state, wrapper })
@@ -282,12 +295,8 @@ onBeforeUnmount(() => {
 
 const isAndroid = navigator.userAgent.toLowerCase().includes('android')
 
-const resizableAndNotStatic = computed(() => {
-  return state.resizable && !props.static
-})
-const renderRtl = computed(() => {
-  return layout.isMirrored ? !state.rtl : state.rtl
-})
+const resizableAndNotStatic = computed(() => state.resizable && !props.static)
+const renderRtl = computed(() => (layout.isMirrored ? !state.rtl : state.rtl))
 const draggableOrResizableAndNotStatic = computed(() => {
   return (state.draggable || state.resizable) && !props.static
 })
@@ -316,14 +325,14 @@ watch(
 watch(
   () => props.static,
   () => {
-    tryMakeDraggable()
-    tryMakeResizable()
+    nextTickOnce(tryMakeDraggable)
+    nextTickOnce(tryMakeResizable)
   }
 )
 watch(
   () => state.draggable,
   () => {
-    tryMakeDraggable()
+    nextTickOnce(tryMakeDraggable)
   }
 )
 watch(
@@ -341,123 +350,74 @@ watch(
 watch(
   () => state.resizable,
   () => {
-    tryMakeResizable()
+    nextTickOnce(tryMakeResizable)
   }
 )
 watch(
   () => state.rowHeight,
   () => {
-    createStyle()
-    emitContainerResized()
+    nextTickOnce(createStyle)
+    nextTickOnce(emitContainerResized)
   }
 )
 watch(
   () => state.cols,
   () => {
-    tryMakeResizable()
-    createStyle()
-    emitContainerResized()
+    nextTickOnce(tryMakeResizable)
+    nextTickOnce(createStyle)
+    nextTickOnce(emitContainerResized)
   }
 )
 watch(
   () => state.containerWidth,
   () => {
-    tryMakeResizable()
-    createStyle()
-    emitContainerResized()
+    nextTickOnce(tryMakeResizable)
+    nextTickOnce(createStyle)
+    nextTickOnce(emitContainerResized)
   }
 )
-watch(
-  () => props.x,
-  value => {
-    state.innerX = value
-    createStyle()
-  }
-)
-watch(
-  () => props.y,
-  value => {
-    state.innerY = value
-    createStyle()
-  }
-)
-watch(
-  () => props.h,
-  value => {
-    state.innerH = value
-    createStyle()
-  }
-)
-watch(
-  () => props.w,
-  value => {
-    state.innerW = value
-    createStyle()
-  }
-)
-watch(renderRtl, () => {
-  tryMakeResizable()
-  createStyle()
+watch([() => props.minH, () => props.maxH, () => props.minW, () => props.maxW], () => {
+  nextTickOnce(tryMakeResizable)
 })
-watch(
-  () => props.minH,
-  () => {
-    tryMakeResizable()
-  }
-)
-watch(
-  () => props.maxH,
-  () => {
-    tryMakeResizable()
-  }
-)
-watch(
-  () => props.minW,
-  () => {
-    tryMakeResizable()
-  }
-)
-watch(
-  () => props.maxW,
-  () => {
-    tryMakeResizable()
-  }
-)
+watch(renderRtl, () => {
+  nextTickOnce(tryMakeResizable)
+  nextTickOnce(createStyle)
+})
 watch(
   () => layout.margin,
   value => {
     if (!value || (value[0] === state.margin[0] && value[1] === state.margin[1])) {
       return
     }
-    state.margin = value.map(m => Number(m))
-    createStyle()
-    emitContainerResized()
+    state.margin = value.map(Number)
+    nextTickOnce(createStyle)
+    nextTickOnce(emitContainerResized)
   }
 )
 
 function createStyle() {
   if (props.x + props.w > state.cols) {
-    state.innerX = 0
-    state.innerW = props.w > state.cols ? state.cols : props.w
+    innerX = 0
+    innerW = props.w > state.cols ? state.cols : props.w
   } else {
-    state.innerX = props.x
-    state.innerW = props.w
+    innerX = props.x
+    innerW = props.w
   }
 
-  const pos = calcPosition(state.innerX, state.innerY, state.innerW, state.innerH)
+  const pos = calcPosition(innerX, innerY, innerW, innerH)
 
   if (state.isDragging) {
-    pos.top = state.dragging.top
-    //                    Add rtl support
+    pos.top = dragging.top
+    // Add rtl support
     if (renderRtl.value) {
-      pos.right = state.dragging.left
+      pos.right = dragging.left
     } else {
-      pos.left = state.dragging.left
+      pos.left = dragging.left
     }
   }
   if (state.isResizing) {
-    pos.width = state.resizing.width
-    pos.height = state.resizing.height
+    pos.width = resizing.width
+    pos.height = resizing.height
   }
 
   let style
@@ -471,7 +431,7 @@ function createStyle() {
     }
   } else {
     // top,left (slow)
-    //                    Add rtl support
+    // Add rtl support
     if (renderRtl.value) {
       style = setTopRight(pos.top, pos.right!, pos.width, pos.height)
     } else {
@@ -500,44 +460,40 @@ function handleResize(event: MouseEvent) {
   if (props.static) return
   const position = getControlPosition(event)
   // Get the current drag point from the event. This is used as the offset.
-  if (position == null) return // not possible but satisfies flow
-  const { x, y } = position
+  if (isNull(position)) return // not possible but satisfies flow
 
+  const { x, y } = position
   const newSize = { width: 0, height: 0 }
   let pos
   switch (event.type) {
     case 'resizestart': {
       tryMakeResizable()
-      state.previousW = state.innerW
-      state.previousH = state.innerH
-      pos = calcPosition(state.innerX, state.innerY, state.innerW, state.innerH)
+      previousW = innerW
+      previousH = innerH
+      pos = calcPosition(innerX, innerY, innerW, innerH)
       newSize.width = pos.width
       newSize.height = pos.height
-      state.resizing = newSize
+      resizing = newSize
       state.isResizing = true
       break
     }
     case 'resizemove': {
-      //                        console.log("### resize => " + event.type + ", lastW=" + this.lastW + ", lastH=" + this.lastH);
-      const coreEvent = createCoreData(state.lastW, state.lastH, x, y)
+      const coreEvent = createCoreData(lastW, lastH, x, y)
       if (renderRtl.value) {
-        newSize.width = state.resizing.width - coreEvent.deltaX / state.transformScale
+        newSize.width = resizing.width - coreEvent.deltaX / state.transformScale
       } else {
-        newSize.width = state.resizing.width + coreEvent.deltaX / state.transformScale
+        newSize.width = resizing.width + coreEvent.deltaX / state.transformScale
       }
-      newSize.height = state.resizing.height + coreEvent.deltaY / state.transformScale
-
-      /// console.log("### resize => " + event.type + ", deltaX=" + coreEvent.deltaX + ", deltaY=" + coreEvent.deltaY);
-      state.resizing = newSize
+      newSize.height = resizing.height + coreEvent.deltaY / state.transformScale
+      resizing = newSize
       break
     }
     case 'resizeend': {
-      // console.log("### resize end => x=" +this.innerX + " y=" + this.innerY + " w=" + this.innerW + " h=" + this.innerH);
-      pos = calcPosition(state.innerX, state.innerY, state.innerW, state.innerH)
+      pos = calcPosition(innerX, innerY, innerW, innerH)
       newSize.width = pos.width
       newSize.height = pos.height
-      //                        console.log("### resize end => " + JSON.stringify(newSize));
-      state.resizing = { width: -1, height: -1 }
+
+      resizing = { width: -1, height: -1 }
       state.isResizing = false
       break
     }
@@ -565,19 +521,16 @@ function handleResize(event: MouseEvent) {
     pos.w = 1
   }
 
-  state.lastW = x
-  state.lastH = y
+  lastW = x
+  lastH = y
 
-  if (state.innerW !== pos.w || state.innerH !== pos.h) {
+  if (innerW !== pos.w || innerH !== pos.h) {
     emit('resize', props.i, pos.h, pos.w, newSize.height, newSize.width)
   }
-  if (
-    event.type === 'resizeend' &&
-    (state.previousW !== state.innerW || state.previousH !== state.innerH)
-  ) {
+  if (event.type === 'resizeend' && (previousW !== innerW || previousH !== innerH)) {
     emit('resized', props.i, pos.h, pos.w, newSize.height, newSize.width)
   }
-  emitter.emit('resizeEvent', event.type, props.i, state.innerX, state.innerY, pos.h, pos.w)
+  emitter.emit('resizeEvent', event.type, props.i, innerX, innerY, pos.h, pos.w)
 }
 
 function handleDrag(event: MouseEvent) {
@@ -586,7 +539,7 @@ function handleDrag(event: MouseEvent) {
   const position = getControlPosition(event)
 
   // Get the current drag point from the event. This is used as the offset.
-  if (position === null) return // not possible but satisfies flow
+  if (isNull(position)) return // not possible but satisfies flow
   const { x, y } = position
   const target = event.target as HTMLElement
 
@@ -596,8 +549,8 @@ function handleDrag(event: MouseEvent) {
   const newPosition = { top: 0, left: 0 }
   switch (event.type) {
     case 'dragstart': {
-      state.previousX = state.innerX
-      state.previousY = state.innerY
+      previousX = innerX
+      previousY = innerY
 
       const parentRect = target.offsetParent.getBoundingClientRect()
       const clientRect = target.getBoundingClientRect()
@@ -615,7 +568,7 @@ function handleDrag(event: MouseEvent) {
         newPosition.left = cLeft - pLeft
       }
       newPosition.top = cTop - pTop
-      state.dragging = newPosition
+      dragging = newPosition
       state.isDragging = true
       break
     }
@@ -631,29 +584,26 @@ function handleDrag(event: MouseEvent) {
       const cTop = clientRect.top / state.transformScale
       const pTop = parentRect.top / state.transformScale
 
-      //                        Add rtl support
+      // Add rtl support
       if (renderRtl.value) {
         newPosition.left = (cRight - pRight) * -1
       } else {
         newPosition.left = cLeft - pLeft
       }
       newPosition.top = cTop - pTop
-      //                        console.log("### drag end => " + JSON.stringify(newPosition));
-      //                        console.log("### DROP: " + JSON.stringify(newPosition));
-      state.dragging = { top: -1, left: -1 }
+      dragging = { top: -1, left: -1 }
       state.isDragging = false
-      // shouldUpdate = true;
       break
     }
     case 'dragmove': {
-      const coreEvent = createCoreData(state.lastX, state.lastY, x, y)
-      //                        Add rtl support
+      const coreEvent = createCoreData(lastX, lastY, x, y)
+      // Add rtl support
       if (renderRtl.value) {
-        newPosition.left = state.dragging.left - coreEvent.deltaX / state.transformScale
+        newPosition.left = dragging.left - coreEvent.deltaX / state.transformScale
       } else {
-        newPosition.left = state.dragging.left + coreEvent.deltaX / state.transformScale
+        newPosition.left = dragging.left + coreEvent.deltaX / state.transformScale
       }
-      newPosition.top = state.dragging.top + coreEvent.deltaY / state.transformScale
+      newPosition.top = dragging.top + coreEvent.deltaY / state.transformScale
       if (state.bounded) {
         const bottomBoundary =
           target.offsetParent.clientHeight -
@@ -664,10 +614,8 @@ function handleDrag(event: MouseEvent) {
           state.containerWidth - calcGridItemWHPx(props.w, colWidth, state.margin[0])
         newPosition.left = clamp(newPosition.left, 0, rightBoundary)
       }
-      //                        console.log("### drag => " + event.type + ", x=" + x + ", y=" + y);
-      //                        console.log("### drag => " + event.type + ", deltaX=" + coreEvent.deltaX + ", deltaY=" + coreEvent.deltaY);
-      //                        console.log("### drag end => " + JSON.stringify(newPosition));
-      state.dragging = newPosition
+
+      dragging = newPosition
       break
     }
   }
@@ -680,19 +628,16 @@ function handleDrag(event: MouseEvent) {
     pos = calcXY(newPosition.top, newPosition.left)
   }
 
-  state.lastX = x
-  state.lastY = y
+  lastX = x
+  lastY = y
 
-  if (state.innerX !== pos.x || state.innerY !== pos.y) {
+  if (innerX !== pos.x || innerY !== pos.y) {
     emit('move', props.i, pos.x, pos.y)
   }
-  if (
-    event.type === 'dragend' &&
-    (state.previousX !== state.innerX || state.previousY !== state.innerY)
-  ) {
+  if (event.type === 'dragend' && (previousX !== innerX || previousY !== innerY)) {
     emit('moved', props.i, pos.x, pos.y)
   }
-  emitter.emit('dragEvent', event.type, props.i, pos.x, pos.y, state.innerH, state.innerW)
+  emitter.emit('dragEvent', event.type, props.i, pos.x, pos.y, innerH, innerW)
 }
 
 function calcPosition(x: number, y: number, w: number, h: number) {
@@ -747,8 +692,8 @@ function calcXY(top: number, left: number) {
   let y = Math.round((top - state.margin[1]) / (state.rowHeight + state.margin[1]))
 
   // Capping
-  x = Math.max(Math.min(x, state.cols - state.innerW), 0)
-  y = Math.max(Math.min(y, state.maxRows - state.innerH), 0)
+  x = Math.max(Math.min(x, state.cols - innerW), 0)
+  y = Math.max(Math.min(y, state.maxRows - innerH), 0)
 
   return { x, y }
 }
@@ -791,8 +736,8 @@ function calcWH(height: number, width: number, autoSizeFlag = false) {
   }
 
   // Capping
-  w = Math.max(Math.min(w, state.cols - state.innerX), 0)
-  h = Math.max(Math.min(h, state.maxRows - state.innerY), 0)
+  w = Math.max(Math.min(w, state.cols - innerX), 0)
+  h = Math.max(Math.min(h, state.maxRows - innerY), 0)
   return { w, h }
 }
 
