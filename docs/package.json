@@ -7,12 +7,12 @@
     "serve": "vitepress dev"
   },
   "dependencies": {
-    "@vexip-ui/utils": "^1.10.2",
+    "@vexip-ui/utils": "^1.11.0",
     "grid-layout-plus": "workspace:*",
-    "vexip-ui": "^2.1.12",
+    "vexip-ui": "^2.1.15",
     "vue": "^3.2.47"
   },
   "devDependencies": {
-    "vitepress": "1.0.0-alpha.65"
+    "vitepress": "1.0.0-alpha.73"
   }
 }
