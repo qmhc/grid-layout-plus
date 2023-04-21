@@ -1,3 +1,9 @@
+# [1.0.0-beta.2](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2023-04-21)
+
+### ⚡ Performance Improvements
+
+- merge repeated watch callbacks ([4b924a1](https://github.com/qmhc/grid-layout-plus/commit/4b924a13364920ff5944b584c3485aadcf99d4e9))
+
 # [1.0.0-beta.1](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.0...v1.0.0-beta.1) (2023-04-21)
 
 ### 🐞 Bug Fixes
