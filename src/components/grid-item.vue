@@ -18,7 +18,8 @@ import {
   setTopLeft,
   setTopRight,
   setTransformRtl,
-  setTransform
+  setTransform,
+  useNameHelper
 } from '../helpers/common'
 import { getControlPosition, createCoreData } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
@@ -303,20 +304,24 @@ const renderRtl = computed(() => (layout.isMirrored ? !state.rtl : state.rtl))
 const draggableOrResizableAndNotStatic = computed(() => {
   return (state.draggable || state.resizable) && !props.static
 })
-const classObj = computed(() => {
+
+const nh = useNameHelper('item')
+
+const className = computed(() => {
   return {
-    'vue-resizable': resizableAndNotStatic.value,
-    static: props.static,
-    resizing: state.isResizing,
-    'vue-draggable-dragging': state.isDragging,
-    'css-transforms': state.useCssTransforms,
-    'render-rtl': renderRtl.value,
-    'disable-userselect': state.isDragging,
-    'no-touch': isAndroid && draggableOrResizableAndNotStatic.value
+    [nh.b()]: true,
+    [nh.bm('resizable')]: resizableAndNotStatic.value,
+    [nh.bm('static')]: props.static,
+    [nh.bm('resizing')]: state.isResizing,
+    [nh.bm('dragging')]: state.isDragging,
+    [nh.bm('transform')]: state.useCssTransforms,
+    [nh.bm('rtl')]: renderRtl.value,
+    [nh.bm('no-touch')]: isAndroid && draggableOrResizableAndNotStatic.value
   }
 })
-const resizableHandleClass = computed(() => {
-  return renderRtl.value ? 'vue-resizable-handle vue-rtl-resizable-handle' : 'vue-resizable-handle'
+const resizerClass = computed(() => {
+  // return renderRtl.value ? 'vue-resizable-handle vue-rtl-resizable-handle' : 'vue-resizable-handle'
+  return [nh.be('resizer'), renderRtl.value && nh.bem('resizer', 'rtl')].filter(Boolean)
 })
 
 watch(
@@ -794,8 +799,10 @@ function tryMakeResizable() {
     const opts: Record<string, any> = {
       edges: {
         left: false,
-        right: '.' + resizableHandleClass.value.trim().replace(' ', '.'),
-        bottom: '.' + resizableHandleClass.value.trim().replace(' ', '.'),
+        // right: '.' + resizableHandleClass.value.trim().replace(' ', '.'),
+        // bottom: '.' + resizableHandleClass.value.trim().replace(' ', '.'),
+        right: `.${resizerClass.value[0]}`,
+        bottom: `.${resizerClass.value[0]}`,
         top: false
       },
       ignoreFrom: props.resizeIgnoreFrom,
@@ -830,13 +837,8 @@ function tryMakeResizable() {
 </script>
 
 <template>
-  <div
-    ref="wrapper"
-    class="vue-grid-item"
-    :class="classObj"
-    :style="state.style"
-  >
+  <section ref="wrapper" :class="className" :style="state.style">
     <slot></slot>
-    <span v-if="resizableAndNotStatic" ref="handle" :class="resizableHandleClass"></span>
-  </div>
+    <span v-if="resizableAndNotStatic" :class="resizerClass"></span>
+  </section>
 </template>

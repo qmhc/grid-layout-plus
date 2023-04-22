@@ -30,13 +30,16 @@ const eventLogs = reactive<string[]>([])
 
 const eventsDiv = ref<HTMLElement>()
 
-watch(() => eventLogs.length, () => {
-  requestAnimationFrame(() => {
-    if (eventsDiv.value) {
-      eventsDiv.value.scrollTop = eventsDiv.value.scrollHeight
-    }
-  })
-})
+watch(
+  () => eventLogs.length,
+  () => {
+    requestAnimationFrame(() => {
+      if (eventsDiv.value) {
+        eventsDiv.value.scrollTop = eventsDiv.value.scrollHeight
+      }
+    })
+  }
+)
 
 function moveEvent(i: string, newX: number, newY: number) {
   const msg = 'MOVE i=' + i + ', X=' + newX + ', Y=' + newY
@@ -51,19 +54,37 @@ function movedEvent(i: string, newX: number, newY: number) {
 }
 
 function resizeEvent(i: string, newH: number, newW: number, newHPx: number, newWPx: number) {
-  const msg = 'RESIZE i=' + i + ', H=' + newH + ', W=' + newW + ', H(px)=' + newHPx + ', W(px)=' + newWPx
+  const msg =
+    'RESIZE i=' + i + ', H=' + newH + ', W=' + newW + ', H(px)=' + newHPx + ', W(px)=' + newWPx
   eventLogs.push(msg)
   console.info(msg)
 }
 
 function resizedEvent(i: string, newX: number, newY: number, newHPx: number, newWPx: number) {
-  const msg = 'RESIZED i=' + i + ', X=' + newX + ', Y=' + newY + ', H(px)=' + newHPx + ', W(px)=' + newWPx
+  const msg =
+    'RESIZED i=' + i + ', X=' + newX + ', Y=' + newY + ', H(px)=' + newHPx + ', W(px)=' + newWPx
   eventLogs.push(msg)
   console.info(msg)
 }
 
-function containerResizedEvent(i: string, newH: number, newW: number, newHPx: number, newWPx: number) {
-  const msg = 'CONTAINER RESIZED i=' + i + ', H=' + newH + ', W=' + newW + ', H(px)=' + newHPx + ', W(px)=' + newWPx
+function containerResizedEvent(
+  i: string,
+  newH: number,
+  newW: number,
+  newHPx: number,
+  newWPx: number
+) {
+  const msg =
+    'CONTAINER RESIZED i=' +
+    i +
+    ', H=' +
+    newH +
+    ', W=' +
+    newW +
+    ', H(px)=' +
+    newHPx +
+    ', W(px)=' +
+    newWPx
   eventLogs.push(msg)
   console.info(msg)
 }
@@ -95,7 +116,7 @@ function layoutUpdatedEvent(newLayout: Layout) {
       {{ event }}
     </div>
   </div>
-  <div style="margin-top:10px;">
+  <div style="margin-top: 10px">
     <GridLayout
       v-model:layout="layout"
       :row-height="30"
@@ -125,20 +146,20 @@ function layoutUpdatedEvent(newLayout: Layout) {
 </template>
 
 <style scoped>
-.vue-grid-layout {
+.vgl-layout {
   background-color: #eee;
 }
 
-:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
+:deep(.vgl-item:not(.vgl-item--placeholder)) {
   background-color: #ccc;
   border: 1px solid black;
 }
 
-:deep(.vue-grid-item.resizing) {
+:deep(.vgl-item--resizing) {
   opacity: 90%;
 }
 
-:deep(.vue-grid-item.static) {
+:deep(.vgl-item--static) {
   background-color: #cce;
 }
 

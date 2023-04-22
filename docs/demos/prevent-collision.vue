@@ -40,20 +40,20 @@ const layout = reactive([
 </template>
 
 <style scoped>
-.vue-grid-layout {
+.vgl-layout {
   background-color: #eee;
 }
 
-:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
+:deep(.vgl-item:not(.vgl-item--placeholder)) {
   background-color: #ccc;
   border: 1px solid black;
 }
 
-:deep(.vue-grid-item.resizing) {
+:deep(.vgl-item--resizing) {
   opacity: 90%;
 }
 
-:deep(.vue-grid-item.static) {
+:deep(.vgl-item--static) {
   background-color: #cce;
 }
 

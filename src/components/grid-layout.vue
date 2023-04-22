@@ -567,7 +567,7 @@ function findDifference(layout: Layout, originalLayout: Layout) {
 </script>
 
 <template>
-  <div ref="wrapper" class="vue-grid-layout" :style="state.mergedStyle">
+  <div ref="wrapper" class="vgl-layout" :style="state.mergedStyle">
     <slot v-if="$slots.default"></slot>
     <template v-else>
       <GridItem v-for="item in currentLayout" :key="item.i" v-bind="item">
@@ -576,7 +576,7 @@ function findDifference(layout: Layout, originalLayout: Layout) {
     </template>
     <GridItem
       v-show="state.isDragging"
-      class="vue-grid-placeholder"
+      class="vgl-item--placeholder"
       :x="state.placeholder.x"
       :y="state.placeholder.y"
       :w="state.placeholder.w"

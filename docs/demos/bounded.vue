@@ -43,7 +43,7 @@ const layout = reactive([
   <input v-model="resizable" type="checkbox" /> Resizable
   <input v-model="bounded" type="checkbox" /> Bounded
   <br />
-  <div style="width:100%; height:100%; margin-top: 10px;">
+  <div style="width: 100%; height: 100%; margin-top: 10px">
     <GridLayout
       v-model:layout="layout"
       :row-height="30"
@@ -59,20 +59,20 @@ const layout = reactive([
 </template>
 
 <style scoped>
-.vue-grid-layout {
+.vgl-layout {
   background-color: #eee;
 }
 
-:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
+:deep(.vgl-item:not(.vgl-item--placeholder)) {
   background-color: #ccc;
   border: 1px solid black;
 }
 
-:deep(.vue-grid-item.resizing) {
+:deep(.vgl-item--resizing) {
   opacity: 90%;
 }
 
-:deep(.vue-grid-item.static) {
+:deep(.vgl-item--static) {
   background-color: #cce;
 }
 

@@ -8,7 +8,20 @@ describe('GridLayout test', () => {
   let layout: Layout
 
   beforeAll(() => {
-    const testLayout = [{ x: 0, y: 0, w: 2, h: 2, i: '0', resizable: true, draggable: true, static: false, minY: 0, maxY: 2 }]
+    const testLayout = [
+      {
+        x: 0,
+        y: 0,
+        w: 2,
+        h: 2,
+        i: '0',
+        resizable: true,
+        draggable: true,
+        static: false,
+        minY: 0,
+        maxY: 2
+      }
+    ]
     layout = JSON.parse(JSON.stringify(testLayout))
   })
 
@@ -19,7 +32,7 @@ describe('GridLayout test', () => {
           layout
         }
       })
-      const grid = wrapper.find('.vue-grid-layout')
+      const grid = wrapper.find('.vgl-layout')
 
       expect(grid.exists()).toBe(true)
     })

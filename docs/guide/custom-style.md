@@ -5,7 +5,7 @@ Grid style can be customized to fit your needs.
 ## Variables
 
 ```css
-.vue-grid-layout {
+.vgl-layout {
   --vgl-placeholder-bg: red;
   --vgl-placeholder-opacity: 20%;
   --vgl-placeholder-z-index: 2;
@@ -14,6 +14,10 @@ Grid style can be customized to fit your needs.
   --vgl-item-resizing-opacity: 60%;
   --vgl-item-dragging-z-index: 3;
   --vgl-item-dragging-opacity: 100%;
+
+  --vgl-resizer-size: 10px;
+  --vgl-resizer-border-color: #444;
+  --vgl-resizer-border-width: 2px;
 }
 ```
 
@@ -22,7 +26,7 @@ Grid style can be customized to fit your needs.
 The default css for the placeholder is:
 
 ```css
-.vue-grid-item.vue-grid-placeholder {
+.vgl-item--placeholder {
   z-index: var(--vgl-placeholder-z-index, 2);
   user-select: none;
   background-color: var(--vgl-placeholder-bg, red);
@@ -34,7 +38,7 @@ The default css for the placeholder is:
 You can override the background color via `--vgl-placeholder-bg` variable:
 
 ```css
-.vue-grid-layout {
+.vgl-layout {
   --vgl-placeholder-bg: green;
 }
 ```
@@ -46,7 +50,7 @@ In [this example](../example/styling-placeholder) we change the placeholder back
 To create grid lines to the layout, add the below css for GridLayout:
 
 ```css
-.vue-grid-layout::before {
+.vgl-layout::before {
   position: absolute;
   width: calc(100% - 5px);
   height: calc(100% - 5px);

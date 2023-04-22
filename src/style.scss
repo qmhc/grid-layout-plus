@@ -1,4 +1,4 @@
-.vue-grid-layout {
+.vgl-layout {
   --vgl-placeholder-bg: red;
   --vgl-placeholder-opacity: 20%;
   --vgl-placeholder-z-index: 2;
@@ -8,42 +8,22 @@
   --vgl-item-dragging-z-index: 3;
   --vgl-item-dragging-opacity: 100%;
 
+  --vgl-resizer-size: 10px;
+  --vgl-resizer-border-color: #444;
+  --vgl-resizer-border-width: 2px;
+
   position: relative;
+  box-sizing: border-box;
   transition: height 200ms ease;
 }
 
-.vue-grid-item {
-  // add right for rtl
+.vgl-item {
+  position: absolute;
+  box-sizing: border-box;
   transition: 200ms ease;
   transition-property: left, top, right;
 
-  &.no-touch {
-    touch-action: none;
-  }
-
-  &.css-transforms {
-    right: auto;
-    left: 0;
-    transition-property: transform;
-
-    &.render-rtl {
-      right: 0;
-      left: auto;
-    }
-  }
-
-  &.resizing {
-    z-index: var(--vgl-item-resizing-z-index, 3);
-    opacity: var(--vgl-item-resizing-opacity, 60%);
-  }
-
-  &.vue-draggable-dragging {
-    z-index: var(--vgl-item-dragging-z-index, 3);
-    opacity: var(--vgl-item-dragging-opacity, 100%);
-    transition: none;
-  }
-
-  &.vue-grid-placeholder {
+  &--placeholder {
     z-index: var(--vgl-placeholder-z-index, 2);
     user-select: none;
     background-color: var(--vgl-placeholder-bg, red);
@@ -51,34 +31,65 @@
     transition-duration: 100ms;
   }
 
-  & > .vue-resizable-handle {
+  &--no-touch {
+    touch-action: none;
+  }
+
+  &--transform {
+    right: auto;
+    left: 0;
+    transition-property: transform;
+  }
+
+  &--transform#{&}--rtl {
+    right: 0;
+    left: auto;
+  }
+
+  &--resizing {
+    z-index: var(--vgl-item-resizing-z-index, 3);
+    user-select: none;
+    opacity: var(--vgl-item-resizing-opacity, 60%);
+  }
+
+  &--dragging {
+    z-index: var(--vgl-item-dragging-z-index, 3);
+    user-select: none;
+    opacity: var(--vgl-item-dragging-opacity, 100%);
+    transition: none;
+  }
+
+  &__resizer {
     position: absolute;
     right: 0;
     bottom: 0;
     box-sizing: border-box;
-    width: 20px;
-    height: 20px;
-    padding: 0 3px 3px 0;
+    width: var(--vgl-resizer-size);
+    height: var(--vgl-resizer-size);
     cursor: se-resize;
-    background-image: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pg08IS0tIEdlbmVyYXRvcjogQWRvYmUgRmlyZXdvcmtzIENTNiwgRXhwb3J0IFNWRyBFeHRlbnNpb24gYnkgQWFyb24gQmVhbGwgKGh0dHA6Ly9maXJld29ya3MuYWJlYWxsLmNvbSkgLiBWZXJzaW9uOiAwLjYuMSAgLS0+DTwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DTxzdmcgaWQ9IlVudGl0bGVkLVBhZ2UlMjAxIiB2aWV3Qm94PSIwIDAgNiA2IiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjojZmZmZmZmMDAiIHZlcnNpb249IjEuMSINCXhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHhtbDpzcGFjZT0icHJlc2VydmUiDQl4PSIwcHgiIHk9IjBweCIgd2lkdGg9IjZweCIgaGVpZ2h0PSI2cHgiDT4NCTxnIG9wYWNpdHk9IjAuMzAyIj4NCQk8cGF0aCBkPSJNIDYgNiBMIDAgNiBMIDAgNC4yIEwgNCA0LjIgTCA0LjIgNC4yIEwgNC4yIDAgTCA2IDAgTCA2IDYgTCA2IDYgWiIgZmlsbD0iIzAwMDAwMCIvPg0JPC9nPg08L3N2Zz4=');
-    background-repeat: no-repeat;
-    background-position: bottom right;
-    background-origin: content-box;
-  }
 
-  & > .vue-rtl-resizable-handle {
-    right: auto;
-    bottom: 0;
-    left: 0;
-    padding-left: 3px;
-    cursor: sw-resize;
-    background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAuMDAwMDAwMDAwMDAwMDAyIiBoZWlnaHQ9IjEwLjAwMDAwMDAwMDAwMDAwMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KIDwhLS0gQ3JlYXRlZCB3aXRoIE1ldGhvZCBEcmF3IC0gaHR0cDovL2dpdGh1Yi5jb20vZHVvcGl4ZWwvTWV0aG9kLURyYXcvIC0tPgogPGc+CiAgPHRpdGxlPmJhY2tncm91bmQ8L3RpdGxlPgogIDxyZWN0IGZpbGw9Im5vbmUiIGlkPSJjYW52YXNfYmFja2dyb3VuZCIgaGVpZ2h0PSIxMiIgd2lkdGg9IjEyIiB5PSItMSIgeD0iLTEiLz4KICA8ZyBkaXNwbGF5PSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgeT0iMCIgeD0iMCIgaGVpZ2h0PSIxMDAlIiB3aWR0aD0iMTAwJSIgaWQ9ImNhbnZhc0dyaWQiPgogICA8cmVjdCBmaWxsPSJ1cmwoI2dyaWRwYXR0ZXJuKSIgc3Ryb2tlLXdpZHRoPSIwIiB5PSIwIiB4PSIwIiBoZWlnaHQ9IjEwMCUiIHdpZHRoPSIxMDAlIi8+CiAgPC9nPgogPC9nPgogPGc+CiAgPHRpdGxlPkxheWVyIDE8L3RpdGxlPgogIDxsaW5lIGNhbnZhcz0iI2ZmZmZmZiIgY2FudmFzLW9wYWNpdHk9IjEiIHN0cm9rZS1saW5lY2FwPSJ1bmRlZmluZWQiIHN0cm9rZS1saW5lam9pbj0idW5kZWZpbmVkIiBpZD0ic3ZnXzEiIHkyPSItNzAuMTc4NDA3IiB4Mj0iMTI0LjQ2NDE3NSIgeTE9Ii0zOC4zOTI3MzciIHgxPSIxNDQuODIxMjg5IiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlPSIjMDAwIiBmaWxsPSJub25lIi8+CiAgPGxpbmUgc3Ryb2tlPSIjNjY2NjY2IiBzdHJva2UtbGluZWNhcD0idW5kZWZpbmVkIiBzdHJva2UtbGluZWpvaW49InVuZGVmaW5lZCIgaWQ9InN2Z181IiB5Mj0iOS4xMDY5NTciIHgyPSIwLjk0NzI0NyIgeTE9Ii0wLjAxODEyOCIgeDE9IjAuOTQ3MjQ3IiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KICA8bGluZSBzdHJva2UtbGluZWNhcD0idW5kZWZpbmVkIiBzdHJva2UtbGluZWpvaW49InVuZGVmaW5lZCIgaWQ9InN2Z183IiB5Mj0iOSIgeDI9IjEwLjA3MzUyOSIgeTE9IjkiIHgxPSItMC42NTU2NCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2U9IiM2NjY2NjYiIGZpbGw9Im5vbmUiLz4KIDwvZz4KPC9zdmc+');
-    background-repeat: no-repeat;
-    background-position: bottom left;
-    background-origin: content-box;
-  }
+    $border-width: var(--vgl-resizer-border-width);
 
-  .disable-userselect {
-    user-select: none;
+    &::before {
+      position: absolute;
+      inset: 0 3px 3px 0;
+      content: '';
+      border: 0 solid var(--vgl-resizer-border-color);
+      border-right-width: $border-width;
+      border-bottom-width: $border-width;
+    }
+
+    &--rtl {
+      right: auto;
+      left: 0;
+      cursor: sw-resize;
+
+      &::before {
+        inset: 0 0 3px 3px;
+        border-right-width: 0;
+        border-bottom-width: $border-width;
+        border-left-width: $border-width;
+      }
+    }
   }
 }

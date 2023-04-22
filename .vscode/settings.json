@@ -31,5 +31,6 @@
   },
   "[markdown]": {
     "editor.wordWrap": "off"
-  }
+  },
+  "vue.features.codeActions.enable": false
 }

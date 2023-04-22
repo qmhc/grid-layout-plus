@@ -40,7 +40,11 @@ function drag() {
 
   if (!parentRect) return
 
-  const mouseInGrid = ((mouseAt.x > parentRect.left) && (mouseAt.x < parentRect.right)) && ((mouseAt.y > parentRect.top) && (mouseAt.y < parentRect.bottom))
+  const mouseInGrid =
+    mouseAt.x > parentRect.left &&
+    mouseAt.x < parentRect.right &&
+    mouseAt.y > parentRect.top &&
+    mouseAt.y < parentRect.bottom
 
   if (mouseInGrid && !layout.value.find(item => item.i === dropId)) {
     layout.value.push({
@@ -61,7 +65,7 @@ function drag() {
 
     try {
       item.wrapper.style.display = 'none'
-    } catch (e) { }
+    } catch (e) {}
 
     item.state.dragging = { top: mouseAt.y - parentRect.top, left: mouseAt.x - parentRect.left }
     const newPos = item.calcXY(mouseAt.y - parentRect.top, mouseAt.x - parentRect.left)
@@ -83,7 +87,11 @@ function dragEnd() {
 
   if (!parentRect) return
 
-  const mouseInGrid = ((mouseAt.x > parentRect.left) && (mouseAt.x < parentRect.right)) && ((mouseAt.y > parentRect.top) && (mouseAt.y < parentRect.bottom))
+  const mouseInGrid =
+    mouseAt.x > parentRect.left &&
+    mouseAt.x < parentRect.right &&
+    mouseAt.y > parentRect.top &&
+    mouseAt.y < parentRect.bottom
 
   if (mouseInGrid) {
     alert(`Dropped element props:\n${JSON.stringify(dragItem, ['x', 'y', 'w', 'h'], 2)}`)
@@ -106,7 +114,7 @@ function dragEnd() {
 
   try {
     item.wrapper.style.display = ''
-  } catch (e) { }
+  } catch (e) {}
 }
 </script>
 
@@ -127,8 +135,7 @@ function dragEnd() {
     @drag="drag"
     @dragend="dragEnd"
   >
-    Droppable Element
-    (Drag me!)
+    Droppable Element (Drag me!)
   </div>
   <div ref="wrapper">
     <GridLayout ref="gridLayout" v-model:layout="layout" :row-height="30">
@@ -140,20 +147,20 @@ function dragEnd() {
 </template>
 
 <style scoped>
-.vue-grid-layout {
+.vgl-layout {
   background-color: #eee;
 }
 
-:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
+:deep(.vgl-item:not(.vgl-item--placeholder)) {
   background-color: #ccc;
   border: 1px solid black;
 }
 
-:deep(.vue-grid-item.resizing) {
+:deep(.vgl-item--resizing) {
   opacity: 90%;
 }
 
-:deep(.vue-grid-item.static) {
+:deep(.vgl-item--static) {
   background-color: #cce;
 }
 

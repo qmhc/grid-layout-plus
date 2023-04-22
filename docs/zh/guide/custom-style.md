@@ -5,7 +5,7 @@
 ## Variables
 
 ```css
-.vue-grid-layout {
+.vgl-layout {
   --vgl-placeholder-bg: red;
   --vgl-placeholder-opacity: 20%;
   --vgl-placeholder-z-index: 2;
@@ -14,6 +14,10 @@
   --vgl-item-resizing-opacity: 60%;
   --vgl-item-dragging-z-index: 3;
   --vgl-item-dragging-opacity: 100%;
+
+  --vgl-resizer-size: 10px;
+  --vgl-resizer-border-color: #444;
+  --vgl-resizer-border-width: 2px;
 }
 ```
 
@@ -22,7 +26,7 @@
 占位符的默认样式：
 
 ```css
-.vue-grid-item.vue-grid-placeholder {
+.vgl-item--placeholder {
   z-index: var(--vgl-placeholder-z-index, 2);
   user-select: none;
   background-color: var(--vgl-placeholder-bg, red);
@@ -34,7 +38,7 @@
 你可以通过 `--vgl-placeholder-bg` 变量修改底色：
 
 ```css
-.vue-grid-layout {
+.vgl-layout {
   --vgl-placeholder-bg: green;
 }
 ```
@@ -46,7 +50,7 @@
 为 GridLayout 添加下面的样式以创建栅格线。
 
 ```css
-.vue-grid-layout::before {
+.vgl-layout::before {
   position: absolute;
   width: calc(100% - 5px);
   height: calc(100% - 5px);

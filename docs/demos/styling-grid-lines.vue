@@ -34,33 +34,32 @@ const layout = reactive([
 </template>
 
 <style scoped>
-.vue-grid-layout {
+.vgl-layout {
   background-color: #eee;
 }
 
-.vue-grid-layout::before {
+.vgl-layout::before {
   position: absolute;
   width: calc(100% - 5px);
   height: calc(100% - 5px);
   margin: 5px;
   content: '';
-  background-image:
-    linear-gradient(to right, lightgrey 1px, transparent 1px),
+  background-image: linear-gradient(to right, lightgrey 1px, transparent 1px),
     linear-gradient(to bottom, lightgrey 1px, transparent 1px);
   background-repeat: repeat;
   background-size: calc(calc(100% - 5px) / 12) 40px;
 }
 
-:deep(.vue-grid-item:not(.vue-grid-placeholder)) {
+:deep(.vgl-item:not(.vgl-item--placeholder)) {
   background-color: #ccc;
   border: 1px solid black;
 }
 
-:deep(.vue-grid-item.resizing) {
+:deep(.vgl-item--resizing) {
   opacity: 90%;
 }
 
-:deep(.vue-grid-item.static) {
+:deep(.vgl-item--static) {
   background-color: #cce;
 }
 

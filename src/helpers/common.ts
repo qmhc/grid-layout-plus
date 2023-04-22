@@ -38,7 +38,7 @@ export function cloneLayoutItem(layoutItem: LayoutItem): LayoutItem {
 /**
  * Given two layoutitems, check if they collide.
  *
- * @return  True if colliding.
+ * @return True if colliding.
  */
 export function collides(l1: LayoutItem, l2: LayoutItem): boolean {
   if (l1 === l2) return false // same element
@@ -179,8 +179,8 @@ export function getAllCollisions(layout: Layout, layoutItem: LayoutItem): Array<
 
 /**
  * Get all static elements.
- * @param   layout Array of layout objects.
- * @return         Array of static layout items..
+ * @param layout Array of layout objects.
+ * @return  Array of static layout items..
  */
 export function getStatics(layout: Layout): Array<LayoutItem> {
   return layout.filter(l => l.static)
@@ -356,7 +356,7 @@ export function setTopLeft(top: number, left: number, width: number, height: num
  * @param right
  * @param width
  * @param height
- * @returns {{top: string, right: string, width: string, height: string, position: string}}
+ * @returns position style
  */
 export function setTopRight(top: number, right: number, width: number, height: number) {
   return {
@@ -371,8 +371,7 @@ export function setTopRight(top: number, right: number, width: number, height: n
 /**
  * Get layout items sorted from top left to right and down.
  *
- * @return  Array of layout objects.
- * @return         Layout, sorted static items first.
+ * @return Layout, sorted static items first.
  */
 export function sortLayoutItemsByRowCol(layout: Layout): Layout {
   return Array.from(layout).sort(function (a, b) {
@@ -391,9 +390,9 @@ export function sortLayoutItemsByRowCol(layout: Layout): Layout {
 /**
  * Validate a layout. Throws errors.
  *
- * @param    layout        Array of layout items.
- * @param  contextName Context name for errors.
- * @throw                 Validation error.
+ * @param layout Array of layout items.
+ * @param contextName Context name for errors.
+ * @throw Validation error.
  */
 export function validateLayout(layout: Layout, contextName?: string): void {
   contextName = contextName || 'Layout'
@@ -535,4 +534,30 @@ export function findAndRemove(array: any[], property: string, value: any) {
       array.splice(index, 1)
     }
   })
+}
+
+export function useNameHelper(block: string, namespace = 'vgl') {
+  /**
+   * @returns `${namespace}-${block}`
+   */
+  const b = () => `${namespace}-${block}`
+  /**
+   * @returns `${namespace}-${block}__${element}`
+   */
+  const be = (element: string) => `${b()}__${element}`
+  /**
+   * @returns `${namespace}-${block}--${modifier}`
+   */
+  const bm = (modifier: string | number) => `${b()}--${modifier}`
+  /**
+   * @returns `${namespace}-${block}__${element}--${modifier}`
+   */
+  const bem = (element: string, modifier: string | number) => `${b()}__${element}--${modifier}`
+
+  return {
+    b,
+    be,
+    bm,
+    bem
+  }
 }
