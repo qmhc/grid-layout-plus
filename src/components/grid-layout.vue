@@ -12,7 +12,7 @@ import {
 } from 'vue'
 import GridItem from './grid-item.vue'
 import { useResize } from '@vexip-ui/hooks'
-import { createEventEmitter, isNull } from '@vexip-ui/utils'
+import { createEventEmitter, isNull, debounce } from '@vexip-ui/utils'
 import {
   LAYOUT_KEY,
   EMITTER_KEY,
@@ -173,7 +173,7 @@ onMounted(() => {
 
     nextTick(() => {
       initResponsiveFeatures()
-      wrapper.value && observeResize(wrapper.value, onWindowResize)
+      wrapper.value && observeResize(wrapper.value, debounce(onWindowResize, 16))
       compact(currentLayout.value, props.verticalCompact)
       emit('layout-updated', currentLayout.value)
       updateHeight()

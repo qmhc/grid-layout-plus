@@ -11,7 +11,7 @@ import {
   onMounted,
   onBeforeUnmount
 } from 'vue'
-import { isNull, nextTickOnce } from '@vexip-ui/utils'
+import { isNull, nextTickOnce, throttle } from '@vexip-ui/utils'
 import {
   LAYOUT_KEY,
   EMITTER_KEY,
@@ -107,8 +107,12 @@ const props = defineProps({
 
 const emit = defineEmits(['container-resized', 'resize', 'resized', 'move', 'moved'])
 
-const layout = inject(LAYOUT_KEY)!
+const layout = inject(LAYOUT_KEY)
 const emitter = inject(EMITTER_KEY)!
+
+if (!layout) {
+  throw new Error('[grid-layout-plus]: missing layout store, GridItem must under a GridLayout.')
+}
 
 const interactObj = ref<InstanceType<typeof import('@interactjs/types').Interactable> | null>(null)
 
@@ -128,11 +132,11 @@ const state = reactive({
   isDragging: false,
   isResizing: false,
   style: {} as Record<string, string>,
-  rtl: false,
-
-  dragEventSet: false,
-  resizeEventSet: false
+  rtl: false
 })
+
+let dragEventSet = false
+let resizeEventSet = false
 
 let lastX = NaN
 let lastY = NaN
@@ -214,17 +218,6 @@ function setColNum(colNum: number) {
   state.cols = Math.floor(colNum)
 }
 
-emitter.on('updateWidth', updateWidthHandler)
-emitter.on('compact', compactHandler)
-emitter.on('setDraggable', setDraggableHandler)
-emitter.on('setResizable', setResizableHandler)
-emitter.on('setBounded', setBoundedHandler)
-emitter.on('setTransformScale', setTransformScaleHandler)
-emitter.on('setRowHeight', setRowHeightHandler)
-emitter.on('setMaxRows', setMaxRowsHandler)
-emitter.on('directionchange', directionchangeHandler)
-emitter.on('setColNum', setColNum)
-
 layout.increaseItem(instance)
 
 onBeforeMount(() => {
@@ -268,10 +261,18 @@ onMounted(() => {
     innerW = props.w
     nextTickOnce(createStyle)
   })
-  // createStyle()
-})
 
-defineExpose({ state, wrapper })
+  emitter.on('updateWidth', updateWidthHandler)
+  emitter.on('compact', compactHandler)
+  emitter.on('setDraggable', setDraggableHandler)
+  emitter.on('setResizable', setResizableHandler)
+  emitter.on('setBounded', setBoundedHandler)
+  emitter.on('setTransformScale', setTransformScaleHandler)
+  emitter.on('setRowHeight', setRowHeightHandler)
+  emitter.on('setMaxRows', setMaxRowsHandler)
+  emitter.on('directionchange', directionchangeHandler)
+  emitter.on('setColNum', setColNum)
+})
 
 onBeforeUnmount(() => {
   emitter.off('updateWidth', updateWidthHandler)
@@ -292,6 +293,8 @@ onBeforeUnmount(() => {
 
   layout.decreaseItem(instance)
 })
+
+defineExpose({ state, wrapper })
 
 const isAndroid = navigator.userAgent.toLowerCase().includes('android')
 
@@ -360,22 +363,11 @@ watch(
     nextTickOnce(emitContainerResized)
   }
 )
-watch(
-  () => state.cols,
-  () => {
-    nextTickOnce(tryMakeResizable)
-    nextTickOnce(createStyle)
-    nextTickOnce(emitContainerResized)
-  }
-)
-watch(
-  () => state.containerWidth,
-  () => {
-    nextTickOnce(tryMakeResizable)
-    nextTickOnce(createStyle)
-    nextTickOnce(emitContainerResized)
-  }
-)
+watch([() => state.cols, () => state.containerWidth], () => {
+  nextTickOnce(tryMakeResizable)
+  nextTickOnce(createStyle)
+  nextTickOnce(emitContainerResized)
+})
 watch([() => props.minH, () => props.maxH, () => props.minW, () => props.maxW], () => {
   nextTickOnce(tryMakeResizable)
 })
@@ -423,7 +415,7 @@ function createStyle() {
   let style
   // CSS Transforms support (default)
   if (state.useCssTransforms) {
-    //                    Add rtl support
+    // Add rtl support
     if (renderRtl.value) {
       style = setTransformRtl(pos.top, pos.right!, pos.width, pos.height)
     } else {
@@ -438,6 +430,7 @@ function createStyle() {
       style = setTopLeft(pos.top, pos.left!, pos.width, pos.height)
     }
   }
+
   state.style = style
 }
 
@@ -673,9 +666,9 @@ function calcPosition(x: number, y: number, w: number, h: number) {
 
 /**
  * Translate x and y coordinates from pixels to grid units.
- * @param   top  Top position (relative to parent) in pixels.
- * @param   left Left position (relative to parent) in pixels.
- * @return  x and y in grid units.
+ * @param top  Top position (relative to parent) in pixels.
+ * @param left Left position (relative to parent) in pixels.
+ * @return x and y in grid units.
  */
 // TODO check if this function needs change in order to support rtl.
 function calcXY(top: number, left: number) {
@@ -716,10 +709,10 @@ function clamp(num: number, lowerBound: number, upperBound: number) {
 
 /**
  * Given a height and width in pixel values, calculate grid units.
- * @param   height Height in pixels.
- * @param   width  Width in pixels.
- * @param   autoSizeFlag  function autoSize identifier.
- * @return  w, h as grid units.
+ * @param height Height in pixels.
+ * @param width  Width in pixels.
+ * @param autoSizeFlag  function autoSize identifier.
+ * @return w, h as grid units.
  */
 function calcWH(height: number, width: number, autoSizeFlag = false) {
   const colWidth = calcColWidth()
@@ -761,6 +754,8 @@ function tryInteract() {
   }
 }
 
+const throttleDrag = throttle(handleDrag)
+
 function tryMakeDraggable() {
   tryInteract()
 
@@ -773,19 +768,19 @@ function tryMakeDraggable() {
       ...props.dragOption
     }
     interactObj.value.draggable(opts)
-    /* interactObj.value.draggable({allowFrom: '.vue-draggable-handle'}); */
-    if (!state.dragEventSet) {
-      state.dragEventSet = true
+
+    if (!dragEventSet) {
+      dragEventSet = true
       interactObj.value.on('dragstart dragmove dragend', event => {
-        handleDrag(event)
+        event.type === 'dragmove' ? throttleDrag(event) : handleDrag(event)
       })
     }
   } else {
-    interactObj.value.draggable({
-      enabled: false
-    })
+    interactObj.value.draggable({ enabled: false })
   }
 }
+
+const throttleResize = throttle(handleResize)
 
 function tryMakeResizable() {
   tryInteract()
@@ -796,11 +791,7 @@ function tryMakeResizable() {
     const maximum = calcPosition(0, 0, props.maxW, props.maxH)
     const minimum = calcPosition(0, 0, props.minW, props.minH)
 
-    // console.log("### MAX " + JSON.stringify(maximum));
-    // console.log("### MIN " + JSON.stringify(minimum));
-
     const opts: Record<string, any> = {
-      // allowFrom: "." + this.resizableHandleClass.trim().replace(" ", "."),
       edges: {
         left: false,
         right: '.' + resizableHandleClass.value.trim().replace(' ', '.'),
@@ -822,65 +813,20 @@ function tryMakeResizable() {
     }
 
     if (props.preserveAspectRatio) {
-      opts.modifiers = [
-        interact.modifiers.aspectRatio({
-          ratio: 'preserve'
-        })
-      ]
+      opts.modifiers = [interact.modifiers.aspectRatio({ ratio: 'preserve' })]
     }
 
     interactObj.value.resizable(opts)
-    if (!state.resizeEventSet) {
-      state.resizeEventSet = true
+    if (!resizeEventSet) {
+      resizeEventSet = true
       interactObj.value.on('resizestart resizemove resizeend', event => {
-        handleResize(event)
+        event.type === 'resizemove' ? throttleResize(event) : handleResize(event)
       })
     }
   } else {
-    interactObj.value.resizable({
-      enabled: false
-    })
+    interactObj.value.resizable({ enabled: false })
   }
 }
-
-// function autoSize() {
-//   // ok here we want to calculate if a resize is needed
-//   state.previousW = state.innerW
-//   state.previousH = state.innerH
-
-//   const newSize = this.$slots.default[0].elm.getBoundingClientRect()
-//   const pos = calcWH(newSize.height, newSize.width, true)
-//   if (pos.w < props.minW) {
-//     pos.w = props.minW
-//   }
-//   if (pos.w > props.maxW) {
-//     pos.w = props.maxW
-//   }
-//   if (pos.h < props.minH) {
-//     pos.h = props.minH
-//   }
-//   if (pos.h > props.maxH) {
-//     pos.h = props.maxH
-//   }
-
-//   if (pos.h < 1) {
-//     pos.h = 1
-//   }
-//   if (pos.w < 1) {
-//     pos.w = 1
-//   }
-
-//   // this.lastW = x; // basically, this is copied from resizehandler, but shouldn't be needed
-//   // this.lastH = y;
-
-//   if (state.innerW !== pos.w || state.innerH !== pos.h) {
-//     emit('resize', props.i, pos.h, pos.w, newSize.height, newSize.width)
-//   }
-//   if (state.previousW !== pos.w || state.previousH !== pos.h) {
-//     emit('resized', props.i, pos.h, pos.w, newSize.height, newSize.width)
-//     emitter.emit('resizeEvent', 'resizeend', props.i, state.innerX, state.innerY, pos.h, pos.w)
-//   }
-// }
 </script>
 
 <template>
