@@ -2,6 +2,10 @@
 
 Grid style can be customized to fit your needs.
 
+::: tip
+The class names of components have changed a lot. `grid-layout-plus` adopts the BEM naming convention, which is shorter and flatter than the original class name.
+:::
+
 ## Variables
 
 ```css
