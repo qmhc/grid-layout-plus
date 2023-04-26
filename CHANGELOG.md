@@ -1,3 +1,5 @@
+## [1.0.1](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.3...v1.0.1) (2023-04-26)
+
 # [1.0.0-beta.3](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2023-04-23)
 
 ### ⚡ Performance Improvements
