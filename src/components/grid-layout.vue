@@ -315,7 +315,7 @@ provide(
 )
 provide(EMITTER_KEY, emitter)
 
-defineExpose({ state, getItem, dragEvent })
+defineExpose({ state, getItem, resizeEvent, dragEvent })
 
 function increaseItem(item: any) {
   itemInstances.set(item.i, item)
@@ -387,7 +387,6 @@ function dragEvent(
   h: number,
   w: number
 ) {
-  console.log(eventName)
   let l = getLayoutItem(currentLayout.value, id)!
 
   // GetLayoutItem sometimes returns null object

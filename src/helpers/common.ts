@@ -233,7 +233,6 @@ export function moveElement(
   // Move each item that collides away from this element.
   for (let i = 0, len = collisions.length; i < len; i++) {
     const collision = collisions[i]
-    // console.log('resolving collision between', l.i, 'at', l.y, 'and', collision.i, 'at', collision.y);
 
     // Short circuit so we can't infinite loop
     if (collision.moved) continue

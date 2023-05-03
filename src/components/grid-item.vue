@@ -131,7 +131,15 @@ const state = reactive({
   useStyleCursor: true,
 
   isDragging: false,
+  dragging: {
+    top: -1,
+    left: -1
+  },
   isResizing: false,
+  resizing: {
+    width: -1,
+    height: -1
+  },
   style: {} as Record<string, string>,
   rtl: false
 })
@@ -153,15 +161,6 @@ let innerX = props.x
 let innerY = props.y
 let innerW = props.w
 let innerH = props.h
-
-let dragging = {
-  top: -1,
-  left: -1
-}
-let resizing = {
-  width: -1,
-  height: -1
-}
 
 const wrapper = ref<HTMLElement>()
 
@@ -404,17 +403,17 @@ function createStyle() {
   const pos = calcPosition(innerX, innerY, innerW, innerH)
 
   if (state.isDragging) {
-    pos.top = dragging.top
+    pos.top = state.dragging.top
     // Add rtl support
     if (renderRtl.value) {
-      pos.right = dragging.left
+      pos.right = state.dragging.left
     } else {
-      pos.left = dragging.left
+      pos.left = state.dragging.left
     }
   }
   if (state.isResizing) {
-    pos.width = resizing.width
-    pos.height = resizing.height
+    pos.width = state.resizing.width
+    pos.height = state.resizing.height
   }
 
   let style
@@ -458,7 +457,12 @@ function handleResize(event: MouseEvent) {
   if (props.static) return
 
   const type = event.type
-  if ((type === 'resizestart' && state.isResizing) || (type !== 'resizestart' && !state.isResizing)) { return }
+  if (
+    (type === 'resizestart' && state.isResizing) ||
+    (type !== 'resizestart' && !state.isResizing)
+  ) {
+    return
+  }
 
   const position = getControlPosition(event)
   // Get the current drag point from the event. This is used as the offset.
@@ -475,19 +479,19 @@ function handleResize(event: MouseEvent) {
       pos = calcPosition(innerX, innerY, innerW, innerH)
       newSize.width = pos.width
       newSize.height = pos.height
-      resizing = newSize
+      state.resizing = newSize
       state.isResizing = true
       break
     }
     case 'resizemove': {
       const coreEvent = createCoreData(lastW, lastH, x, y)
       if (renderRtl.value) {
-        newSize.width = resizing.width - coreEvent.deltaX / state.transformScale
+        newSize.width = state.resizing.width - coreEvent.deltaX / state.transformScale
       } else {
-        newSize.width = resizing.width + coreEvent.deltaX / state.transformScale
+        newSize.width = state.resizing.width + coreEvent.deltaX / state.transformScale
       }
-      newSize.height = resizing.height + coreEvent.deltaY / state.transformScale
-      resizing = newSize
+      newSize.height = state.resizing.height + coreEvent.deltaY / state.transformScale
+      state.resizing = newSize
       break
     }
     case 'resizeend': {
@@ -495,7 +499,7 @@ function handleResize(event: MouseEvent) {
       newSize.width = pos.width
       newSize.height = pos.height
 
-      resizing = { width: -1, height: -1 }
+      state.resizing = { width: -1, height: -1 }
       state.isResizing = false
       break
     }
@@ -539,7 +543,9 @@ function handleDrag(event: MouseEvent) {
   if (props.static || state.isResizing) return
 
   const type = event.type
-  if ((type === 'dragstart' && state.isDragging) || (type !== 'dragstart' && !state.isDragging)) { return }
+  if ((type === 'dragstart' && state.isDragging) || (type !== 'dragstart' && !state.isDragging)) {
+    return
+  }
 
   const position = getControlPosition(event)
 
@@ -573,7 +579,7 @@ function handleDrag(event: MouseEvent) {
         newPosition.left = cLeft - pLeft
       }
       newPosition.top = cTop - pTop
-      dragging = newPosition
+      state.dragging = newPosition
       state.isDragging = true
       break
     }
@@ -581,11 +587,11 @@ function handleDrag(event: MouseEvent) {
       const coreEvent = createCoreData(lastX, lastY, x, y)
       // Add rtl support
       if (renderRtl.value) {
-        newPosition.left = dragging.left - coreEvent.deltaX / state.transformScale
+        newPosition.left = state.dragging.left - coreEvent.deltaX / state.transformScale
       } else {
-        newPosition.left = dragging.left + coreEvent.deltaX / state.transformScale
+        newPosition.left = state.dragging.left + coreEvent.deltaX / state.transformScale
       }
-      newPosition.top = dragging.top + coreEvent.deltaY / state.transformScale
+      newPosition.top = state.dragging.top + coreEvent.deltaY / state.transformScale
       if (state.bounded) {
         const bottomBoundary =
           target.offsetParent.clientHeight -
@@ -597,7 +603,7 @@ function handleDrag(event: MouseEvent) {
         newPosition.left = clamp(newPosition.left, 0, rightBoundary)
       }
 
-      dragging = newPosition
+      state.dragging = newPosition
       break
     }
     case 'dragend': {
@@ -618,7 +624,7 @@ function handleDrag(event: MouseEvent) {
         newPosition.left = cLeft - pLeft
       }
       newPosition.top = cTop - pTop
-      dragging = { top: -1, left: -1 }
+      state.dragging = { top: -1, left: -1 }
       state.isDragging = false
       break
     }
@@ -703,9 +709,7 @@ function calcXY(top: number, left: number) {
 }
 
 function calcColWidth() {
-  const colWidth = (state.containerWidth - state.margin[0] * (state.cols + 1)) / state.cols
-  // console.log("### COLS=" + this.cols + " COL WIDTH=" + colWidth + " MARGIN " + this.margin[0]);
-  return colWidth
+  return (state.containerWidth - state.margin[0] * (state.cols + 1)) / state.cols
 }
 
 function calcGridItemWHPx(gridUnits: number, colOrRowSize: number, marginPx: number) {

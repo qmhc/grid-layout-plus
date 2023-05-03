@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+// you can import from 'lodash-es' or implement it by yourself
+import { throttle } from '@vexip-ui/utils'
 
 const layout = ref([
   { x: 0, y: 0, w: 2, h: 2, i: '0' },
@@ -35,7 +37,7 @@ function syncMousePosition(event: MouseEvent) {
 const dropId = 'drop'
 const dragItem = { x: -1, y: -1, w: 2, h: 2, i: '' }
 
-function drag() {
+const drag = throttle(() => {
   const parentRect = wrapper.value?.getBoundingClientRect()
 
   if (!parentRect) return
@@ -67,7 +69,10 @@ function drag() {
       item.wrapper.style.display = 'none'
     } catch (e) {}
 
-    item.state.dragging = { top: mouseAt.y - parentRect.top, left: mouseAt.x - parentRect.left }
+    Object.assign(item.state, {
+      top: mouseAt.y - parentRect.top,
+      left: mouseAt.x - parentRect.left
+    })
     const newPos = item.calcXY(mouseAt.y - parentRect.top, mouseAt.x - parentRect.left)
 
     if (mouseInGrid) {
@@ -80,7 +85,7 @@ function drag() {
       layout.value = layout.value.filter(item => item.i !== dropId)
     }
   }
-}
+})
 
 function dragEnd() {
   const parentRect = wrapper.value?.getBoundingClientRect()
@@ -97,6 +102,8 @@ function dragEnd() {
     alert(`Dropped element props:\n${JSON.stringify(dragItem, ['x', 'y', 'w', 'h'], 2)}`)
     gridLayout.value.dragEvent('dragend', dropId, dragItem.x, dragItem.y, dragItem.h, dragItem.w)
     layout.value = layout.value.filter(item => item.i !== dropId)
+  } else {
+    return
   }
 
   layout.value.push({
