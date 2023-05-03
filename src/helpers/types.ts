@@ -23,6 +23,7 @@ export type Breakpoint = 'xxs' | 'xs' | 'sm' | 'md' | 'lg'
 export type Breakpoints = Record<Breakpoint, number>
 export type ResponsiveLayout = Record<Breakpoint, Layout>
 
+/** @internal */
 export interface LayoutInstance {
   responsive: boolean,
   lastBreakpoint: Breakpoint,

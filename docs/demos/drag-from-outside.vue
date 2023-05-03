@@ -3,6 +3,8 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 // you can import from 'lodash-es' or implement it by yourself
 import { throttle } from '@vexip-ui/utils'
 
+import type { GridLayout } from 'grid-layout-plus'
+
 const layout = ref([
   { x: 0, y: 0, w: 2, h: 2, i: '0' },
   { x: 2, y: 0, w: 2, h: 4, i: '1' },
@@ -17,7 +19,7 @@ const layout = ref([
 ])
 
 const wrapper = ref<HTMLElement>()
-const gridLayout = ref<any>()
+const gridLayout = ref<InstanceType<typeof GridLayout>>()
 
 onMounted(() => {
   document.addEventListener('dragover', syncMousePosition)
@@ -40,7 +42,7 @@ const dragItem = { x: -1, y: -1, w: 2, h: 2, i: '' }
 const drag = throttle(() => {
   const parentRect = wrapper.value?.getBoundingClientRect()
 
-  if (!parentRect) return
+  if (!parentRect || !gridLayout.value) return
 
   const mouseInGrid =
     mouseAt.x > parentRect.left &&
@@ -90,7 +92,7 @@ const drag = throttle(() => {
 function dragEnd() {
   const parentRect = wrapper.value?.getBoundingClientRect()
 
-  if (!parentRect) return
+  if (!parentRect || !gridLayout.value) return
 
   const mouseInGrid =
     mouseAt.x > parentRect.left &&

@@ -809,8 +809,6 @@ function tryMakeResizable() {
     const opts: Record<string, any> = {
       edges: {
         left: false,
-        // right: '.' + resizableHandleClass.value.trim().replace(' ', '.'),
-        // bottom: '.' + resizableHandleClass.value.trim().replace(' ', '.'),
         right: `.${resizerClass.value[0]}`,
         bottom: `.${resizerClass.value[0]}`,
         top: false

@@ -14,11 +14,20 @@
 
 ## What is Grid Layout Plus?
 
-Vue Grid Layout is a grid layout system for Vue 2, like [Gridster](http://dsmorse.github.io/gridster.js/).
-
 Grid Layout Plus comes from [Vue Grid Layout](https://github.com/jbaysolutions/vue-grid-layout) and is migrated to Vue 3.
 
+> It is constructed with `<script setup>` and normalized TypeScript.
+
+<details>
+  <summary>About Vue Grid Layout</summary>
+  
+## What is Vue Grid Layout?
+
+Vue Grid Layout is a grid layout system for Vue 2, like [Gridster](http://dsmorse.github.io/gridster.js/).
+
 **Heavily inspired by [React Grid Layout](https://github.com/STRML/react-grid-layout).**
+
+</details>
 
 ## Features
 
