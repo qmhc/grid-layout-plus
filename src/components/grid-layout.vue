@@ -387,6 +387,7 @@ function dragEvent(
   h: number,
   w: number
 ) {
+  console.log(eventName)
   let l = getLayoutItem(currentLayout.value, id)!
 
   // GetLayoutItem sometimes returns null object

@@ -456,6 +456,10 @@ function emitContainerResized() {
 
 function handleResize(event: MouseEvent) {
   if (props.static) return
+
+  const type = event.type
+  if ((type === 'resizestart' && state.isResizing) || (type !== 'resizestart' && !state.isResizing)) { return }
+
   const position = getControlPosition(event)
   // Get the current drag point from the event. This is used as the offset.
   if (isNull(position)) return // not possible but satisfies flow
@@ -463,7 +467,7 @@ function handleResize(event: MouseEvent) {
   const { x, y } = position
   const newSize = { width: 0, height: 0 }
   let pos
-  switch (event.type) {
+  switch (type) {
     case 'resizestart': {
       tryMakeResizable()
       previousW = innerW
@@ -534,6 +538,9 @@ function handleResize(event: MouseEvent) {
 function handleDrag(event: MouseEvent) {
   if (props.static || state.isResizing) return
 
+  const type = event.type
+  if ((type === 'dragstart' && state.isDragging) || (type !== 'dragstart' && !state.isDragging)) { return }
+
   const position = getControlPosition(event)
 
   // Get the current drag point from the event. This is used as the offset.
@@ -545,7 +552,7 @@ function handleDrag(event: MouseEvent) {
 
   // let shouldUpdate = false;
   const newPosition = { top: 0, left: 0 }
-  switch (event.type) {
+  switch (type) {
     case 'dragstart': {
       previousX = innerX
       previousY = innerY
@@ -570,29 +577,6 @@ function handleDrag(event: MouseEvent) {
       state.isDragging = true
       break
     }
-    case 'dragend': {
-      if (!state.isDragging) return
-      const parentRect = target.offsetParent.getBoundingClientRect()
-      const clientRect = target.getBoundingClientRect()
-
-      const cLeft = clientRect.left / state.transformScale
-      const pLeft = parentRect.left / state.transformScale
-      const cRight = clientRect.right / state.transformScale
-      const pRight = parentRect.right / state.transformScale
-      const cTop = clientRect.top / state.transformScale
-      const pTop = parentRect.top / state.transformScale
-
-      // Add rtl support
-      if (renderRtl.value) {
-        newPosition.left = (cRight - pRight) * -1
-      } else {
-        newPosition.left = cLeft - pLeft
-      }
-      newPosition.top = cTop - pTop
-      dragging = { top: -1, left: -1 }
-      state.isDragging = false
-      break
-    }
     case 'dragmove': {
       const coreEvent = createCoreData(lastX, lastY, x, y)
       // Add rtl support
@@ -614,6 +598,28 @@ function handleDrag(event: MouseEvent) {
       }
 
       dragging = newPosition
+      break
+    }
+    case 'dragend': {
+      const parentRect = target.offsetParent.getBoundingClientRect()
+      const clientRect = target.getBoundingClientRect()
+
+      const cLeft = clientRect.left / state.transformScale
+      const pLeft = parentRect.left / state.transformScale
+      const cRight = clientRect.right / state.transformScale
+      const pRight = parentRect.right / state.transformScale
+      const cTop = clientRect.top / state.transformScale
+      const pTop = parentRect.top / state.transformScale
+
+      // Add rtl support
+      if (renderRtl.value) {
+        newPosition.left = (cRight - pRight) * -1
+      } else {
+        newPosition.left = cLeft - pLeft
+      }
+      newPosition.top = cTop - pTop
+      dragging = { top: -1, left: -1 }
+      state.isDragging = false
       break
     }
   }
