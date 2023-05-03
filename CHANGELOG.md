@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/qmhc/grid-layout-plus/compare/v1.0.1...v1.0.2) (2023-05-03)
+
+### 🐞 Bug Fixes
+
+- current reactive dragging state for custom ([aa1c4ee](https://github.com/qmhc/grid-layout-plus/commit/aa1c4ee28fe48f95ec50af2c99f6af1397a280f4)), closes [#2](https://github.com/qmhc/grid-layout-plus/issues/2)
+- ensure correct event sequence ([5d779d3](https://github.com/qmhc/grid-layout-plus/commit/5d779d313033cbbfda91fce6fcd46097e09d4000)), closes [#1](https://github.com/qmhc/grid-layout-plus/issues/1)
+
 ## [1.0.1](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.3...v1.0.1) (2023-04-26)
 
 # [1.0.0-beta.3](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2023-04-23)
