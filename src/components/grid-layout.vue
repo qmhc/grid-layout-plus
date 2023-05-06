@@ -76,6 +76,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  isSwappable: {
+    type: Boolean,
+    default: false
+  },
   useCssTransforms: {
     type: Boolean,
     default: true
@@ -281,6 +285,12 @@ watch(
   }
 )
 watch(
+  () => props.isSwappable,
+  value => {
+    emitter.emit('setSwappable', value)
+  }
+)
+watch(
   () => props.transformScale,
   value => {
     emitter.emit('setTransformScale', value)
@@ -423,7 +433,7 @@ function dragEvent(
   }
 
   // Move the element to the dragged location.
-  currentLayout.value = moveElement(currentLayout.value, l, x, y, true, props.preventCollision)
+  currentLayout.value = moveElement(currentLayout.value, l, x, y, true, props.preventCollision, props.isSwappable)
 
   if (props.restoreOnDrag) {
     // Do not compact items more than in layout before drag

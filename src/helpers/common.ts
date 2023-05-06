@@ -189,12 +189,14 @@ export function getStatics(layout: Layout): Array<LayoutItem> {
 /**
  * Move an element. Responsible for doing cascading movements of other elements.
  *
- * @param        layout Full layout to modify.
- * @param   layoutItem      element to move.
- * @param       x    X position in grid units.
- * @param       y    Y position in grid units.
- * @param      isUserAction If true, designates that the item we're moving is
+ * @param     layout            Full layout to modify.
+ * @param     layoutItem        element to move.
+ * @param     x                 X position in grid units.
+ * @param     y                 Y position in grid units.
+ * @param     isUserAction      If true, designates that the item we're moving is
  *                                     being dragged/resized by th euser.
+ * @param     preventCollision  If true, collisions will be ignored.
+ * @param     isSwappable        If true, the item will be swapped with the colliding item.
  */
 export function moveElement(
   layout: Layout,
@@ -202,10 +204,14 @@ export function moveElement(
   x?: number,
   y?: number,
   isUserAction = false,
-  preventCollision = false
+  preventCollision = false,
+  isSwappable = false
 ): Layout {
   if (layoutItem.static) return layout
 
+  const origLayoutItem = {
+    ...layoutItem
+  }
   const oldX = layoutItem.x
   const oldY = layoutItem.y
 
@@ -242,9 +248,9 @@ export function moveElement(
 
     // Don't move static items - we have to move *this* element away
     if (collision.static) {
-      layout = moveElementAwayFromCollision(layout, collision, layoutItem, isUserAction)
+      layout = moveElementAwayFromCollision(layout, collision, layoutItem, origLayoutItem, isUserAction, isSwappable)
     } else {
-      layout = moveElementAwayFromCollision(layout, layoutItem, collision, isUserAction)
+      layout = moveElementAwayFromCollision(layout, layoutItem, collision, origLayoutItem, isUserAction, isSwappable)
     }
   }
 
@@ -255,18 +261,22 @@ export function moveElement(
  * This is where the magic needs to happen - given a collision, move an element away from the collision.
  * We attempt to move it up if there's room, otherwise it goes below.
  *
- * @param   layout            Full layout to modify.
+ * @param   layout       Full layout to modify.
  * @param   collidesWith Layout item we're colliding with.
  * @param   itemToMove   Layout item we're moving.
  * @param  isUserAction  If true, designates that the item we're moving is being dragged/resized
  *                                   by the user.
+ * @param  isSwappable   If true, the item will be swapped with the colliding item.
  */
 export function moveElementAwayFromCollision(
   layout: Layout,
   collidesWith: LayoutItem,
   itemToMove: LayoutItem,
-  isUserAction?: boolean
+  collidesWithStart: LayoutItem,
+  isUserAction = false,
+  isSwappable = false
 ): Layout {
+  const nextMoveIsUserAction = false // The next move is never a user action, since we're moving it
   const preventCollision = false // we're already colliding
   // If there is enough space above the collision to put this element, move it there.
   // We only do this on the main collision as this can get funky in cascades and cause
@@ -282,13 +292,29 @@ export function moveElementAwayFromCollision(
     }
     fakeItem.y = Math.max(collidesWith.y - itemToMove.h, 0)
     if (!getFirstCollision(layout, fakeItem)) {
-      return moveElement(layout, itemToMove, undefined, fakeItem.y, preventCollision)
+      return moveElement(layout, itemToMove, undefined, fakeItem.y, nextMoveIsUserAction, preventCollision, isSwappable)
+    }
+  }
+
+  // if it's the same row, swap with the item we're colliding with
+  if (isSwappable && collidesWithStart.y === itemToMove.y) {
+    const direction = collidesWith.x < collidesWithStart.x ? 1 : -1
+
+    // If we're not leaving enough space for the other item to move, forcibly shift the item
+    if (collidesWith.w === itemToMove.w && collidesWith.x !== itemToMove.x) {
+      return moveElement(layout, collidesWith, itemToMove.x, undefined, nextMoveIsUserAction, preventCollision, isSwappable)
+    }
+
+    // We have enough space to move, move to the next slot
+    const newX = itemToMove.x + (direction * collidesWith.w)
+    if (newX >= 0) {
+      return moveElement(layout, itemToMove, newX, undefined, nextMoveIsUserAction, preventCollision, isSwappable)
     }
   }
 
   // Previously this was optimized to move below the collision directly, but this can cause problems
   // with cascading moves, as an item may actually leapflog a collision and cause a reversal in order.
-  return moveElement(layout, itemToMove, undefined, itemToMove.y + 1, preventCollision)
+  return moveElement(layout, itemToMove, undefined, itemToMove.y + 1, nextMoveIsUserAction, preventCollision, isSwappable)
 }
 
 /**
