@@ -64,7 +64,8 @@ export default defineConfig({
               { text: 'Drag From Outside', link: '/example/drag-from-outside' },
               { text: 'Items Bounded to Container', link: '/example/bounded' },
               { text: 'Styling Grid Lines', link: '/example/styling-grid-lines' },
-              { text: 'Styling Placeholder', link: '/example/styling-placeholder' }
+              { text: 'Styling Placeholder', link: '/example/styling-placeholder' },
+              { text: 'Swappable', link: '/example/swappable' }
             ]
           }
         ],

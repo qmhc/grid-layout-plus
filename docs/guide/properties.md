@@ -135,6 +135,13 @@ Says if the RTL/LTR should be reversed.
 
 Says if the grid items are bounded to the container when dragging.
 
+### is-swappable
+
+- type: `boolean`
+- default: `false`
+
+Says if the grid items are swappable when dragging across a row.
+
 ### auto-size
 
 - type: `boolean`
