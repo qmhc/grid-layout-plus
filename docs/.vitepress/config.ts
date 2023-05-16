@@ -26,7 +26,10 @@ export default defineConfig({
   lastUpdated: true,
   themeConfig: {
     logo: '/grid-layout-plus.svg',
-    outline: [2, 3]
+    outline: [2, 3],
+    search: {
+      provider: 'local'
+    }
   },
   locales: {
     root: {
