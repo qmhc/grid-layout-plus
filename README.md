@@ -4,7 +4,7 @@
   </a>
 </p>
 
-<h1 align="center">Grip Layout Plus</h1>
+<h1 align="center">Grid Layout Plus</h1>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/grid-layout-plus" target="_blank">
