@@ -5,6 +5,7 @@ hero:
   name: Grid Layout Plus
   text: 一个 Vue 3 的可拖拽、可缩放的布局
   tagline: 一个适用于 Vue 3 栅格布局系统，灵感源自于 React Grid Layout
+  image: /grid-layout-plus.svg
   actions:
     - theme: brand
       text: 马上开始
@@ -33,4 +34,3 @@ features:
   - title: 每个元素具有单独（最大/小）高/宽
     details: 
 ---
-
