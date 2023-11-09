@@ -15,8 +15,6 @@
     "lint:style": "stylelint **/*.{vue,scss} --fix",
     "lint:test": "eslint --ext .js,.ts,.tsx,.vue src/** dev-server/** docs/** scripts/** && stylelint **/*.{vue,scss}",
     "postpublish": "pinst --enable",
-    "precommit": "lint-staged -c ./.husky/.lintstagedrc -q",
-    "prepare": "is-ci || husky install",
     "prepublishOnly": "pinst --disable",
     "prettier": "prettier --write \"{src,dev-server,docs}/**/*.{ts,js,json,css,pcss,scss,vue,html,md}\"",
     "prettier:scripts": "prettier --write \"scripts/**/*.{ts,js,json}\"",
