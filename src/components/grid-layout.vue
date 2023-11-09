@@ -345,6 +345,7 @@ function layoutUpdate() {
 
       state.lastLayoutLength = currentLayout.value.length
       initResponsiveFeatures()
+      if (props.responsive) responsiveGridLayout()
     }
 
     compact(currentLayout.value, props.verticalCompact)
