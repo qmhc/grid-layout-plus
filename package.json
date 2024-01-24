@@ -66,13 +66,13 @@
     "vue-grid-layout"
   ],
   "dependencies": {
-    "@vexip-ui/hooks": "^1.9.0",
-    "@vexip-ui/utils": "^1.11.0",
-    "interactjs": "^1.10.17"
+    "@vexip-ui/hooks": "^2.4.0",
+    "@vexip-ui/utils": "^2.13.0",
+    "interactjs": "^1.10.26"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.6.1",
-    "@interactjs/types": "^1.10.17",
+    "@interactjs/types": "^1.10.26",
     "@types/minimist": "^1.2.2",
     "@types/node": "^18.15.12",
     "@types/prettier": "^2.7.2",
