@@ -211,13 +211,13 @@ function dragEventHandler(
 
 watch(
   () => state.width,
-  (newval, oldval) => {
+  (newVal, oldVal) => {
     nextTick(() => {
-      emitter.emit('updateWidth', newval)
-      if (oldval === null) {
+      emitter.emit('updateWidth', newVal)
+      if (oldVal === null) {
         /*
-        If oldval == null is when the width has never been
-        set before. That only occurs when mouting is
+        If oldVal == null is when the width has never been
+        set before. That only occurs when mounting is
         finished, and onWindowResize has been called and
         this.width has been changed the first time after it
         got set to null in the constructor. It is now time
@@ -233,7 +233,7 @@ watch(
         item-layout-ready (for the GridItem-s).
 
         This way any client event handlers can reliably
-        invistigate stable sizes of GridItem-s.
+        investigate stable sizes of GridItem-s.
       */
         nextTick(() => {
           emit('layout-ready', currentLayout.value)
@@ -302,7 +302,7 @@ watch(
     emitter.emit('setMaxRows', value)
   }
 )
-watch(() => props.margin, updateHeight)
+watch([() => props.margin, () => props.margin[1]], updateHeight)
 
 provide(
   LAYOUT_KEY,
@@ -372,8 +372,8 @@ function onWindowResize() {
 function containerHeight() {
   if (!props.autoSize) return
 
-  const containerHeight =
-    bottom(currentLayout.value) * (props.rowHeight + props.margin[1]) + props.margin[1] + 'px'
+  const marginY = parseFloat(props.margin[1] as any)
+  const containerHeight = bottom(currentLayout.value) * (props.rowHeight + marginY) + marginY + 'px'
   return containerHeight
 }
 

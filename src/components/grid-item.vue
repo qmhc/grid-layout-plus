@@ -232,7 +232,7 @@ onMounted(() => {
   }
   state.rowHeight = layout.rowHeight
   state.containerWidth = layout.width !== null ? layout.width : 100
-  state.margin = layout.margin !== undefined ? layout.margin : [10, 10]
+  state.margin = layout.margin !== undefined ? layout.margin.map(Number) : [10, 10]
   state.maxRows = layout.maxRows
 
   if (isNull(props.isDraggable)) {
@@ -379,17 +379,17 @@ watch(renderRtl, () => {
   nextTickOnce(tryMakeResizable)
   nextTickOnce(createStyle)
 })
-watch(
-  () => layout.margin,
-  value => {
-    if (!value || (value[0] === state.margin[0] && value[1] === state.margin[1])) {
-      return
-    }
-    state.margin = value.map(Number)
-    nextTickOnce(createStyle)
-    nextTickOnce(emitContainerResized)
+watch([() => layout.margin, () => layout.margin[0], () => layout.margin[1]], () => {
+  const margin = layout.margin
+
+  if (!margin || (margin[0] === state.margin[0] && margin[1] === state.margin[1])) {
+    return
   }
-)
+
+  state.margin = margin.map(Number)
+  nextTickOnce(createStyle)
+  nextTickOnce(emitContainerResized)
+})
 
 function createStyle() {
   if (props.x + props.w > state.cols) {
@@ -658,9 +658,9 @@ function calcPosition(x: number, y: number, w: number, h: number) {
     out = {
       right: Math.round(colWidth * x + (x + 1) * state.margin[0]),
       top: Math.round(state.rowHeight * y + (y + 1) * state.margin[1]),
-      // 0 * Infinity === NaN, which causes problems with resize constriants;
+      // 0 * Infinity === NaN, which causes problems with resize constraints;
       // Fix this if it occurs.
-      // Note we do it here rather than later because Math.round(Infinity) causes deopt
+      // Note we do it here rather than later because Math.round(Infinity) causes depot
       width: w === Infinity ? w : Math.round(colWidth * w + Math.max(0, w - 1) * state.margin[0]),
       height:
         h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1])
@@ -669,9 +669,9 @@ function calcPosition(x: number, y: number, w: number, h: number) {
     out = {
       left: Math.round(colWidth * x + (x + 1) * state.margin[0]),
       top: Math.round(state.rowHeight * y + (y + 1) * state.margin[1]),
-      // 0 * Infinity === NaN, which causes problems with resize constriants;
+      // 0 * Infinity === NaN, which causes problems with resize constraints;
       // Fix this if it occurs.
-      // Note we do it here rather than later because Math.round(Infinity) causes deopt
+      // Note we do it here rather than later because Math.round(Infinity) causes depot
       width: w === Infinity ? w : Math.round(colWidth * w + Math.max(0, w - 1) * state.margin[0]),
       height:
         h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1])
@@ -713,7 +713,7 @@ function calcColWidth() {
 }
 
 function calcGridItemWHPx(gridUnits: number, colOrRowSize: number, marginPx: number) {
-  // 0 * Infinity === NaN, which causes problems with resize contraints
+  // 0 * Infinity === NaN, which causes problems with resize constraints
   if (!Number.isFinite(gridUnits)) return gridUnits
   return Math.round(colOrRowSize * gridUnits + Math.max(0, gridUnits - 1) * marginPx)
 }
