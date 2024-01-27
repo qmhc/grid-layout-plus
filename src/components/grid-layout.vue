@@ -345,6 +345,7 @@ function layoutUpdate() {
 
       state.lastLayoutLength = currentLayout.value.length
       initResponsiveFeatures()
+      if (props.responsive) responsiveGridLayout()
     }
 
     compact(currentLayout.value, props.verticalCompact)
@@ -517,9 +518,9 @@ function responsiveGridLayout() {
   const newCols = getColsFromBreakpoint(newBreakpoint, props.cols)
 
   // save actual layout in layouts
-  if (!isNull(state.lastBreakpoint) && !state.layouts[state.lastBreakpoint]) {
-    state.layouts[state.lastBreakpoint] = cloneLayout(currentLayout.value)
-  }
+  // if (!isNull(state.lastBreakpoint) && !state.layouts[state.lastBreakpoint]) {
+  //   state.layouts[state.lastBreakpoint] = cloneLayout(currentLayout.value)
+  // }
 
   // Find or generate a new layout.
   const layout = findOrGenerateResponsiveLayout(
