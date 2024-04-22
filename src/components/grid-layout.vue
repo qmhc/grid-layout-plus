@@ -214,9 +214,9 @@ watch(
   (newVal, oldVal) => {
     nextTick(() => {
       emitter.emit('updateWidth', newVal)
-      if (oldVal === null) {
+      if (oldVal === -1) {
         /*
-        If oldVal == null is when the width has never been
+        If oldVal === -1 is when the width has never been
         set before. That only occurs when mounting is
         finished, and onWindowResize has been called and
         this.width has been changed the first time after it
