@@ -1,3 +1,9 @@
+## [1.0.5](https://github.com/qmhc/grid-layout-plus/compare/v1.0.4...v1.0.5) (2024-04-22)
+
+### 🐞 Bug Fixes
+
+- correctly emit layout-ready event ([#20](https://github.com/qmhc/grid-layout-plus/issues/20)) ([703b3be](https://github.com/qmhc/grid-layout-plus/commit/703b3beeeb50bc29e5f2ddcf805be201b66396af))
+
 ## [1.0.4](https://github.com/qmhc/grid-layout-plus/compare/v1.0.3...v1.0.4) (2024-01-24)
 
 ### 🐞 Bug Fixes
