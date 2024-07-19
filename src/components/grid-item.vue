@@ -843,12 +843,17 @@ function tryMakeResizable() {
   }
 }
 </script>
+
 <template>
-  <section ref="wrapper"
-           :class="className"
-           :style="state.style">
+  <section
+    ref="wrapper"
+    :class="className"
+    :style="state.style"
+  >
     <slot></slot>
-    <span v-if="resizableAndNotStatic"
-          :class="resizerClass"></span>
+    <span
+      v-if="resizableAndNotStatic"
+      :class="resizerClass"
+    ></span>
   </section>
 </template>
