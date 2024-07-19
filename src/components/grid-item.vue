@@ -25,7 +25,7 @@ import { getControlPosition, createCoreData } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
 import { getDocumentDir } from '../helpers/dom'
 
-import interact from 'interactjs'
+import interact from '@interactjs/interact'
 
 const props = defineProps({
   isDraggable: {
@@ -843,10 +843,12 @@ function tryMakeResizable() {
   }
 }
 </script>
-
 <template>
-  <section ref="wrapper" :class="className" :style="state.style">
+  <section ref="wrapper"
+           :class="className"
+           :style="state.style">
     <slot></slot>
-    <span v-if="resizableAndNotStatic" :class="resizerClass"></span>
+    <span v-if="resizableAndNotStatic"
+          :class="resizerClass"></span>
   </section>
 </template>
