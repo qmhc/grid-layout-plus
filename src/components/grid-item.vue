@@ -296,7 +296,10 @@ onBeforeUnmount(() => {
 
 defineExpose({ state, wrapper })
 
-const isAndroid = navigator.userAgent.toLowerCase().includes('android')
+const isAndroid =
+  typeof navigator !== 'undefined'
+    ? navigator.userAgent.toLowerCase().includes('android')
+    : false
 
 const resizableAndNotStatic = computed(() => state.resizable && !props.static)
 const renderRtl = computed(() => (layout.isMirrored ? !state.rtl : state.rtl))
