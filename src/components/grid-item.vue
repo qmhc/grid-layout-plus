@@ -484,6 +484,16 @@ function handleResize(event: MouseEvent) {
       break
     }
     case 'resizemove': {
+      // A vertical resize ignores the horizontal delta
+      if (!event.edges.right && !event.edges.left) {
+        lastW = x
+      }
+
+      // An horizontal resize ignores the vertical delta
+      if (!event.edges.top && !event.edges.bottom) {
+        lastH = y
+      }
+
       const coreEvent = createCoreData(lastW, lastH, x, y)
       if (renderRtl.value) {
         newSize.width = state.resizing.width - coreEvent.deltaX / state.transformScale
