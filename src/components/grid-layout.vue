@@ -1,42 +1,43 @@
 <script setup lang="ts">
 import {
-  ref,
-  reactive,
-  toRefs,
-  watch,
-  provide,
+  nextTick,
   onBeforeMount,
-  onMounted,
   onBeforeUnmount,
-  nextTick
+  onMounted,
+  provide,
+  reactive,
+  ref,
+  toRefs,
+  watch
 } from 'vue'
+
 import GridItem from './grid-item.vue'
 import { useResize } from '@vexip-ui/hooks'
-import { createEventEmitter, isNull, debounce } from '@vexip-ui/utils'
+import { createEventEmitter, debounce, isNull } from '@vexip-ui/utils'
 import {
-  LAYOUT_KEY,
   EMITTER_KEY,
+  LAYOUT_KEY,
   bottom,
+  cloneLayout,
   compact,
+  getAllCollisions,
   getLayoutItem,
   moveElement,
-  validateLayout,
-  cloneLayout,
-  getAllCollisions
+  validateLayout
 } from '../helpers/common'
 import {
+  findOrGenerateResponsiveLayout,
   getBreakpointFromWidth,
-  getColsFromBreakpoint,
-  findOrGenerateResponsiveLayout
+  getColsFromBreakpoint
 } from '../helpers/responsive'
 
 import type { PropType } from 'vue'
 import type {
-  Layout,
   Breakpoint,
   Breakpoints,
-  ResponsiveLayout,
-  LayoutInstance
+  Layout,
+  LayoutInstance,
+  ResponsiveLayout
 } from '../helpers/types'
 
 const props = defineProps({

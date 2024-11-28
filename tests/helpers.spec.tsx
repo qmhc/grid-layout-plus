@@ -2,7 +2,8 @@
  * @vitest-environment node
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
+
 import {
   bottom,
   collides,
@@ -47,16 +48,10 @@ describe('sortLayoutItemsByRowCol', () => {
 describe('collides', () => {
   it('Returns whether the layout items collide', () => {
     expect(
-      collides(
-        { i: '1', x: 0, y: 1, w: 1, h: 1 },
-        { i: '2', x: 1, y: 2, w: 1, h: 1 }
-      )
+      collides({ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 1, y: 2, w: 1, h: 1 })
     ).toEqual(false)
     expect(
-      collides(
-        { i: '1', x: 0, y: 1, w: 1, h: 1 },
-        { i: '2', x: 0, y: 1, w: 1, h: 1 }
-      )
+      collides({ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 0, y: 1, w: 1, h: 1 })
     ).toEqual(true)
   })
 })
@@ -73,28 +68,21 @@ describe('validateLayout', () => {
   })
   it('Throws errors on invalid input', () => {
     expect(() => {
-      validateLayout([
-        { i: '1', x: 0, y: 1, w: 1, h: 1 },
-        { i: '2', x: 1, y: 2, w: 1 } as any
-      ])
+      validateLayout([{ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 1, y: 2, w: 1 } as any])
     }).toThrowError(/layout\[1\]\.h must be a number!/i)
   })
 })
 
 describe('moveElement', () => {
   function compactAndMove(
-    layout: Layout, layoutItem: LayoutItem, x?: number, y?: number, isUserAction = false, preventCollision = false
+    layout: Layout,
+    layoutItem: LayoutItem,
+    x?: number,
+    y?: number,
+    isUserAction = false,
+    preventCollision = false
   ) {
-    return compact(
-      moveElement(
-        layout,
-        layoutItem,
-        x,
-        y,
-        isUserAction,
-        preventCollision
-      )
-    )
+    return compact(moveElement(layout, layoutItem, x, y, isUserAction, preventCollision))
   }
 
   it('Does not change layout when colliding on no rearrangement mode', () => {
@@ -276,9 +264,7 @@ describe('moveElement', () => {
 describe('compact vertical', () => {
   it('Removes empty vertical space above item', () => {
     const layout = [{ i: '1', x: 0, y: 1, w: 1, h: 1 }]
-    expect(compact(layout, true)).toEqual([
-      { i: '1', x: 0, y: 0, w: 1, h: 1, moved: false }
-    ])
+    expect(compact(layout, true)).toEqual([{ i: '1', x: 0, y: 0, w: 1, h: 1, moved: false }])
   })
 
   it('Resolve collision by moving item further down in array', () => {

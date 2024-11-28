@@ -1,7 +1,8 @@
 import '../src/style.scss'
 
 import { createApp } from 'vue'
-import { GridLayout, GridItem } from '../src'
+
+import { GridItem, GridLayout } from '../src'
 import App from './app.vue'
 import { router } from './router'
 

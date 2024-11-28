@@ -1,6 +1,6 @@
 import type { InjectionKey } from 'vue'
 import type { EventEmitter } from '@vexip-ui/utils'
-import type { LayoutItem, Layout, LayoutInstance } from './types'
+import type { Layout, LayoutInstance, LayoutItem } from './types'
 
 export const LAYOUT_KEY = Symbol('LAYOUT_KEY') as InjectionKey<LayoutInstance>
 export const EMITTER_KEY = Symbol('EMITTER_KEY') as InjectionKey<EventEmitter>

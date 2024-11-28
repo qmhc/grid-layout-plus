@@ -1,7 +1,8 @@
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
+
 import minimist from 'minimist'
-import { rootDir, logger, run } from './utils'
+import { logger, rootDir, run } from './utils'
 
 const args = minimist<{
   d?: boolean,

@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+
 import { defineConfig } from 'vitepress'
 import autoprefixer from 'autoprefixer'
 

@@ -1,7 +1,8 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import { execa } from 'execa'
-import { bgYellow, bgCyan, bgGreen, bgRed, yellow, cyan, green, red, lightBlue } from 'kolorist'
+import { bgCyan, bgGreen, bgRed, bgYellow, cyan, green, lightBlue, red, yellow } from 'kolorist'
 
 import type { Config } from 'prettier'
 import type { Options } from 'execa'

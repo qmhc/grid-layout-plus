@@ -1,27 +1,28 @@
 <script setup lang="ts">
 import {
-  ref,
-  reactive,
-  toRef,
   computed,
-  watch,
-  watchEffect,
   inject,
   onBeforeMount,
+  onBeforeUnmount,
   onMounted,
-  onBeforeUnmount
+  reactive,
+  ref,
+  toRef,
+  watch,
+  watchEffect
 } from 'vue'
+
 import { isNull, nextTickOnce, throttle } from '@vexip-ui/utils'
 import {
-  LAYOUT_KEY,
   EMITTER_KEY,
+  LAYOUT_KEY,
   setTopLeft,
   setTopRight,
-  setTransformRtl,
   setTransform,
+  setTransformRtl,
   useNameHelper
 } from '../helpers/common'
-import { getControlPosition, createCoreData } from '../helpers/draggable'
+import { createCoreData, getControlPosition } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
 import { getDocumentDir } from '../helpers/dom'
 
@@ -297,9 +298,7 @@ onBeforeUnmount(() => {
 defineExpose({ state, wrapper })
 
 const isAndroid =
-  typeof navigator !== 'undefined'
-    ? navigator.userAgent.toLowerCase().includes('android')
-    : false
+  typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase().includes('android') : false
 
 const resizableAndNotStatic = computed(() => state.resizable && !props.static)
 const renderRtl = computed(() => (layout.isMirrored ? !state.rtl : state.rtl))
@@ -456,7 +455,7 @@ function emitContainerResized() {
   emit('container-resized', props.i, props.h, props.w, styleProps.height, styleProps.width)
 }
 
-function handleResize(event: MouseEvent) {
+function handleResize(event: MouseEvent & { edges: any }) {
   if (props.static) return
 
   const type = event.type

@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { readFileSync } from 'node:fs'
+
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import cssInject from 'vite-plugin-css-injected-by-js'
@@ -19,48 +20,46 @@ const externalPkgs = ['@vue'].concat(
 )
 const external = (id: string) => externalPkgs.some(p => p === id || id.startsWith(`${p}/`))
 
-export default defineConfig(async () => {
-  return {
-    esbuild: {
-      drop: ['debugger'],
-      pure: ['console.log']
+export default defineConfig({
+  esbuild: {
+    drop: ['debugger'],
+    pure: ['console.log']
+  },
+  css: {
+    postcss: {
+      plugins: [autoprefixer]
+    }
+  },
+  build: {
+    outDir: 'es',
+    sourcemap: true,
+    lib: {
+      entry: resolve(__dirname, 'src/index.ts'),
+      formats: ['es']
     },
-    css: {
-      postcss: {
-        plugins: [autoprefixer]
-      }
+    rollupOptions: {
+      input: [resolve(__dirname, 'src/index.ts')],
+      external,
+      output: [
+        {
+          format: 'cjs',
+          preserveModules: true,
+          preserveModulesRoot: resolve(__dirname, 'src'),
+          dir: 'lib',
+          entryFileNames: '[name].js'
+        },
+        {
+          format: 'es',
+          preserveModules: true,
+          preserveModulesRoot: resolve(__dirname, 'src'),
+          dir: 'es',
+          entryFileNames: '[name].mjs'
+        }
+      ]
     },
-    build: {
-      outDir: 'es',
-      sourcemap: true,
-      lib: {
-        entry: resolve(__dirname, 'src/index.ts'),
-        formats: ['es']
-      },
-      rollupOptions: {
-        input: [resolve(__dirname, 'src/index.ts')],
-        external,
-        output: [
-          {
-            format: 'cjs',
-            preserveModules: true,
-            preserveModulesRoot: resolve(__dirname, 'src'),
-            dir: 'lib',
-            entryFileNames: '[name].js'
-          },
-          {
-            format: 'es',
-            preserveModules: true,
-            preserveModulesRoot: resolve(__dirname, 'src'),
-            dir: 'es',
-            entryFileNames: '[name].mjs'
-          }
-        ]
-      },
-      commonjsOptions: {
-        sourceMap: false
-      }
-    },
-    plugins: [vue(), cssInject()]
-  }
+    commonjsOptions: {
+      sourceMap: false
+    }
+  },
+  plugins: [vue(), cssInject()]
 })

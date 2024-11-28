@@ -2,27 +2,25 @@
   "name": "grid-layout-plus",
   "version": "1.0.5",
   "type": "module",
+  "packageManager": "pnpm@9.14.2",
   "license": "MIT",
   "author": "qmhc",
-  "packageManager": "pnpm@8.3.0",
   "scripts": {
     "build": "tsx scripts/build.ts",
     "build:docs": "pnpm -C docs build",
-    "serve": "pnpm -C dev-server serve",
-    "serve:docs": "pnpm -C docs serve",
-    "lint": "eslint --fix --ext .js,.ts,.tsx,.vue src/** dev-server/** docs/**",
-    "lint:scripts": "eslint --fix --ext .js,.ts scripts/**",
-    "lint:style": "stylelint **/*.{vue,scss} --fix",
-    "lint:test": "eslint --ext .js,.ts,.tsx,.vue src/** dev-server/** docs/** scripts/** && stylelint **/*.{vue,scss}",
-    "postpublish": "pinst --enable",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s --commit-path .",
+    "lint": "eslint --cache \"**/*.{js,cjs,mjs,ts,tsx,vue}\"",
+    "lint:style": "stylelint --cache \"**/*.{vue,scss}\"",
     "precommit": "lint-staged -c ./.husky/.lintstagedrc -q",
     "prepare": "is-ci || husky install",
     "prepublishOnly": "pinst --disable",
     "prettier": "prettier --write \"{src,dev-server,docs}/**/*.{ts,js,json,css,pcss,scss,vue,html,md}\"",
     "prettier:scripts": "prettier --write \"scripts/**/*.{ts,js,json}\"",
-    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s --commit-path .",
+    "postpublish": "pinst --enable",
     "publish:ci": "tsx scripts/publish.ts",
     "release": "tsx scripts/release.ts",
+    "serve": "pnpm -C dev-server serve",
+    "serve:docs": "pnpm -C docs serve",
     "test": "vitest run",
     "test:cover": "vitest run --coverage",
     "test:dev": "vitest dev"
@@ -32,16 +30,40 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./es/index.mjs",
-      "require": "./lib/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./lib/index.cjs"
     },
-    "./es": "./es/index.mjs",
-    "./lib": "./lib/index.cjs",
-    "./es/*.mjs": "./es/*.mjs",
-    "./es/*": "./es/*.mjs",
-    "./lib/*.cjs": "./lib/*.cjs",
-    "./lib/*": "./lib/*.cjs",
+    "./es": {
+      "types": "./dist/index.d.ts",
+      "import": "./es/index.mjs"
+    },
+    "./lib": {
+      "types": "./dist/index.d.ts",
+      "require": "./lib/index.cjs"
+    },
+    "./es/*.mjs": {
+      "types": "./dist/*.d.ts",
+      "import": "./es/*.mjs"
+    },
+    "./es/*": {
+      "types": [
+        "./dist/*.d.ts",
+        "./dist/*/index.d.ts"
+      ],
+      "import": "./es/*.mjs"
+    },
+    "./lib/*.cjs": {
+      "types": "./dist/*.d.ts",
+      "require": "./lib/*.cjs"
+    },
+    "./lib/*": {
+      "types": [
+        "./dist/*.d.ts",
+        "./dist/*/index.d.ts"
+      ],
+      "require": "./lib/*.cjs"
+    },
     "./package.json": "./package.json",
     "./*": "./*"
   },
@@ -66,66 +88,67 @@
     "vue-grid-layout"
   ],
   "dependencies": {
-    "@vexip-ui/hooks": "^2.4.0",
-    "@vexip-ui/utils": "^2.13.0",
-    "interactjs": "^1.10.26"
+    "@vexip-ui/hooks": "^2.6.0",
+    "@vexip-ui/utils": "^2.16.1",
+    "interactjs": "^1.10.27"
   },
   "devDependencies": {
-    "@commitlint/cli": "^17.6.1",
-    "@interactjs/types": "^1.10.26",
-    "@types/minimist": "^1.2.2",
-    "@types/node": "^18.15.12",
-    "@types/prettier": "^2.7.2",
-    "@types/prompts": "^2.4.4",
-    "@types/semver": "^7.3.13",
-    "@vexip-ui/commitlint-config": "^0.1.0",
-    "@vexip-ui/eslint-config": "^0.5.2",
-    "@vexip-ui/prettier-config": "^0.1.0",
-    "@vexip-ui/stylelint-config": "^0.3.0",
-    "@vitejs/plugin-vue": "^4.1.0",
-    "@vitejs/plugin-vue-jsx": "^3.0.1",
-    "@vue/test-utils": "^2.3.2",
-    "autoprefixer": "^10.4.14",
-    "conventional-changelog-cli": "^2.2.2",
-    "eslint": "^8.38.0",
-    "execa": "^7.1.1",
-    "happy-dom": "^9.8.4",
-    "husky": "^8.0.3",
+    "@commitlint/cli": "^19.6.0",
+    "@interactjs/types": "^1.10.27",
+    "@types/minimist": "^1.2.5",
+    "@types/node": "^22.10.0",
+    "@types/prompts": "^2.4.9",
+    "@types/semver": "^7.5.8",
+    "@vexip-ui/commitlint-config": "^0.5.0",
+    "@vexip-ui/eslint-config": "^0.12.1",
+    "@vexip-ui/prettier-config": "^1.0.0",
+    "@vexip-ui/stylelint-config": "^1.1.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitejs/plugin-vue-jsx": "^4.1.1",
+    "@vue/test-utils": "^2.4.6",
+    "autoprefixer": "^10.4.20",
+    "conventional-changelog-angular": "7.0.0",
+    "conventional-changelog-cli": "^4.1.0",
+    "eslint": "^8.57.1",
+    "eslint-define-config": "^2.1.0",
+    "execa": "^9.5.1",
+    "happy-dom": "^15.11.7",
+    "husky": "^9.1.7",
     "is-ci": "^3.0.1",
-    "kolorist": "^1.7.0",
-    "lint-staged": "^13.2.1",
+    "kolorist": "^1.8.0",
+    "lint-staged": "^15.2.10",
     "minimist": "^1.2.8",
     "pinst": "^3.0.0",
-    "postcss": "^8.4.23",
-    "prettier": "^2.8.7",
+    "postcss": "^8.4.49",
+    "prettier": "^3.4.1",
     "prompts": "^2.4.2",
-    "sass": "^1.62.0",
-    "semver": "^7.5.0",
-    "stylelint": "^15.5.0",
-    "stylelint-prettier": "^3.0.0",
-    "tsx": "^3.12.6",
-    "typescript": "5.0.4",
-    "vite": "^4.3.1",
-    "vite-plugin-css-injected-by-js": "^3.1.0",
-    "vite-plugin-dts": "^2.3.0",
-    "vitest": "^0.30.1",
-    "vue": "^3.2.47"
+    "sass": "^1.81.0",
+    "semver": "^7.6.3",
+    "stylelint": "^16.10.0",
+    "stylelint-prettier": "^5.0.2",
+    "tsx": "^4.19.2",
+    "typescript": "5.4.4",
+    "vite": "^6.0.1",
+    "vite-plugin-css-injected-by-js": "^3.5.2",
+    "vite-plugin-dts": "^4.3.0",
+    "vitest": "^2.1.6",
+    "vue": "^3.5.13"
   },
   "peerDependencies": {
     "vue": "^3.0.0"
   },
   "pnpm": {
     "peerDependencyRules": {
+      "allowAny": [
+        "@csstools/*"
+      ],
       "ignoreMissing": [
         "@algolia/client-search",
         "vue"
-      ],
-      "allowAny": [
-        "@csstools/*"
       ]
     },
     "patchedDependencies": {
-      "conventional-changelog-angular@5.0.13": "patches/conventional-changelog-angular@5.0.13.patch"
+      "conventional-changelog-angular@7.0.0": "patches/conventional-changelog-angular@7.0.0.patch"
     }
   }
 }

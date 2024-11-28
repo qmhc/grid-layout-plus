@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+
 // you can import from 'lodash-es' or implement it by yourself
 import { throttle } from '@vexip-ui/utils'
 

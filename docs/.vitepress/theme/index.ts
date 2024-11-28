@@ -1,7 +1,8 @@
 import { h } from 'vue'
+
 import Theme from 'vitepress/theme'
 import { install } from 'vexip-ui'
-import { GridLayout, GridItem } from 'grid-layout-plus'
+import { GridItem, GridLayout } from 'grid-layout-plus'
 import { toCapitalCase } from '@vexip-ui/utils'
 
 import 'vexip-ui/css/index.css'

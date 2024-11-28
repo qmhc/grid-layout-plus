@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { readdirSync, statSync } from 'node:fs'
+
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
@@ -12,17 +13,16 @@ export default defineConfig({
     environment: 'happy-dom',
     clearMocks: true,
     setupFiles: [resolve(__dirname, 'scripts/test-setup.ts')],
-    transformMode: {
-      web: [/\.[jt]sx$/]
-    },
     coverage: {
       exclude: dirs.filter(f => f !== 'src').map(f => `${f}/**`),
       reporter: ['text'],
       extension: ['ts', 'tsx', 'vue']
     },
     testTimeout: 10000,
-    deps: {
-      inline: [/@interactjs\//]
+    server: {
+      deps: {
+        inline: [/@interactjs\//]
+      }
     }
   },
   plugins: [vue(), vueJsx()]

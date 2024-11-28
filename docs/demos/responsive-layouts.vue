@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { reactive, ref } from 'vue'
 
 import type { Breakpoint, Layout } from 'grid-layout-plus'
 

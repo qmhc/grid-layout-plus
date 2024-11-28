@@ -1,10 +1,11 @@
 import path from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+
 import minimist from 'minimist'
 import semver from 'semver'
 import prompts from 'prompts'
-import { logger, run, dryRun } from './utils'
+import { dryRun, logger, run } from './utils'
 
 const args = minimist<{
   d?: boolean,
@@ -29,15 +30,10 @@ const logSkipped = (msg = 'Skipped') => {
 main()
 
 async function main() {
-  const pkg = JSON.parse(
-    await readFile(path.join(rootDir, 'package.json'), 'utf-8')
-  )
+  const pkg = JSON.parse(await readFile(path.join(rootDir, 'package.json'), 'utf-8'))
   const currentVersion = pkg.version
 
-  const preId =
-    args.preid ||
-    args.p ||
-    semver.prerelease(currentVersion)?.[0]
+  const preId = args.preid || args.p || semver.prerelease(currentVersion)?.[0]
 
   const versionIncrements = [
     'patch',
@@ -60,11 +56,13 @@ async function main() {
 
   const version =
     release === 'custom'
-      ? (await prompts({
-          type: 'text',
-          name: 'version',
-          message: 'Input custom version:'
-        })).version
+      ? (
+          await prompts({
+            type: 'text',
+            name: 'version',
+            message: 'Input custom version:'
+          })
+        ).version
       : release.match(/\((.*)\)/)?.[1]
 
   if (!semver.valid(version)) {
