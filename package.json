@@ -1,6 +1,6 @@
 {
   "name": "grid-layout-plus",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "type": "module",
   "packageManager": "pnpm@9.14.2",
   "license": "MIT",

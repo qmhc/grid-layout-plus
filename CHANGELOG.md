@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/qmhc/grid-layout-plus/compare/v1.0.5...v1.0.6) (2024-11-28)
+
+### 🐞 Bug Fixes
+
+- resizing along the edge should affect only one axis ([#37](https://github.com/qmhc/grid-layout-plus/issues/37)) ([e0b91d5](https://github.com/qmhc/grid-layout-plus/commit/e0b91d545a80516c03d193b6bdbe96d76f76b55c))
+- safely read navigator ([#35](https://github.com/qmhc/grid-layout-plus/issues/35)) ([2f10dc8](https://github.com/qmhc/grid-layout-plus/commit/2f10dc8978725ef9fdcda9edbc2d7a63e3e5ac53))
+
 ## [1.0.5](https://github.com/qmhc/grid-layout-plus/compare/v1.0.4...v1.0.5) (2024-04-22)
 
 ### 🐞 Bug Fixes
