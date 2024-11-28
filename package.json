@@ -1,6 +1,6 @@
 {
   "name": "grid-layout-plus",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "type": "module",
   "license": "MIT",
   "author": "qmhc",
@@ -66,9 +66,9 @@
     "vue-grid-layout"
   ],
   "dependencies": {
-    "@vexip-ui/hooks": "^2.4.0",
-    "@vexip-ui/utils": "^2.13.0",
-    "interactjs": "^1.10.26"
+    "@vexip-ui/hooks": "^2.5.0",
+    "@vexip-ui/utils": "^2.16.0",
+    "@interactjs/interact": "^1.10.27"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.6.1",
