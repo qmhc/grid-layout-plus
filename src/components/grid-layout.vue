@@ -378,7 +378,7 @@ function containerHeight() {
   return containerHeight
 }
 
-let positionsBeforeDrag: Record<string, { x: number; y: number }> | undefined
+let positionsBeforeDrag: Record<string, { x: number, y: number }> | undefined
 
 function dragEvent(
   eventName: string,

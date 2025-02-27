@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, reactive, ref } from 'vue'
 
-import { AutoHeightItem } from '../../src'
+import { AutoHeightItem, GridLayout } from '../../src'
 
 const layout = reactive([
   { x: 0, y: 0, w: 2, h: 2, i: '0', static: false, content: 'Basic Content', isDraggable: false },
@@ -49,10 +49,10 @@ const layout = reactive([
   { x: 0, y: 9, w: 2, h: 3, i: '18', static: false, content: 'Auto Height Content' },
   { x: 2, y: 6, w: 2, h: 2, i: '19', static: false, content: 'Test' }
 ])
-const gridRef = ref(null)
+const gridRef = ref<InstanceType<typeof GridLayout> | null>(null)
 
 // Add content to specified item
-function addContentToItem(id) {
+function addContentToItem(id: string) {
   const item = layout.find(item => item.i === id)
   if (item) {
     item.content += '<br>New Content Line'
@@ -60,7 +60,7 @@ function addContentToItem(id) {
 }
 
 // Remove content from specified item
-function reduceContentFromItem(id) {
+function reduceContentFromItem(id: string) {
   const item = layout.find(item => item.i === id)
   if (item) {
     const lines = item.content.split('<br>')
@@ -72,7 +72,7 @@ function reduceContentFromItem(id) {
 }
 
 // Handle height update
-async function updateItemHeight(id, newHeight) {
+async function updateItemHeight(id: string, newHeight: number) {
   const item = layout.find(item => item.i === id)
   if (item && item.h !== newHeight) {
     requestAnimationFrame(async () => {
@@ -94,8 +94,12 @@ async function updateItemHeight(id, newHeight) {
 <template>
   <div>
     <div class="controls">
-      <button @click="addContentToItem('2')">Add Content to Item 2</button>
-      <button @click="reduceContentFromItem('2')">Remove Content from Item 2</button>
+      <button @click="addContentToItem('2')">
+        Add Content to Item 2
+      </button>
+      <button @click="reduceContentFromItem('2')">
+        Remove Content from Item 2
+      </button>
     </div>
 
     <GridLayout
@@ -103,7 +107,6 @@ async function updateItemHeight(id, newHeight) {
       v-model:layout="layout"
       :row-height="30"
       vertical-compact
-      @layout-updated="handleLayoutUpdated"
     >
       <AutoHeightItem
         v-for="item in layout"
@@ -129,13 +132,13 @@ async function updateItemHeight(id, newHeight) {
 }
 
 .controls button {
-  margin-right: 10px;
   padding: 5px 10px;
-  background-color: #4caf50;
+  margin-right: 10px;
   color: white;
-  border: none;
-  border-radius: 4px;
   cursor: pointer;
+  background-color: #4caf50;
+  border: 0;
+  border-radius: 4px;
 }
 
 .controls button:hover {
@@ -160,23 +163,23 @@ async function updateItemHeight(id, newHeight) {
 }
 
 .content {
-  width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  height: 100%;
 }
 
 .text {
+  padding: 5px;
   font-size: 16px;
   font-weight: bold;
   text-align: center;
-  padding: 5px;
   border-bottom: 1px dashed #999;
 }
 
 .dynamic-content {
-  padding: 8px;
   flex-grow: 1;
+  padding: 8px;
   overflow: auto;
 }
 </style>
