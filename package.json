@@ -106,6 +106,7 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitejs/plugin-vue-jsx": "^4.1.1",
     "@vue/test-utils": "^2.4.6",
+    "@vueuse/core": "^12.7.0",
     "autoprefixer": "^10.4.20",
     "conventional-changelog-angular": "7.0.0",
     "conventional-changelog-cli": "^4.1.0",

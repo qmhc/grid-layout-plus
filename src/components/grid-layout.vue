@@ -316,7 +316,7 @@ provide(
 )
 provide(EMITTER_KEY, emitter)
 
-defineExpose({ state, getItem, resizeEvent, dragEvent })
+defineExpose({ state, getItem, resizeEvent, dragEvent, layoutUpdate })
 
 function increaseItem(item: any) {
   itemInstances.set(item.i, item)
@@ -378,7 +378,7 @@ function containerHeight() {
   return containerHeight
 }
 
-let positionsBeforeDrag: Record<string, { x: number, y: number }> | undefined
+let positionsBeforeDrag: Record<string, { x: number; y: number }> | undefined
 
 function dragEvent(
   eventName: string,
