@@ -19,6 +19,9 @@ importers:
       '@vexip-ui/utils':
         specifier: ^2.16.1
         version: 2.16.1
+      '@vueuse/core':
+        specifier: ^12.7.0
+        version: 12.7.0(typescript@5.4.4)
       interactjs:
         specifier: ^1.10.27
         version: 1.10.27
@@ -62,9 +65,6 @@ importers:
       '@vue/test-utils':
         specifier: ^2.4.6
         version: 2.4.6
-      '@vueuse/core':
-        specifier: ^12.7.0
-        version: 12.7.0(typescript@5.4.4)
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.20(postcss@8.4.49)
