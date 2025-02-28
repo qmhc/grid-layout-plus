@@ -90,6 +90,7 @@
   "dependencies": {
     "@vexip-ui/hooks": "^2.6.0",
     "@vexip-ui/utils": "^2.16.1",
+    "@vueuse/core": "^12.7.0",
     "interactjs": "^1.10.27"
   },
   "devDependencies": {

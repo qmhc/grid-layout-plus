@@ -316,7 +316,7 @@ provide(
 )
 provide(EMITTER_KEY, emitter)
 
-defineExpose({ state, getItem, resizeEvent, dragEvent })
+defineExpose({ state, getItem, resizeEvent, dragEvent, layoutUpdate })
 
 function increaseItem(item: any) {
   itemInstances.set(item.i, item)
