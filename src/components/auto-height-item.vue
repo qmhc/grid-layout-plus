@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { useResizeObserver } from '@vueuse/core'
 import GridItem from './grid-item.vue'
@@ -93,25 +93,22 @@ const props = defineProps({
 
 const emit = defineEmits(['update:h'])
 
-const contentRef = ref(null)
+const contentRef = ref<HTMLDivElement | null>(null)
 const contentHeight = ref(0)
 
 const calculatedRows = computed(() => {
   if (contentHeight.value <= 0) return props.minH
-
   const marginY = props.margin[1] as number
   const rows = Math.ceil((contentHeight.value + marginY) / (props.rowHeight + marginY))
-
   return Math.min(Math.max(rows, props.minH), props.maxH)
 })
 
-useResizeObserver(contentRef, entries => {
+const observer = useResizeObserver(contentRef, entries => {
   const entry = entries[0]
   if (entry) {
     contentHeight.value = entry.contentRect.height
   }
 })
-
 watch(
   () => calculatedRows.value,
   newRows => {
@@ -120,6 +117,18 @@ watch(
     }
   }
 )
+
+onMounted(() => {
+  if (contentRef.value) {
+    const height = contentRef.value.clientHeight
+    if (height > 0) {
+      contentHeight.value = height
+    }
+  }
+})
+onBeforeUnmount(() => {
+  observer && observer.stop()
+})
 </script>
 
 <template>
