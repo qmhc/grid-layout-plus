@@ -28,83 +28,23 @@ import { getDocumentDir } from '../helpers/dom'
 
 import interact from 'interactjs'
 
-const props = defineProps({
-  isDraggable: {
-    type: Boolean,
-    default: null
-  },
-  isResizable: {
-    type: Boolean,
-    default: null
-  },
-  isBounded: {
-    type: Boolean,
-    default: null
-  },
-  static: {
-    type: Boolean,
-    default: false
-  },
-  minH: {
-    type: Number,
-    default: 1
-  },
-  minW: {
-    type: Number,
-    default: 1
-  },
-  maxH: {
-    type: Number,
-    default: Infinity
-  },
-  maxW: {
-    type: Number,
-    default: Infinity
-  },
-  x: {
-    type: Number,
-    required: true
-  },
-  y: {
-    type: Number,
-    required: true
-  },
-  w: {
-    type: Number,
-    required: true
-  },
-  h: {
-    type: Number,
-    required: true
-  },
-  i: {
-    type: [Number, String],
-    required: true
-  },
-  dragIgnoreFrom: {
-    type: String,
-    default: 'a, button'
-  },
-  dragAllowFrom: {
-    type: String,
-    default: null
-  },
-  resizeIgnoreFrom: {
-    type: String,
-    default: 'a, button'
-  },
-  preserveAspectRatio: {
-    type: Boolean,
-    default: false
-  },
-  dragOption: {
-    type: Object,
-    default: () => ({})
-  },
-  resizeOption: {
-    type: Object,
-    default: () => ({})
-  }
+import type { GridItemProps } from './types'
+
+const props = withDefaults(defineProps<GridItemProps>(), {
+  isDraggable: undefined,
+  isResizable: undefined,
+  isBounded: undefined,
+  static: false,
+  minH: 1,
+  minW: 1,
+  maxH: Infinity,
+  maxW: Infinity,
+  dragIgnoreFrom: 'a, button',
+  dragAllowFrom: undefined,
+  resizeIgnoreFrom: 'a, button',
+  preserveAspectRatio: false,
+  dragOption: () => ({}),
+  resizeOption: () => ({})
 })
 
 const emit = defineEmits(['container-resized', 'resize', 'resized', 'move', 'moved'])
@@ -124,9 +64,9 @@ const state = reactive({
   rowHeight: 30,
   margin: [10, 10],
   maxRows: Infinity,
-  draggable: null as boolean | null,
-  resizable: null as boolean | null,
-  bounded: null as boolean | null,
+  draggable: undefined as boolean | undefined,
+  resizable: undefined as boolean | undefined,
+  bounded: undefined as boolean | undefined,
   transformScale: 1,
   useCssTransforms: true,
   useStyleCursor: true,

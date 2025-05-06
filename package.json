@@ -9,6 +9,8 @@
     "build": "tsx scripts/build.ts",
     "build:docs": "pnpm -C docs build",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s --commit-path .",
+    "dev": "pnpm -C dev-server serve",
+    "dev:docs": "pnpm -C docs serve",
     "lint": "eslint --cache \"**/*.{js,cjs,mjs,ts,tsx,vue}\"",
     "lint:style": "stylelint --cache \"**/*.{vue,scss}\"",
     "precommit": "lint-staged -c ./.husky/.lintstagedrc -q",
@@ -19,8 +21,6 @@
     "postpublish": "pinst --enable",
     "publish:ci": "tsx scripts/publish.ts",
     "release": "tsx scripts/release.ts",
-    "serve": "pnpm -C dev-server serve",
-    "serve:docs": "pnpm -C docs serve",
     "test": "vitest run",
     "test:cover": "vitest run --coverage",
     "test:dev": "vitest dev"

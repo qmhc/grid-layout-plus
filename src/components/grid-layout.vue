@@ -31,96 +31,29 @@ import {
   getColsFromBreakpoint
 } from '../helpers/responsive'
 
-import type { PropType } from 'vue'
-import type {
-  Breakpoint,
-  Breakpoints,
-  Layout,
-  LayoutInstance,
-  ResponsiveLayout
-} from '../helpers/types'
+import type { Breakpoint, Layout, LayoutInstance } from '../helpers/types'
+import type { GridLayoutProps } from './types'
 
-const props = defineProps({
-  autoSize: {
-    type: Boolean,
-    default: true
-  },
-  colNum: {
-    type: Number,
-    default: 12
-  },
-  rowHeight: {
-    type: Number,
-    default: 150
-  },
-  maxRows: {
-    type: Number,
-    default: Infinity
-  },
-  margin: {
-    type: Array as PropType<number[]>,
-    default: () => [10, 10]
-  },
-  isDraggable: {
-    type: Boolean,
-    default: true
-  },
-  isResizable: {
-    type: Boolean,
-    default: true
-  },
-  isMirrored: {
-    type: Boolean,
-    default: false
-  },
-  isBounded: {
-    type: Boolean,
-    default: false
-  },
-  useCssTransforms: {
-    type: Boolean,
-    default: true
-  },
-  verticalCompact: {
-    type: Boolean,
-    default: true
-  },
-  restoreOnDrag: {
-    type: Boolean,
-    default: false
-  },
-  layout: {
-    type: Array as PropType<Layout>,
-    required: true
-  },
-  responsive: {
-    type: Boolean,
-    default: false
-  },
-  responsiveLayouts: {
-    type: Object as PropType<Partial<ResponsiveLayout>>,
-    default: () => ({})
-  },
-  transformScale: {
-    type: Number,
-    default: 1
-  },
-  breakpoints: {
-    type: Object as PropType<Breakpoints>,
-    default: () => ({ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 })
-  },
-  cols: {
-    type: Object as PropType<Breakpoints>,
-    default: () => ({ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 })
-  },
-  preventCollision: {
-    type: Boolean,
-    default: false
-  },
-  useStyleCursor: {
-    type: Boolean,
-    default: true
-  }
+const props = withDefaults(defineProps<GridLayoutProps>(), {
+  autoSize: true,
+  colNum: 12,
+  rowHeight: 150,
+  maxRows: Infinity,
+  margin: () => [10, 10],
+  isDraggable: true,
+  isResizable: true,
+  isMirrored: false,
+  isBounded: false,
+  useCssTransforms: true,
+  verticalCompact: true,
+  restoreOnDrag: false,
+  responsive: false,
+  responsiveLayouts: () => ({}),
+  transformScale: 1,
+  breakpoints: () => ({ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }),
+  cols: () => ({ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }),
+  preventCollision: false,
+  useStyleCursor: true
 })
 
 const emit = defineEmits([
