@@ -431,7 +431,7 @@ function resizeEvent(
     })
     // this.$broadcast("updateWidth", this.width);
     emitter.emit('updateWidth', state.width)
-  } else {
+  } else if (eventName) {
     nextTick(() => {
       state.isDragging = false
     })
