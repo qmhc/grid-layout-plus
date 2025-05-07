@@ -760,8 +760,8 @@ function tryMakeResizable() {
 
     const opts: Record<string, any> = {
       edges: {
-        left: false,
-        right: `.${resizerClass.value[0]}`,
+        left: renderRtl.value ? `.${resizerClass.value[0]}` : false,
+        right: !renderRtl.value ? `.${resizerClass.value[0]}` : false,
         bottom: `.${resizerClass.value[0]}`,
         top: false
       },
