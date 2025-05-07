@@ -2,8 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-// import 'vexip-ui/es/css/grid'
-// import 'vexip-ui/es/css/cell'
+import 'vexip-ui/css/preset.css'
 
 const router = useRouter()
 const panelShow = ref(false)

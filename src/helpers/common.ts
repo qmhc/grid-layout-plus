@@ -79,7 +79,7 @@ export function compact(layout: Layout, verticalCompact?: boolean, minPositions?
     }
 
     // Add to output array to make sure they still come out in the right order.
-    out[layout.indexOf(l)] = l
+    out[layout.findIndex(i => i.i === l.i)] = l
 
     // Clear moved flag, if it exists.
     l.moved = false

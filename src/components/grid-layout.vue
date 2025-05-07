@@ -249,7 +249,7 @@ provide(
 )
 provide(EMITTER_KEY, emitter)
 
-defineExpose({ state, getItem, resizeEvent, dragEvent })
+defineExpose({ state, getItem, resizeEvent, dragEvent, layoutUpdate })
 
 function increaseItem(item: any) {
   itemInstances.set(item.i, item)
@@ -379,7 +379,7 @@ function dragEvent(
 }
 
 function resizeEvent(
-  eventName: string,
+  eventName: string | undefined,
   id: number | string,
   x: number,
   y: number,
@@ -448,6 +448,11 @@ function resizeEvent(
 
 function responsiveGridLayout() {
   const newBreakpoint = getBreakpointFromWidth(props.breakpoints, state.width)
+
+  if (newBreakpoint === state.lastBreakpoint) {
+    return
+  }
+
   const newCols = getColsFromBreakpoint(newBreakpoint, props.cols)
 
   // save actual layout in layouts
@@ -473,11 +478,13 @@ function responsiveGridLayout() {
     emit('breakpoint-changed', newBreakpoint, layout)
   }
 
+  currentLayout.value = layout
+
   // new prop sync
   emit('update:layout', layout)
 
   state.lastBreakpoint = newBreakpoint
-  emitter.emit('setColNum', getColsFromBreakpoint(newBreakpoint, props.cols))
+  emitter.emit('setColNum', newCols)
 }
 
 function initResponsiveFeatures() {

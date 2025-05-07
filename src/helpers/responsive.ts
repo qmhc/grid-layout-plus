@@ -58,6 +58,7 @@ export function findOrGenerateResponsiveLayout(
   cols: number,
   verticalCompact: boolean
 ): Layout {
+  debugger
   // If it already exists, just return it.
   if (layouts[breakpoint]) return cloneLayout(layouts[breakpoint])
   // Find or generate the next layout

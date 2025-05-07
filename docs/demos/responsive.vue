@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { ref } from 'vue'
 
 const draggable = ref(true)
 const resizable = ref(true)
 const responsive = ref(true)
 
-const layout = reactive([
+const layout = ref([
   { x: 0, y: 0, w: 2, h: 2, i: '0' },
   { x: 2, y: 0, w: 2, h: 4, i: '1' },
   { x: 4, y: 0, w: 2, h: 5, i: '2' },

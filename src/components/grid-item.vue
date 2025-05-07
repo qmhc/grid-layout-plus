@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
   emitter.off('setColNum', setColNum)
 
   if (interactObj.value) {
-    interactObj.value.unset() // destroy interact intance
+    interactObj.value.unset()
     interactObj.value = null
   }
 
