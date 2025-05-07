@@ -1,3 +1,15 @@
+# [1.1.0](https://github.com/qmhc/grid-layout-plus/compare/v1.0.6...v1.1.0) (2025-05-07)
+
+### 🐞 Bug Fixes
+
+- correct compact layout with responsive ([8c50abc](https://github.com/qmhc/grid-layout-plus/commit/8c50abc5241df3735a5ed44dabdc2db6b2b5e670)), closes [#18](https://github.com/qmhc/grid-layout-plus/issues/18) [#39](https://github.com/qmhc/grid-layout-plus/issues/39)
+- RTL resizing issue when widget reaches minimum width ([#41](https://github.com/qmhc/grid-layout-plus/issues/41)) ([1b49972](https://github.com/qmhc/grid-layout-plus/commit/1b49972abe8bf13a501185ab3c95b4a097337c51))
+- when window resize trigger resizeEventHandler, placeholder shouldn't hide ([#49](https://github.com/qmhc/grid-layout-plus/issues/49)) ([8ce57d0](https://github.com/qmhc/grid-layout-plus/commit/8ce57d0c79cbf5948fd2e85cd2f215d128d2133a))
+
+### 🔨 Code Refactoring
+
+- use typescript type props ([1e21ff4](https://github.com/qmhc/grid-layout-plus/commit/1e21ff4c280f43d93ae9d799254090a1d68b9c4e))
+
 ## [1.0.6](https://github.com/qmhc/grid-layout-plus/compare/v1.0.5...v1.0.6) (2024-11-28)
 
 ### 🐞 Bug Fixes
