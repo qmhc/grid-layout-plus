@@ -6,7 +6,8 @@ module.exports = defineConfig({
   rules: {
     '@typescript-eslint/no-use-before-define': 'off',
     'vue/no-v-html': 'off',
-    'vue/no-textarea-mustache': 'off'
+    'vue/no-textarea-mustache': 'off',
+    '@typescript-eslint/comma-dangle': ['error', 'always-multiline'],
   },
   overrides: [
     {

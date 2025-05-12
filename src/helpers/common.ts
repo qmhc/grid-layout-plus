@@ -95,7 +95,7 @@ export function compactItem(
   compareWith: Layout,
   l: LayoutItem,
   verticalCompact?: boolean,
-  minPositions?: any
+  minPositions?: any,
 ): LayoutItem {
   if (verticalCompact) {
     // Move the element up as far as it can go without colliding.
@@ -202,7 +202,7 @@ export function moveElement(
   x?: number,
   y?: number,
   isUserAction = false,
-  preventCollision = false
+  preventCollision = false,
 ): Layout {
   if (layoutItem.static) return layout
 
@@ -265,7 +265,7 @@ export function moveElementAwayFromCollision(
   layout: Layout,
   collidesWith: LayoutItem,
   itemToMove: LayoutItem,
-  isUserAction?: boolean
+  isUserAction?: boolean,
 ): Layout {
   const preventCollision = false // we're already colliding
   // If there is enough space above the collision to put this element, move it there.
@@ -278,7 +278,7 @@ export function moveElementAwayFromCollision(
       y: itemToMove.y,
       w: itemToMove.w,
       h: itemToMove.h,
-      i: '-1'
+      i: '-1',
     }
     fakeItem.y = Math.max(collidesWith.y - itemToMove.h, 0)
     if (!getFirstCollision(layout, fakeItem)) {
@@ -312,7 +312,7 @@ export function setTransform(top: number, left: number, width: number, height: n
     OTransform: translate,
     width: width + 'px',
     height: height + 'px',
-    position: 'absolute'
+    position: 'absolute',
   }
 }
 /**
@@ -335,7 +335,7 @@ export function setTransformRtl(top: number, right: number, width: number, heigh
     OTransform: translate,
     width: width + 'px',
     height: height + 'px',
-    position: 'absolute'
+    position: 'absolute',
   }
 }
 
@@ -345,7 +345,7 @@ export function setTopLeft(top: number, left: number, width: number, height: num
     left: left + 'px',
     width: width + 'px',
     height: height + 'px',
-    position: 'absolute'
+    position: 'absolute',
   }
 }
 /**
@@ -363,7 +363,7 @@ export function setTopRight(top: number, right: number, width: number, height: n
     right: right + 'px',
     width: width + 'px',
     height: height + 'px',
-    position: 'absolute'
+    position: 'absolute',
   }
 }
 
@@ -403,7 +403,7 @@ export function validateLayout(layout: Layout, contextName?: string): void {
     for (let j = 0; j < subProps.length; j++) {
       if (typeof (item as any)[subProps[j]] !== 'number') {
         throw new Error(
-          'VueGridLayout: ' + contextName + '[' + i + '].' + subProps[j] + ' must be a number!'
+          'VueGridLayout: ' + contextName + '[' + i + '].' + subProps[j] + ' must be a number!',
         )
       }
     }
@@ -430,7 +430,7 @@ export function validateLayout(layout: Layout, contextName?: string): void {
 // Flow can't really figure this out, so we just use Object
 export function autoBindHandlers(
   el: Record<string, (...args: any[]) => any>,
-  fns: Array<string>
+  fns: Array<string>,
 ): void {
   fns.forEach(key => (el[key] = el[key].bind(el)))
 }
@@ -487,7 +487,7 @@ export const IS_UNITLESS: Record<string, boolean> = {
   stopOpacity: true,
   strokeDashoffset: true,
   strokeOpacity: true,
-  strokeWidth: true
+  strokeWidth: true,
 }
 
 /**
@@ -557,6 +557,6 @@ export function useNameHelper(block: string, namespace = 'vgl') {
     b,
     be,
     bm,
-    bem
+    bem,
   }
 }

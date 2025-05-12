@@ -10,12 +10,12 @@ export default defineConfig({
   publicDir: false,
   esbuild: {
     drop: ['debugger'],
-    pure: ['console.log']
+    pure: ['console.log'],
   },
   css: {
     postcss: {
-      plugins: [autoprefixer]
-    }
+      plugins: [autoprefixer],
+    },
   },
   build: {
     outDir: 'dist',
@@ -25,26 +25,26 @@ export default defineConfig({
       formats: ['es', 'cjs', 'iife'],
       name: 'GridLayoutPlus',
       fileName: format =>
-        `grid-layout-plus.${format === 'es' ? 'mjs' : format === 'cjs' ? 'cjs' : 'js'}`
+        `grid-layout-plus.${format === 'es' ? 'mjs' : format === 'cjs' ? 'cjs' : 'js'}`,
     },
     rollupOptions: {
       external: ['vue'],
       output: {
         globals: {
-          vue: 'Vue'
-        }
-      }
+          vue: 'Vue',
+        },
+      },
     },
     commonjsOptions: {
-      sourceMap: false
+      sourceMap: false,
     },
-    chunkSizeWarningLimit: 10000
+    chunkSizeWarningLimit: 10000,
   },
   plugins: [
     vue(),
     cssInject(),
     dts({
-      exclude: ['node_modules', 'dev-server', 'scripts']
-    })
-  ]
+      exclude: ['node_modules', 'dev-server', 'scripts'],
+    }),
+  ],
 })

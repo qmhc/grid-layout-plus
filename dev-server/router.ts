@@ -13,14 +13,14 @@ export const router = createRouter({
       return {
         path: name === 'basic' ? '/' : `/${name}`,
         name,
-        component: demos[path]
+        component: demos[path],
       }
     }),
     {
       path: '/:catchAll(.*)',
-      redirect: '/'
-    }
-  ]
+      redirect: '/',
+    },
+  ],
 })
 
 router.afterEach(to => {

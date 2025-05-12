@@ -24,7 +24,7 @@ const presetLayouts = reactive({
     { x: 0, y: 19, w: 2, h: 5, i: '16' },
     { x: 8, y: 0, w: 2, h: 2, i: '17' },
     { x: 0, y: 11, w: 2, h: 3, i: '18' },
-    { x: 2, y: 12, w: 2, h: 2, i: '19' }
+    { x: 2, y: 12, w: 2, h: 2, i: '19' },
   ],
   lg: [
     { x: 0, y: 0, w: 2, h: 2, i: '0' },
@@ -46,8 +46,8 @@ const presetLayouts = reactive({
     { x: 8, y: 10, w: 2, h: 5, i: '16' },
     { x: 10, y: 4, w: 2, h: 2, i: '17' },
     { x: 0, y: 9, w: 2, h: 3, i: '18' },
-    { x: 2, y: 6, w: 2, h: 2, i: '19' }
-  ]
+    { x: 2, y: 6, w: 2, h: 2, i: '19' },
+  ],
 })
 
 const layout = ref(presetLayouts.lg)

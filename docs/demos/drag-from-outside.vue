@@ -16,7 +16,7 @@ const layout = ref([
   { x: 0, y: 5, w: 2, h: 5, i: '6' },
   { x: 2, y: 5, w: 2, h: 5, i: '7' },
   { x: 4, y: 5, w: 2, h: 5, i: '8' },
-  { x: 5, y: 10, w: 4, h: 3, i: '9' }
+  { x: 5, y: 10, w: 4, h: 3, i: '9' },
 ])
 
 const wrapper = ref<HTMLElement>()
@@ -57,7 +57,7 @@ const drag = throttle(() => {
       y: layout.value.length + 12, // puts it at the bottom
       w: 2,
       h: 2,
-      i: dropId
+      i: dropId,
     })
   }
 
@@ -74,7 +74,7 @@ const drag = throttle(() => {
 
     Object.assign(item.state, {
       top: mouseAt.y - parentRect.top,
-      left: mouseAt.x - parentRect.left
+      left: mouseAt.x - parentRect.left,
     })
     const newPos = item.calcXY(mouseAt.y - parentRect.top, mouseAt.x - parentRect.left)
 
@@ -114,7 +114,7 @@ function dragEnd() {
     y: dragItem.y,
     w: dragItem.w,
     h: dragItem.h,
-    i: dragItem.i
+    i: dragItem.i,
   })
   gridLayout.value.dragEvent('dragend', dragItem.i, dragItem.x, dragItem.y, dragItem.h, dragItem.w)
 

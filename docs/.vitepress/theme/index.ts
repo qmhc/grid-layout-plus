@@ -30,5 +30,5 @@ export default {
 
       app.component(`Demo${name}`, (demos[path] as any).default)
     })
-  }
+  },
 }

@@ -20,8 +20,8 @@ describe('GridLayout test', () => {
         draggable: true,
         static: false,
         minY: 0,
-        maxY: 2
-      }
+        maxY: 2,
+      },
     ]
     layout = JSON.parse(JSON.stringify(testLayout))
   })
@@ -30,8 +30,8 @@ describe('GridLayout test', () => {
     it('should render correct contents', () => {
       const wrapper = shallowMount(GridLayout, {
         propsData: {
-          layout
-        }
+          layout,
+        },
       })
       const grid = wrapper.find('.vgl-layout')
 

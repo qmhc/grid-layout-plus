@@ -26,7 +26,7 @@ async function main() {
     'public',
     '--registry',
     'https://registry.npmjs.org/',
-    '--no-git-checks'
+    '--no-git-checks',
   ]
 
   if (isDryRun) {

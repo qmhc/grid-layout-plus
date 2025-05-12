@@ -26,10 +26,10 @@ export const prettierConfig: Config = {
     {
       files: '*.md',
       options: {
-        embeddedLanguageFormatting: 'off'
-      }
-    }
-  ]
+        embeddedLanguageFormatting: 'off',
+      },
+    },
+  ],
 }
 
 type LogFn = () => void
@@ -72,7 +72,7 @@ export const logger = {
   },
   errorText: (msg: string) => {
     console.error(`${red(msg)}`)
-  }
+  },
 }
 
 export function bin(name: string) {

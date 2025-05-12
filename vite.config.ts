@@ -16,26 +16,26 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')
 
 const externalPkgs = ['@vue'].concat(
   Object.keys(pkg.dependencies || {}),
-  Object.keys(pkg.peerDependencies || {})
+  Object.keys(pkg.peerDependencies || {}),
 )
 const external = (id: string) => externalPkgs.some(p => p === id || id.startsWith(`${p}/`))
 
 export default defineConfig({
   esbuild: {
     drop: ['debugger'],
-    pure: ['console.log']
+    pure: ['console.log'],
   },
   css: {
     postcss: {
-      plugins: [autoprefixer]
-    }
+      plugins: [autoprefixer],
+    },
   },
   build: {
     outDir: 'es',
     sourcemap: true,
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      formats: ['es']
+      formats: ['es'],
     },
     rollupOptions: {
       input: [resolve(__dirname, 'src/index.ts')],
@@ -46,20 +46,20 @@ export default defineConfig({
           preserveModules: true,
           preserveModulesRoot: resolve(__dirname, 'src'),
           dir: 'lib',
-          entryFileNames: '[name].js'
+          entryFileNames: '[name].js',
         },
         {
           format: 'es',
           preserveModules: true,
           preserveModulesRoot: resolve(__dirname, 'src'),
           dir: 'es',
-          entryFileNames: '[name].mjs'
-        }
-      ]
+          entryFileNames: '[name].mjs',
+        },
+      ],
     },
     commonjsOptions: {
-      sourceMap: false
-    }
+      sourceMap: false,
+    },
   },
-  plugins: [vue(), cssInject()]
+  plugins: [vue(), cssInject()],
 })

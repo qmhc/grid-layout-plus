@@ -25,7 +25,7 @@ const layout = reactive([
   { x: 8, y: 10, w: 2, h: 5, i: '16', static: false },
   { x: 10, y: 4, w: 2, h: 2, i: '17', static: false },
   { x: 0, y: 9, w: 2, h: 3, i: '18', static: false },
-  { x: 2, y: 6, w: 2, h: 2, i: '19', static: false }
+  { x: 2, y: 6, w: 2, h: 2, i: '19', static: false },
 ])
 </script>
 

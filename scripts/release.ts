@@ -39,7 +39,7 @@ async function main() {
     'patch',
     'minor',
     'major',
-    ...(preId ? ['prepatch', 'preminor', 'premajor', 'prerelease'] : [])
+    ...(preId ? ['prepatch', 'preminor', 'premajor', 'prerelease'] : []),
   ]
 
   const inc = (i: any) => semver.inc(currentVersion, i, preId as string)
@@ -51,7 +51,7 @@ async function main() {
     choices: versionIncrements
       .map(i => `${i} (${inc(i)})`)
       .concat(['custom'])
-      .map(i => ({ title: i, value: i }))
+      .map(i => ({ title: i, value: i })),
   })
 
   const version =
@@ -60,7 +60,7 @@ async function main() {
           await prompts({
             type: 'text',
             name: 'version',
-            message: 'Input custom version:'
+            message: 'Input custom version:',
           })
         ).version
       : release.match(/\((.*)\)/)?.[1]
@@ -72,7 +72,7 @@ async function main() {
   const { confirm } = await prompts({
     type: 'confirm',
     name: 'confirm',
-    message: `Confirm release ${version}?`
+    message: `Confirm release ${version}?`,
   })
 
   if (!confirm) return

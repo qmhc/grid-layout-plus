@@ -28,7 +28,7 @@ export function getBreakpointFromWidth(breakpoints: Breakpoints, width: number):
 export function getColsFromBreakpoint(breakpoint: Breakpoint, cols: Breakpoints): number {
   if (!cols[breakpoint]) {
     throw new Error(
-      'ResponsiveGridLayout: `cols` entry for breakpoint ' + breakpoint + ' is missing!'
+      'ResponsiveGridLayout: `cols` entry for breakpoint ' + breakpoint + ' is missing!',
     )
   }
   return cols[breakpoint]
@@ -56,7 +56,7 @@ export function findOrGenerateResponsiveLayout(
   breakpoint: Breakpoint,
   lastBreakpoint: Breakpoint,
   cols: number,
-  verticalCompact: boolean
+  verticalCompact: boolean,
 ): Layout {
   debugger
   // If it already exists, just return it.
@@ -83,7 +83,7 @@ export function generateResponsiveLayout(
   breakpoint: Breakpoint,
   lastBreakpoint: Breakpoint,
   cols: number,
-  verticalCompact: boolean
+  verticalCompact: boolean,
 ): Layout {
   // If it already exists, just return it.
   /* if (layouts[breakpoint]) return cloneLayout(layouts[breakpoint]);

@@ -6,15 +6,15 @@ export default defineConfig(async () => {
   return {
     css: {
       postcss: {
-        plugins: [autoprefixer]
-      }
+        plugins: [autoprefixer],
+      },
     },
     server: {
       port: 7888,
       fs: {
-        allow: ['..']
-      }
+        allow: ['..'],
+      },
     },
-    plugins: [vue()]
+    plugins: [vue()],
   }
 })

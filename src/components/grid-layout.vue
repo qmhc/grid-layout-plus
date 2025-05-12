@@ -8,7 +8,7 @@ import {
   reactive,
   ref,
   toRefs,
-  watch
+  watch,
 } from 'vue'
 
 import GridItem from './grid-item.vue'
@@ -23,12 +23,12 @@ import {
   getAllCollisions,
   getLayoutItem,
   moveElement,
-  validateLayout
+  validateLayout,
 } from '../helpers/common'
 import {
   findOrGenerateResponsiveLayout,
   getBreakpointFromWidth,
-  getColsFromBreakpoint
+  getColsFromBreakpoint,
 } from '../helpers/responsive'
 
 import type { Breakpoint, Layout, LayoutInstance } from '../helpers/types'
@@ -53,7 +53,7 @@ const props = withDefaults(defineProps<GridLayoutProps>(), {
   breakpoints: () => ({ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }),
   cols: () => ({ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }),
   preventCollision: false,
-  useStyleCursor: true
+  useStyleCursor: true,
 })
 
 const emit = defineEmits([
@@ -62,7 +62,7 @@ const emit = defineEmits([
   'layout-updated',
   'breakpoint-changed',
   'update:layout',
-  'layout-ready'
+  'layout-ready',
 ])
 
 const state = reactive({
@@ -75,11 +75,11 @@ const state = reactive({
     y: 0,
     w: 0,
     h: 0,
-    i: '' as number | string
+    i: '' as number | string,
   },
   layouts: {} as Record<Breakpoint, Layout>, // array to store all layouts from different breakpoints
   lastBreakpoint: null as Breakpoint | null, // store last active breakpoint
-  originalLayout: null! as Layout // store original Layout
+  originalLayout: null! as Layout, // store original Layout
 })
 
 const itemInstances = new Map<number | string, any>()
@@ -127,7 +127,7 @@ function resizeEventHandler(
   x: number,
   y: number,
   h: number,
-  w: number
+  w: number,
 ) {
   resizeEvent(eventType, i, x, y, h, w)
 }
@@ -138,7 +138,7 @@ function dragEventHandler(
   x: number,
   y: number,
   h: number,
-  w: number
+  w: number,
 ) {
   dragEvent(eventType, i, x, y, h, w)
 }
@@ -175,50 +175,50 @@ watch(
       }
       updateHeight()
     })
-  }
+  },
 )
 watch(
   () => [props.layout, props.layout.length],
   () => {
     currentLayout.value = props.layout
     layoutUpdate()
-  }
+  },
 )
 watch(
   () => props.colNum,
   val => {
     emitter.emit('setColNum', val)
-  }
+  },
 )
 watch(
   () => props.rowHeight,
   value => {
     emitter.emit('setRowHeight', value)
-  }
+  },
 )
 watch(
   () => props.isDraggable,
   value => {
     emitter.emit('setDraggable', value)
-  }
+  },
 )
 watch(
   () => props.isResizable,
   value => {
     emitter.emit('setResizable', value)
-  }
+  },
 )
 watch(
   () => props.isBounded,
   value => {
     emitter.emit('setBounded', value)
-  }
+  },
 )
 watch(
   () => props.transformScale,
   value => {
     emitter.emit('setTransformScale', value)
-  }
+  },
 )
 watch(
   () => props.responsive,
@@ -228,13 +228,13 @@ watch(
       emitter.emit('setColNum', props.colNum)
     }
     onWindowResize()
-  }
+  },
 )
 watch(
   () => props.maxRows,
   value => {
     emitter.emit('setMaxRows', value)
-  }
+  },
 )
 watch([() => props.margin, () => props.margin[1]], updateHeight)
 
@@ -244,8 +244,8 @@ provide(
     ...toRefs(props),
     ...toRefs(state),
     increaseItem,
-    decreaseItem
-  }) as LayoutInstance
+    decreaseItem,
+  }) as LayoutInstance,
 )
 provide(EMITTER_KEY, emitter)
 
@@ -291,7 +291,7 @@ function layoutUpdate() {
 
 function updateHeight() {
   state.mergedStyle = {
-    height: containerHeight()
+    height: containerHeight(),
   }
 }
 
@@ -319,7 +319,7 @@ function dragEvent(
   x: number,
   y: number,
   h: number,
-  w: number
+  w: number,
 ) {
   let l = getLayoutItem(currentLayout.value, id)!
 
@@ -332,9 +332,9 @@ function dragEvent(
     positionsBeforeDrag = currentLayout.value.reduce(
       (result, { i, x, y }) => ({
         ...result,
-        [i]: { x, y }
+        [i]: { x, y },
       }),
-      {}
+      {},
     )
   }
 
@@ -384,7 +384,7 @@ function resizeEvent(
   x: number,
   y: number,
   h: number,
-  w: number
+  w: number,
 ) {
   let l = getLayoutItem(currentLayout.value, id)!
   // GetLayoutItem sometimes return null object
@@ -395,7 +395,7 @@ function resizeEvent(
   let hasCollisions
   if (props.preventCollision) {
     const collisions = getAllCollisions(currentLayout.value, { ...l, w, h }).filter(
-      layoutItem => layoutItem.i !== l.i
+      layoutItem => layoutItem.i !== l.i,
     )
     hasCollisions = collisions.length > 0
 
@@ -468,7 +468,7 @@ function responsiveGridLayout() {
     newBreakpoint,
     state.lastBreakpoint!,
     newCols,
-    props.verticalCompact
+    props.verticalCompact,
   )
 
   // Store the new layout.

@@ -10,7 +10,7 @@ import {
   compact,
   moveElement,
   sortLayoutItemsByRowCol,
-  validateLayout
+  validateLayout,
 } from '../src/helpers/common'
 
 import type { Layout, LayoutItem } from '../src/helpers/types'
@@ -24,8 +24,8 @@ describe('bottom', () => {
     expect(
       bottom([
         { i: '1', x: 0, y: 1, w: 1, h: 1 },
-        { i: '2', x: 1, y: 2, w: 1, h: 1 }
-      ])
+        { i: '2', x: 1, y: 2, w: 1, h: 1 },
+      ]),
     ).toEqual(3)
   })
 })
@@ -35,12 +35,12 @@ describe('sortLayoutItemsByRowCol', () => {
     const layout = [
       { x: 1, y: 1, w: 1, h: 1, i: '2' },
       { x: 1, y: 0, w: 1, h: 1, i: '1' },
-      { x: 0, y: 1, w: 2, h: 2, i: '3' }
+      { x: 0, y: 1, w: 2, h: 2, i: '3' },
     ]
     expect(sortLayoutItemsByRowCol(layout)).toEqual([
       { x: 1, y: 0, w: 1, h: 1, i: '1' },
       { x: 0, y: 1, w: 2, h: 2, i: '3' },
-      { x: 1, y: 1, w: 1, h: 1, i: '2' }
+      { x: 1, y: 1, w: 1, h: 1, i: '2' },
     ])
   })
 })
@@ -48,10 +48,10 @@ describe('sortLayoutItemsByRowCol', () => {
 describe('collides', () => {
   it('Returns whether the layout items collide', () => {
     expect(
-      collides({ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 1, y: 2, w: 1, h: 1 })
+      collides({ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 1, y: 2, w: 1, h: 1 }),
     ).toEqual(false)
     expect(
-      collides({ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 0, y: 1, w: 1, h: 1 })
+      collides({ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 0, y: 1, w: 1, h: 1 }),
     ).toEqual(true)
   })
 })
@@ -63,7 +63,7 @@ describe('validateLayout', () => {
   it('Validates a populated layout', () => {
     validateLayout([
       { i: '1', x: 0, y: 1, w: 1, h: 1 },
-      { i: '2', x: 1, y: 2, w: 1, h: 1 }
+      { i: '2', x: 1, y: 2, w: 1, h: 1 },
     ])
   })
   it('Throws errors on invalid input', () => {
@@ -80,7 +80,7 @@ describe('moveElement', () => {
     x?: number,
     y?: number,
     isUserAction = false,
-    preventCollision = false
+    preventCollision = false,
   ) {
     return compact(moveElement(layout, layoutItem, x, y, isUserAction, preventCollision))
   }
@@ -88,7 +88,7 @@ describe('moveElement', () => {
   it('Does not change layout when colliding on no rearrangement mode', () => {
     const layout = [
       { i: '1', x: 0, y: 1, w: 1, h: 1, moved: false },
-      { i: '2', x: 1, y: 2, w: 1, h: 1, moved: false }
+      { i: '2', x: 1, y: 2, w: 1, h: 1, moved: false },
     ]
     const layoutItem = layout[0]
     expect(
@@ -98,18 +98,18 @@ describe('moveElement', () => {
         1,
         2, // x, y
         true,
-        true // isUserAction, preventCollision
-      )
+        true, // isUserAction, preventCollision
+      ),
     ).toEqual([
       { i: '1', x: 0, y: 1, w: 1, h: 1, moved: false },
-      { i: '2', x: 1, y: 2, w: 1, h: 1, moved: false }
+      { i: '2', x: 1, y: 2, w: 1, h: 1, moved: false },
     ])
   })
 
   it('Does change layout when colliding in rearrangement mode', () => {
     const layout = [
       { i: '1', x: 0, y: 0, w: 1, h: 1, moved: false },
-      { i: '2', x: 1, y: 0, w: 1, h: 1, moved: false }
+      { i: '2', x: 1, y: 0, w: 1, h: 1, moved: false },
     ]
     const layoutItem = layout[0]
     expect(
@@ -119,11 +119,11 @@ describe('moveElement', () => {
         1,
         0, // x, y
         true,
-        false // isUserAction, preventCollision
-      )
+        false, // isUserAction, preventCollision
+      ),
     ).toEqual([
       { i: '1', x: 1, y: 0, w: 1, h: 1, moved: true },
-      { i: '2', x: 1, y: 1, w: 1, h: 1, moved: true }
+      { i: '2', x: 1, y: 1, w: 1, h: 1, moved: true },
     ])
   })
 
@@ -131,7 +131,7 @@ describe('moveElement', () => {
     const layout = [
       { x: 0, y: 0, w: 1, h: 10, i: 'A' },
       { x: 0, y: 10, w: 1, h: 1, i: 'B' },
-      { x: 0, y: 11, w: 1, h: 1, i: 'C' }
+      { x: 0, y: 11, w: 1, h: 1, i: 'C' },
     ]
     // move A down slightly so it collides with C; can cause C to jump above B.
     // We instead want B to jump above A (it has the room)
@@ -143,12 +143,12 @@ describe('moveElement', () => {
         0,
         1, // x, y
         true,
-        false // isUserAction, preventCollision
-      )
+        false, // isUserAction, preventCollision
+      ),
     ).toEqual([
       expect.objectContaining({ x: 0, y: 1, w: 1, h: 10, i: 'A' }),
       expect.objectContaining({ x: 0, y: 0, w: 1, h: 1, i: 'B' }),
-      expect.objectContaining({ x: 0, y: 11, w: 1, h: 1, i: 'C' })
+      expect.objectContaining({ x: 0, y: 11, w: 1, h: 1, i: 'C' }),
     ])
   })
 
@@ -156,7 +156,7 @@ describe('moveElement', () => {
     const layout = [
       { x: 0, y: 0, w: 1, h: 10, i: 'A' },
       { x: 0, y: 10, w: 1, h: 1, i: 'B' },
-      { x: 0, y: 11, w: 1, h: 1, i: 'C' }
+      { x: 0, y: 11, w: 1, h: 1, i: 'C' },
     ]
     // Move A down by 2. This should move B above, but since we don't compact in between,
     // C should move below.
@@ -168,12 +168,12 @@ describe('moveElement', () => {
         0,
         2, // x, y
         true,
-        false // isUserAction, preventCollision
-      )
+        false, // isUserAction, preventCollision
+      ),
     ).toEqual([
       expect.objectContaining({ x: 0, y: 2, w: 1, h: 10, i: 'A' }),
       expect.objectContaining({ x: 0, y: 1, w: 1, h: 1, i: 'B' }),
-      expect.objectContaining({ x: 0, y: 12, w: 1, h: 1, i: 'C' })
+      expect.objectContaining({ x: 0, y: 12, w: 1, h: 1, i: 'C' }),
     ])
   })
 
@@ -181,7 +181,7 @@ describe('moveElement', () => {
     const layout = [
       { x: 0, y: 0, w: 1, h: 1, i: 'A' },
       { x: 1, y: 0, w: 1, h: 1, i: 'B' },
-      { x: 0, y: 1, w: 2, h: 2, i: 'C' }
+      { x: 0, y: 1, w: 2, h: 2, i: 'C' },
     ]
     // move A over slightly so it collides with B; can cause C to jump above B
     // this test will check that that does not happen
@@ -193,12 +193,12 @@ describe('moveElement', () => {
         1,
         0, // x, y
         true,
-        false // isUserAction, preventCollision
-      )
+        false, // isUserAction, preventCollision
+      ),
     ).toEqual([
       { x: 1, y: 0, w: 1, h: 1, i: 'A', moved: true },
       { x: 1, y: 1, w: 1, h: 1, i: 'B', moved: true },
-      { x: 0, y: 2, w: 2, h: 2, i: 'C', moved: true }
+      { x: 0, y: 2, w: 2, h: 2, i: 'C', moved: true },
     ])
   })
 
@@ -209,7 +209,7 @@ describe('moveElement', () => {
       { x: 0, y: 0, w: 2, h: 1, i: 'A' },
       { x: 2, y: 0, w: 2, h: 1, i: 'B' },
       { x: 0, y: 1, w: 1, h: 1, i: 'C' },
-      { x: 1, y: 1, w: 3, h: 1, i: 'D' }
+      { x: 1, y: 1, w: 3, h: 1, i: 'D' },
     ]
     // move B left slightly so it collides with A; can cause C to jump above A
     // this test will check that that does not happen
@@ -221,13 +221,13 @@ describe('moveElement', () => {
         1,
         0, // x, y
         true,
-        false // isUserAction, preventCollision
-      )
+        false, // isUserAction, preventCollision
+      ),
     ).toEqual([
       expect.objectContaining({ x: 0, y: 1, w: 2, h: 1, i: 'A' }),
       expect.objectContaining({ x: 1, y: 0, w: 2, h: 1, i: 'B' }),
       expect.objectContaining({ x: 0, y: 2, w: 1, h: 1, i: 'C' }),
-      expect.objectContaining({ x: 1, y: 2, w: 3, h: 1, i: 'D' })
+      expect.objectContaining({ x: 1, y: 2, w: 3, h: 1, i: 'D' }),
     ])
   })
 
@@ -240,7 +240,7 @@ describe('moveElement', () => {
     const layout = [
       { x: 0, y: 0, w: 2, h: 1, i: 'A' },
       { x: 0, y: 1, w: 1, h: 1, i: 'B' },
-      { x: 1, y: 1, w: 1, h: 2, i: 'C' }
+      { x: 1, y: 1, w: 1, h: 2, i: 'C' },
     ]
     // Move C up.
     const itemB = layout[2]
@@ -251,12 +251,12 @@ describe('moveElement', () => {
         1,
         0, // x, y
         true,
-        false // isUserAction, preventCollision
-      )
+        false, // isUserAction, preventCollision
+      ),
     ).toEqual([
       expect.objectContaining({ x: 0, y: 2, w: 2, h: 1, i: 'A' }),
       expect.objectContaining({ x: 0, y: 3, w: 1, h: 1, i: 'B' }),
-      expect.objectContaining({ x: 1, y: 0, w: 1, h: 2, i: 'C' })
+      expect.objectContaining({ x: 1, y: 0, w: 1, h: 2, i: 'C' }),
     ])
   })
 })
@@ -270,11 +270,11 @@ describe('compact vertical', () => {
   it('Resolve collision by moving item further down in array', () => {
     const layout = [
       { x: 0, y: 0, w: 1, h: 5, i: '1' },
-      { x: 0, y: 1, w: 1, h: 1, i: '2' }
+      { x: 0, y: 1, w: 1, h: 1, i: '2' },
     ]
     expect(compact(layout, true)).toEqual([
       { x: 0, y: 0, w: 1, h: 5, i: '1', moved: false },
-      { x: 0, y: 5, w: 1, h: 1, i: '2', moved: false }
+      { x: 0, y: 5, w: 1, h: 1, i: '2', moved: false },
     ])
   })
 
@@ -284,7 +284,7 @@ describe('compact vertical', () => {
       { x: 0, y: 0, w: 10, h: 1, i: '2' },
       { x: 5, y: 1, w: 1, h: 1, i: '3' },
       { x: 5, y: 2, w: 1, h: 1, i: '4' },
-      { x: 5, y: 3, w: 1, h: 1, i: '5', static: true }
+      { x: 5, y: 3, w: 1, h: 1, i: '5', static: true },
     ]
 
     expect(compact(layout, true)).toEqual([
@@ -292,7 +292,7 @@ describe('compact vertical', () => {
       { x: 0, y: 5, w: 10, h: 1, i: '2', moved: false },
       { x: 5, y: 0, w: 1, h: 1, i: '3', moved: false },
       { x: 5, y: 1, w: 1, h: 1, i: '4', moved: false },
-      { x: 5, y: 3, w: 1, h: 1, i: '5', moved: false, static: true }
+      { x: 5, y: 3, w: 1, h: 1, i: '5', moved: false, static: true },
     ])
   })
 })

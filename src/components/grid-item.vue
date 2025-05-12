@@ -9,7 +9,7 @@ import {
   ref,
   toRef,
   watch,
-  watchEffect
+  watchEffect,
 } from 'vue'
 
 import { isNull, nextTickOnce, throttle } from '@vexip-ui/utils'
@@ -20,7 +20,7 @@ import {
   setTopRight,
   setTransform,
   setTransformRtl,
-  useNameHelper
+  useNameHelper,
 } from '../helpers/common'
 import { createCoreData, getControlPosition } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
@@ -44,7 +44,7 @@ const props = withDefaults(defineProps<GridItemProps>(), {
   resizeIgnoreFrom: 'a, button',
   preserveAspectRatio: false,
   dragOption: () => ({}),
-  resizeOption: () => ({})
+  resizeOption: () => ({}),
 })
 
 const emit = defineEmits(['container-resized', 'resize', 'resized', 'move', 'moved'])
@@ -74,15 +74,15 @@ const state = reactive({
   isDragging: false,
   dragging: {
     top: -1,
-    left: -1
+    left: -1,
   },
   isResizing: false,
   resizing: {
     width: -1,
-    height: -1
+    height: -1,
   },
   style: {} as Record<string, string>,
-  rtl: false
+  rtl: false,
 })
 
 let dragEventSet = false
@@ -109,7 +109,7 @@ const instance = reactive({
   i: toRef(props, 'i'),
   state,
   wrapper,
-  calcXY
+  calcXY,
 })
 
 function updateWidthHandler(width: number) {
@@ -257,7 +257,7 @@ const className = computed(() => {
     [nh.bm('dragging')]: state.isDragging,
     [nh.bm('transform')]: state.useCssTransforms,
     [nh.bm('rtl')]: renderRtl.value,
-    [nh.bm('no-touch')]: isAndroid && draggableOrResizableAndNotStatic.value
+    [nh.bm('no-touch')]: isAndroid && draggableOrResizableAndNotStatic.value,
   }
 })
 const resizerClass = computed(() => {
@@ -269,45 +269,45 @@ watch(
   () => props.isDraggable,
   value => {
     state.draggable = value
-  }
+  },
 )
 watch(
   () => props.static,
   () => {
     nextTickOnce(tryMakeDraggable)
     nextTickOnce(tryMakeResizable)
-  }
+  },
 )
 watch(
   () => state.draggable,
   () => {
     nextTickOnce(tryMakeDraggable)
-  }
+  },
 )
 watch(
   () => props.isResizable,
   value => {
     state.resizable = value
-  }
+  },
 )
 watch(
   () => props.isBounded,
   value => {
     state.bounded = value
-  }
+  },
 )
 watch(
   () => state.resizable,
   () => {
     nextTickOnce(tryMakeResizable)
-  }
+  },
 )
 watch(
   () => state.rowHeight,
   () => {
     nextTickOnce(createStyle)
     nextTickOnce(emitContainerResized)
-  }
+  },
 )
 watch([() => state.cols, () => state.containerWidth], () => {
   nextTickOnce(tryMakeResizable)
@@ -615,7 +615,7 @@ function calcPosition(x: number, y: number, w: number, h: number) {
       // Note we do it here rather than later because Math.round(Infinity) causes depot
       width: w === Infinity ? w : Math.round(colWidth * w + Math.max(0, w - 1) * state.margin[0]),
       height:
-        h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1])
+        h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1]),
     }
   } else {
     out = {
@@ -626,7 +626,7 @@ function calcPosition(x: number, y: number, w: number, h: number) {
       // Note we do it here rather than later because Math.round(Infinity) causes depot
       width: w === Infinity ? w : Math.round(colWidth * w + Math.max(0, w - 1) * state.margin[0]),
       height:
-        h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1])
+        h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1]),
     }
   }
 
@@ -732,7 +732,7 @@ function tryMakeDraggable() {
     const opts = {
       ignoreFrom: props.dragIgnoreFrom,
       allowFrom: props.dragAllowFrom,
-      ...props.dragOption
+      ...props.dragOption,
     }
     interactObj.value.draggable(opts)
 
@@ -763,20 +763,20 @@ function tryMakeResizable() {
         left: renderRtl.value ? `.${resizerClass.value[0]}` : false,
         right: !renderRtl.value ? `.${resizerClass.value[0]}` : false,
         bottom: `.${resizerClass.value[0]}`,
-        top: false
+        top: false,
       },
       ignoreFrom: props.resizeIgnoreFrom,
       restrictSize: {
         min: {
           height: minimum.height * state.transformScale,
-          width: minimum.width * state.transformScale
+          width: minimum.width * state.transformScale,
         },
         max: {
           height: maximum.height * state.transformScale,
-          width: maximum.width * state.transformScale
-        }
+          width: maximum.width * state.transformScale,
+        },
       },
-      ...props.resizeOption
+      ...props.resizeOption,
     }
 
     if (props.preserveAspectRatio) {

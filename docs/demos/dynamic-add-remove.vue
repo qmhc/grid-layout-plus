@@ -12,7 +12,7 @@ const layout = reactive([
   { x: 2, y: 0, w: 2, h: 2, i: '1' },
   { x: 4, y: 0, w: 2, h: 2, i: '2' },
   { x: 6, y: 0, w: 2, h: 2, i: '3' },
-  { x: 8, y: 0, w: 2, h: 2, i: '4' }
+  { x: 8, y: 0, w: 2, h: 2, i: '4' },
 ])
 
 function addItem() {
@@ -21,7 +21,7 @@ function addItem() {
     y: layout.length + (colNum.value || 12), // puts it at the bottom
     w: 2,
     h: 2,
-    i: `${index++}`
+    i: `${index++}`,
   })
 }
 

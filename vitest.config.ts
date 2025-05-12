@@ -16,14 +16,14 @@ export default defineConfig({
     coverage: {
       exclude: dirs.filter(f => f !== 'src').map(f => `${f}/**`),
       reporter: ['text'],
-      extension: ['ts', 'tsx', 'vue']
+      extension: ['ts', 'tsx', 'vue'],
     },
     testTimeout: 10000,
     server: {
       deps: {
-        inline: [/@interactjs\//]
-      }
-    }
+        inline: [/@interactjs\//],
+      },
+    },
   },
-  plugins: [vue(), vueJsx()]
+  plugins: [vue(), vueJsx()],
 })

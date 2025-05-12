@@ -33,7 +33,7 @@ export function createCoreData(lastX: number, lastY: number, x: number, y: numbe
       lastX: x,
       lastY: y,
       x,
-      y
+      y,
     }
   } else {
     // Otherwise calculate proper values.
@@ -43,7 +43,7 @@ export function createCoreData(lastX: number, lastY: number, x: number, y: numbe
       lastX,
       lastY,
       x,
-      y
+      y,
     }
   }
 }
