@@ -7,6 +7,7 @@ import {
   onMounted,
   reactive,
   ref,
+  shallowRef,
   toRef,
   watch,
   watchEffect,
@@ -56,7 +57,9 @@ if (!layout) {
   throw new Error('[grid-layout-plus]: missing layout store, GridItem must under a GridLayout.')
 }
 
-const interactObj = ref<InstanceType<typeof import('@interactjs/types').Interactable> | null>(null)
+const interactObj = shallowRef<InstanceType<
+  typeof import('@interactjs/types').Interactable
+> | null>(null)
 
 const state = reactive({
   cols: 1,
