@@ -605,31 +605,47 @@ function handleDrag(event: MouseEvent) {
   emitter.emit('dragEvent', event.type, props.i, pos.x, pos.y, innerH, innerW)
 }
 
+/**
+ * Calculate the absolute left pixel position for a given grid column.
+ * Uses integer division to distribute rounding error evenly across columns,
+ * ensuring adjacent items share exact pixel boundaries with no gaps or overlaps.
+ */
+function calcGridColLeft(col: number) {
+  const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
+  return Math.round(totalSpace * col / state.cols) + state.margin[0] * (col + 1)
+}
+
+/**
+ * Calculate the absolute top pixel position for a given grid row.
+ * Row height is fixed so no rounding distribution is needed, but we keep
+ * the same pattern for consistency.
+ */
+function calcGridRowTop(row: number) {
+  return Math.round(state.rowHeight * row) + state.margin[1] * (row + 1)
+}
+
 function calcPosition(x: number, y: number, w: number, h: number) {
-  const colWidth = calcColWidth()
+  const posLeft = calcGridColLeft(x)
+  const posTop = calcGridRowTop(y)
+  // Width = distance between left edge of column (x+w) and left edge of column x, minus one margin
+  const posWidth = w === Infinity ? w : calcGridColLeft(x + w) - posLeft - state.margin[0]
+  const posHeight = h === Infinity ? h : calcGridRowTop(y + h) - posTop - state.margin[1]
+
   // add rtl support
   let out
   if (renderRtl.value) {
     out = {
-      right: Math.round(colWidth * x + (x + 1) * state.margin[0]),
-      top: Math.round(state.rowHeight * y + (y + 1) * state.margin[1]),
-      // 0 * Infinity === NaN, which causes problems with resize constraints;
-      // Fix this if it occurs.
-      // Note we do it here rather than later because Math.round(Infinity) causes depot
-      width: w === Infinity ? w : Math.round(colWidth * w + Math.max(0, w - 1) * state.margin[0]),
-      height:
-        h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1]),
+      right: posLeft,
+      top: posTop,
+      width: posWidth,
+      height: posHeight,
     }
   } else {
     out = {
-      left: Math.round(colWidth * x + (x + 1) * state.margin[0]),
-      top: Math.round(state.rowHeight * y + (y + 1) * state.margin[1]),
-      // 0 * Infinity === NaN, which causes problems with resize constraints;
-      // Fix this if it occurs.
-      // Note we do it here rather than later because Math.round(Infinity) causes depot
-      width: w === Infinity ? w : Math.round(colWidth * w + Math.max(0, w - 1) * state.margin[0]),
-      height:
-        h === Infinity ? h : Math.round(state.rowHeight * h + Math.max(0, h - 1) * state.margin[1]),
+      left: posLeft,
+      top: posTop,
+      width: posWidth,
+      height: posHeight,
     }
   }
 
@@ -644,16 +660,13 @@ function calcPosition(x: number, y: number, w: number, h: number) {
  */
 // TODO check if this function needs change in order to support rtl.
 function calcXY(top: number, left: number) {
-  const colWidth = calcColWidth()
+  const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
 
-  // left = colWidth * x + margin * (x + 1)
-  // l = cx + m(x+1)
-  // l = cx + mx + m
-  // l - m = cx + mx
-  // l - m = x(c + m)
-  // (l - m) / (c + m) = x
-  // x = (left - margin) / (coldWidth + margin)
-  let x = Math.round((left - state.margin[0]) / (colWidth + state.margin[0]))
+  // Reverse of calcGridColLeft:
+  //   left = round(totalSpace * x / cols) + margin * (x + 1)
+  //   left - margin = round(totalSpace * x / cols) + margin * x
+  // Approximate x then round:
+  let x = Math.round((left - state.margin[0]) * state.cols / (totalSpace + state.margin[0] * state.cols))
   let y = Math.round((top - state.margin[1]) / (state.rowHeight + state.margin[1]))
 
   // Capping
@@ -685,12 +698,12 @@ function clamp(num: number, lowerBound: number, upperBound: number) {
  * @return w, h as grid units.
  */
 function calcWH(height: number, width: number, autoSizeFlag = false) {
-  const colWidth = calcColWidth()
+  const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
 
-  // width = colWidth * w - (margin * (w - 1))
-  // ...
-  // w = (width + margin) / (colWidth + margin)
-  let w = Math.round((width + state.margin[0]) / (colWidth + state.margin[0]))
+  // Reverse of calcPosition width:
+  //   width = calcGridColLeft(x + w) - calcGridColLeft(x) - margin
+  // Approximate w using average column width, then round
+  let w = Math.round((width + state.margin[0]) * state.cols / (totalSpace + state.margin[0] * state.cols))
   let h = 0
   if (!autoSizeFlag) {
     h = Math.round((height + state.margin[1]) / (state.rowHeight + state.margin[1]))
