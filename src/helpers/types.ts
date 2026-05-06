@@ -1,3 +1,27 @@
+export type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
+
+/** 压缩器接口 */
+export interface Compactor {
+  /** 对布局执行压缩，返回新布局（不修改输入） */
+  compact(layout: Layout, cols: number): Layout,
+  /** 是否允许元素重叠 */
+  allowOverlap?: boolean,
+}
+
+/** 定位策略接口 */
+export interface PositionStrategy {
+  getStyle(top: number, left: number, width: number, height: number): Record<string, string>,
+  getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>,
+}
+
+/** 网格单元格尺寸 */
+export interface GridCellDimensions {
+  cellWidth: number,
+  cellHeight: number,
+  marginX: number,
+  marginY: number,
+}
+
 export interface LayoutItemRequired {
   w: number,
   h: number,
@@ -14,7 +38,8 @@ export interface LayoutItem extends LayoutItemRequired {
   moved?: boolean,
   static?: boolean,
   isDraggable?: boolean,
-  isResizable?: boolean
+  isResizable?: boolean,
+  resizeHandles?: ResizeHandle[],
 }
 
 export type Layout = Array<LayoutItem>
@@ -35,11 +60,15 @@ export interface LayoutInstance {
   isDraggable: boolean,
   isResizable: boolean,
   isBounded: boolean,
-  transformScale: number,
-  useCssTransforms: boolean,
   useStyleCursor: boolean,
   maxRows: number,
   isMirrored: boolean,
+  compactor: Compactor,
+  positionStrategy: PositionStrategy,
+  resizeHandles: ResizeHandle[],
+  isDroppable: boolean,
+  dropItem: { w: number, h: number },
+  dragThreshold: number,
   increaseItem: (item: any) => void,
-  decreaseItem: (item: any) => void
+  decreaseItem: (item: any) => void,
 }

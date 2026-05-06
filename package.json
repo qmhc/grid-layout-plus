@@ -34,6 +34,11 @@
       "import": "./es/index.mjs",
       "require": "./lib/index.cjs"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./es/core.mjs",
+      "require": "./lib/core.js"
+    },
     "./es": {
       "types": "./dist/index.d.ts",
       "import": "./es/index.mjs"

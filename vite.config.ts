@@ -38,7 +38,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      input: [resolve(__dirname, 'src/index.ts')],
+      input: [resolve(__dirname, 'src/index.ts'), resolve(__dirname, 'src/core.ts')],
       external,
       output: [
         {
