@@ -2,6 +2,7 @@ import './style.scss'
 
 export { default as GridLayout } from './components/grid-layout.vue'
 export { default as GridItem } from './components/grid-item.vue'
+export { default as GridBackground } from './components/grid-background.vue'
 
 export type * from './components/types'
 export type * from './helpers/types'
@@ -16,3 +17,26 @@ export type {
   UseResponsiveLayoutOptions,
   UseResponsiveLayoutReturn,
 } from './composables/useResponsiveLayout'
+
+// CoreAPI
+export {
+  bottom,
+  cloneLayout,
+  collides,
+  compact,
+  correctBounds,
+  getAllCollisions,
+  getFirstCollision,
+  moveElement,
+  sortLayoutItemsByRowCol,
+  validateLayout,
+  fastHorizontalCompactor,
+  fastVerticalCompactor,
+  horizontalCompactor,
+  noCompactor,
+  verticalCompactor,
+  withOverlap,
+  absoluteStrategy,
+  transformStrategy,
+  calcGridCellDimensions,
+} from './core'
