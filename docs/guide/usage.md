@@ -19,7 +19,7 @@ const layout = reactive([
 
 And there are two ways to define items, using `item` slot or `default` slot.
 
-Using `item` slot is an easier way to define elements of each item, the properties of layout items definition will auto be passed for GridItem component inernally.
+Using `item` slot is an easier way to define elements of each item, the properties of layout items definition will auto be passed for GridItem component internally.
 
 ```vue
 <template>
