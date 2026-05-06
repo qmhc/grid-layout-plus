@@ -17,10 +17,6 @@ import { isNull, nextTickOnce, throttle } from '@vexip-ui/utils'
 import {
   EMITTER_KEY,
   LAYOUT_KEY,
-  setTopLeft,
-  setTopRight,
-  setTransform,
-  setTransformRtl,
   useNameHelper,
 } from '../helpers/common'
 import { createCoreData, getControlPosition } from '../helpers/draggable'
@@ -29,6 +25,7 @@ import { getDocumentDir } from '../helpers/dom'
 
 import interact from 'interactjs'
 
+import type { PositionStrategy, ResizeHandle } from '../helpers/types'
 import type { GridItemProps } from './types'
 
 const props = withDefaults(defineProps<GridItemProps>(), {
@@ -46,6 +43,8 @@ const props = withDefaults(defineProps<GridItemProps>(), {
   preserveAspectRatio: false,
   dragOption: () => ({}),
   resizeOption: () => ({}),
+  resizeHandles: undefined,
+  dragThreshold: undefined,
 })
 
 const emit = defineEmits(['container-resized', 'resize', 'resized', 'move', 'moved'])
@@ -70,8 +69,6 @@ const state = reactive({
   draggable: undefined as boolean | undefined,
   resizable: undefined as boolean | undefined,
   bounded: undefined as boolean | undefined,
-  transformScale: 1,
-  useCssTransforms: true,
   useStyleCursor: true,
 
   isDragging: false,
@@ -106,6 +103,10 @@ let innerY = props.y
 let innerW = props.w
 let innerH = props.h
 
+// 拖拽阈值相关状态
+let dragStartPos: { x: number, y: number } | null = null
+let dragThresholdExceeded = false
+
 const wrapper = ref<HTMLElement>()
 
 const instance = reactive({
@@ -113,6 +114,28 @@ const instance = reactive({
   state,
   wrapper,
   calcXY,
+})
+
+/** 获取当前生效的缩放手柄方向列表 */
+const effectiveResizeHandles = computed<ResizeHandle[]>(() => {
+  return props.resizeHandles ?? layout.resizeHandles ?? ['se']
+})
+
+/** 获取当前生效的拖拽阈值 */
+const effectiveDragThreshold = computed<number>(() => {
+  return props.dragThreshold ?? layout.dragThreshold ?? 0
+})
+
+/** 获取当前生效的定位策略 */
+const effectivePositionStrategy = computed<PositionStrategy>(() => {
+  return layout.positionStrategy
+})
+
+/** 判断当前定位策略是否使用 CSS transforms */
+const useCssTransforms = computed(() => {
+  // 通过检查 getStyle 输出是否包含 transform 属性来判断
+  const testStyle = effectivePositionStrategy.value.getStyle(0, 0, 100, 100)
+  return 'transform' in testStyle
 })
 
 function updateWidthHandler(width: number) {
@@ -139,10 +162,6 @@ function setBoundedHandler(isBounded: boolean) {
   if (isNull(props.isBounded)) {
     state.bounded = isBounded
   }
-}
-
-function setTransformScaleHandler(transformScale: number) {
-  state.transformScale = transformScale
 }
 
 function setRowHeightHandler(rowHeight: number) {
@@ -194,8 +213,6 @@ onMounted(() => {
   } else {
     state.bounded = props.isBounded
   }
-  state.transformScale = layout.transformScale
-  state.useCssTransforms = layout.useCssTransforms
   state.useStyleCursor = layout.useStyleCursor
 
   watchEffect(() => {
@@ -211,7 +228,6 @@ onMounted(() => {
   emitter.on('setDraggable', setDraggableHandler)
   emitter.on('setResizable', setResizableHandler)
   emitter.on('setBounded', setBoundedHandler)
-  emitter.on('setTransformScale', setTransformScaleHandler)
   emitter.on('setRowHeight', setRowHeightHandler)
   emitter.on('setMaxRows', setMaxRowsHandler)
   emitter.on('directionchange', directionchangeHandler)
@@ -224,7 +240,6 @@ onBeforeUnmount(() => {
   emitter.off('setDraggable', setDraggableHandler)
   emitter.off('setResizable', setResizableHandler)
   emitter.off('setBounded', setBoundedHandler)
-  emitter.off('setTransformScale', setTransformScaleHandler)
   emitter.off('setRowHeight', setRowHeightHandler)
   emitter.off('setMaxRows', setMaxRowsHandler)
   emitter.off('directionchange', directionchangeHandler)
@@ -258,15 +273,20 @@ const className = computed(() => {
     [nh.bm('static')]: props.static,
     [nh.bm('resizing')]: state.isResizing,
     [nh.bm('dragging')]: state.isDragging,
-    [nh.bm('transform')]: state.useCssTransforms,
+    [nh.bm('transform')]: useCssTransforms.value,
     [nh.bm('rtl')]: renderRtl.value,
     [nh.bm('no-touch')]: isAndroid && draggableOrResizableAndNotStatic.value,
   }
 })
-const resizerClass = computed(() => {
-  // return renderRtl.value ? 'vue-resizable-handle vue-rtl-resizable-handle' : 'vue-resizable-handle'
-  return [nh.be('resizer'), renderRtl.value && nh.bem('resizer', 'rtl')].filter(Boolean)
-})
+
+/** 为每个缩放手柄方向生成 CSS 类名 */
+function getHandleClass(handle: ResizeHandle) {
+  return [
+    nh.be('resizer'),
+    nh.bem('resizer', handle),
+    renderRtl.value && nh.bem('resizer', 'rtl'),
+  ].filter(Boolean)
+}
 
 watch(
   () => props.isDraggable,
@@ -349,7 +369,6 @@ function createStyle() {
 
   if (state.isDragging) {
     pos.top = state.dragging.top
-    // Add rtl support
     if (renderRtl.value) {
       pos.right = state.dragging.left
     } else {
@@ -361,31 +380,18 @@ function createStyle() {
     pos.height = state.resizing.height
   }
 
-  let style
-  // CSS Transforms support (default)
-  if (state.useCssTransforms) {
-    // Add rtl support
-    if (renderRtl.value) {
-      style = setTransformRtl(pos.top, pos.right!, pos.width, pos.height)
-    } else {
-      style = setTransform(pos.top, pos.left!, pos.width, pos.height)
-    }
+  let style: Record<string, string>
+  const strategy = effectivePositionStrategy.value
+  if (renderRtl.value) {
+    style = strategy.getRtlStyle(pos.top, pos.right!, pos.width, pos.height)
   } else {
-    // top,left (slow)
-    // Add rtl support
-    if (renderRtl.value) {
-      style = setTopRight(pos.top, pos.right!, pos.width, pos.height)
-    } else {
-      style = setTopLeft(pos.top, pos.left!, pos.width, pos.height)
-    }
+    style = strategy.getStyle(pos.top, pos.left!, pos.width, pos.height)
   }
 
   state.style = style
 }
 
 function emitContainerResized() {
-  // this.style has width and height with trailing 'px'. The
-  // resized event is without them
   const styleProps: Record<string, string> = {}
   for (const prop of ['width', 'height']) {
     const val = state.style[prop]
@@ -410,8 +416,7 @@ function handleResize(event: MouseEvent & { edges: any }) {
   }
 
   const position = getControlPosition(event)
-  // Get the current drag point from the event. This is used as the offset.
-  if (isNull(position)) return // not possible but satisfies flow
+  if (isNull(position)) return
 
   const { x, y } = position
   const newSize = { width: 0, height: 0 }
@@ -429,23 +434,33 @@ function handleResize(event: MouseEvent & { edges: any }) {
       break
     }
     case 'resizemove': {
-      // A vertical resize ignores the horizontal delta
-      if (!event.edges.right && !event.edges.left) {
-        lastW = x
-      }
-
-      // An horizontal resize ignores the vertical delta
-      if (!event.edges.top && !event.edges.bottom) {
-        lastH = y
-      }
-
       const coreEvent = createCoreData(lastW, lastH, x, y)
-      if (renderRtl.value) {
-        newSize.width = state.resizing.width - coreEvent.deltaX / state.transformScale
+
+      // 根据缩放方向处理尺寸变化
+      if (event.edges.right) {
+        if (renderRtl.value) {
+          newSize.width = state.resizing.width - coreEvent.deltaX
+        } else {
+          newSize.width = state.resizing.width + coreEvent.deltaX
+        }
+      } else if (event.edges.left) {
+        if (renderRtl.value) {
+          newSize.width = state.resizing.width + coreEvent.deltaX
+        } else {
+          newSize.width = state.resizing.width - coreEvent.deltaX
+        }
       } else {
-        newSize.width = state.resizing.width + coreEvent.deltaX / state.transformScale
+        newSize.width = state.resizing.width
       }
-      newSize.height = state.resizing.height + coreEvent.deltaY / state.transformScale
+
+      if (event.edges.bottom) {
+        newSize.height = state.resizing.height + coreEvent.deltaY
+      } else if (event.edges.top) {
+        newSize.height = state.resizing.height - coreEvent.deltaY
+      } else {
+        newSize.height = state.resizing.height
+      }
+
       state.resizing = newSize
       break
     }
@@ -485,13 +500,25 @@ function handleResize(event: MouseEvent & { edges: any }) {
   lastW = x
   lastH = y
 
+  // 处理 n/w/nw 等方向缩放时同时更新位置
+  let newX = innerX
+  let newY = innerY
+  if (event.edges.left) {
+    // 从左侧缩放：x 位置需要调整
+    newX = innerX + (innerW - pos.w)
+  }
+  if (event.edges.top) {
+    // 从顶部缩放：y 位置需要调整
+    newY = innerY + (innerH - pos.h)
+  }
+
   if (innerW !== pos.w || innerH !== pos.h) {
     emit('resize', props.i, pos.h, pos.w, newSize.height, newSize.width)
   }
   if (event.type === 'resizeend' && (previousW !== innerW || previousH !== innerH)) {
     emit('resized', props.i, pos.h, pos.w, newSize.height, newSize.width)
   }
-  emitter.emit('resizeEvent', event.type, props.i, innerX, innerY, pos.h, pos.w)
+  emitter.emit('resizeEvent', event.type, props.i, newX, newY, pos.h, pos.w)
 }
 
 function handleDrag(event: MouseEvent) {
@@ -503,15 +530,12 @@ function handleDrag(event: MouseEvent) {
   }
 
   const position = getControlPosition(event)
-
-  // Get the current drag point from the event. This is used as the offset.
-  if (isNull(position)) return // not possible but satisfies flow
+  if (isNull(position)) return
   const { x, y } = position
   const target = event.target as HTMLElement
 
   if (!target.offsetParent) return
 
-  // let shouldUpdate = false;
   const newPosition = { top: 0, left: 0 }
   switch (type) {
     case 'dragstart': {
@@ -521,12 +545,12 @@ function handleDrag(event: MouseEvent) {
       const parentRect = target.offsetParent.getBoundingClientRect()
       const clientRect = target.getBoundingClientRect()
 
-      const cLeft = clientRect.left / state.transformScale
-      const pLeft = parentRect.left / state.transformScale
-      const cRight = clientRect.right / state.transformScale
-      const pRight = parentRect.right / state.transformScale
-      const cTop = clientRect.top / state.transformScale
-      const pTop = parentRect.top / state.transformScale
+      const cLeft = clientRect.left
+      const pLeft = parentRect.left
+      const cRight = clientRect.right
+      const pRight = parentRect.right
+      const cTop = clientRect.top
+      const pTop = parentRect.top
 
       if (renderRtl.value) {
         newPosition.left = (cRight - pRight) * -1
@@ -540,13 +564,12 @@ function handleDrag(event: MouseEvent) {
     }
     case 'dragmove': {
       const coreEvent = createCoreData(lastX, lastY, x, y)
-      // Add rtl support
       if (renderRtl.value) {
-        newPosition.left = state.dragging.left - coreEvent.deltaX / state.transformScale
+        newPosition.left = state.dragging.left - coreEvent.deltaX
       } else {
-        newPosition.left = state.dragging.left + coreEvent.deltaX / state.transformScale
+        newPosition.left = state.dragging.left + coreEvent.deltaX
       }
-      newPosition.top = state.dragging.top + coreEvent.deltaY / state.transformScale
+      newPosition.top = state.dragging.top + coreEvent.deltaY
       if (state.bounded) {
         const bottomBoundary =
           target.offsetParent.clientHeight -
@@ -565,14 +588,13 @@ function handleDrag(event: MouseEvent) {
       const parentRect = target.offsetParent.getBoundingClientRect()
       const clientRect = target.getBoundingClientRect()
 
-      const cLeft = clientRect.left / state.transformScale
-      const pLeft = parentRect.left / state.transformScale
-      const cRight = clientRect.right / state.transformScale
-      const pRight = parentRect.right / state.transformScale
-      const cTop = clientRect.top / state.transformScale
-      const pTop = parentRect.top / state.transformScale
+      const cLeft = clientRect.left
+      const pLeft = parentRect.left
+      const cRight = clientRect.right
+      const pRight = parentRect.right
+      const cTop = clientRect.top
+      const pTop = parentRect.top
 
-      // Add rtl support
       if (renderRtl.value) {
         newPosition.left = (cRight - pRight) * -1
       } else {
@@ -585,7 +607,6 @@ function handleDrag(event: MouseEvent) {
     }
   }
 
-  // Get new XY
   let pos
   if (renderRtl.value) {
     pos = calcXY(newPosition.top, newPosition.left)
@@ -607,8 +628,6 @@ function handleDrag(event: MouseEvent) {
 
 /**
  * Calculate the absolute left pixel position for a given grid column.
- * Uses integer division to distribute rounding error evenly across columns,
- * ensuring adjacent items share exact pixel boundaries with no gaps or overlaps.
  */
 function calcGridColLeft(col: number) {
   const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
@@ -617,8 +636,6 @@ function calcGridColLeft(col: number) {
 
 /**
  * Calculate the absolute top pixel position for a given grid row.
- * Row height is fixed so no rounding distribution is needed, but we keep
- * the same pattern for consistency.
  */
 function calcGridRowTop(row: number) {
   return Math.round(state.rowHeight * row) + state.margin[1] * (row + 1)
@@ -627,11 +644,9 @@ function calcGridRowTop(row: number) {
 function calcPosition(x: number, y: number, w: number, h: number) {
   const posLeft = calcGridColLeft(x)
   const posTop = calcGridRowTop(y)
-  // Width = distance between left edge of column (x+w) and left edge of column x, minus one margin
   const posWidth = w === Infinity ? w : calcGridColLeft(x + w) - posLeft - state.margin[0]
   const posHeight = h === Infinity ? h : calcGridRowTop(y + h) - posTop - state.margin[1]
 
-  // add rtl support
   let out
   if (renderRtl.value) {
     out = {
@@ -652,24 +667,12 @@ function calcPosition(x: number, y: number, w: number, h: number) {
   return out
 }
 
-/**
- * Translate x and y coordinates from pixels to grid units.
- * @param top  Top position (relative to parent) in pixels.
- * @param left Left position (relative to parent) in pixels.
- * @return x and y in grid units.
- */
-// TODO check if this function needs change in order to support rtl.
 function calcXY(top: number, left: number) {
   const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
 
-  // Reverse of calcGridColLeft:
-  //   left = round(totalSpace * x / cols) + margin * (x + 1)
-  //   left - margin = round(totalSpace * x / cols) + margin * x
-  // Approximate x then round:
   let x = Math.round((left - state.margin[0]) * state.cols / (totalSpace + state.margin[0] * state.cols))
   let y = Math.round((top - state.margin[1]) / (state.rowHeight + state.margin[1]))
 
-  // Capping
   x = Math.max(Math.min(x, state.cols - innerW), 0)
   y = Math.max(Math.min(y, state.maxRows - innerH), 0)
 
@@ -681,7 +684,6 @@ function calcColWidth() {
 }
 
 function calcGridItemWHPx(gridUnits: number, colOrRowSize: number, marginPx: number) {
-  // 0 * Infinity === NaN, which causes problems with resize constraints
   if (!Number.isFinite(gridUnits)) return gridUnits
   return Math.round(colOrRowSize * gridUnits + Math.max(0, gridUnits - 1) * marginPx)
 }
@@ -690,19 +692,9 @@ function clamp(num: number, lowerBound: number, upperBound: number) {
   return Math.max(Math.min(num, upperBound), lowerBound)
 }
 
-/**
- * Given a height and width in pixel values, calculate grid units.
- * @param height Height in pixels.
- * @param width  Width in pixels.
- * @param autoSizeFlag  function autoSize identifier.
- * @return w, h as grid units.
- */
 function calcWH(height: number, width: number, autoSizeFlag = false) {
   const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
 
-  // Reverse of calcPosition width:
-  //   width = calcGridColLeft(x + w) - calcGridColLeft(x) - margin
-  // Approximate w using average column width, then round
   let w = Math.round((width + state.margin[0]) * state.cols / (totalSpace + state.margin[0] * state.cols))
   let h = 0
   if (!autoSizeFlag) {
@@ -711,7 +703,6 @@ function calcWH(height: number, width: number, autoSizeFlag = false) {
     h = Math.ceil((height + state.margin[1]) / (state.rowHeight + state.margin[1]))
   }
 
-  // Capping
   w = Math.max(Math.min(w, state.cols - innerX), 0)
   h = Math.max(Math.min(h, state.maxRows - innerY), 0)
   return { w, h }
@@ -755,7 +746,36 @@ function tryMakeDraggable() {
     if (!dragEventSet) {
       dragEventSet = true
       interactObj.value.on('dragstart dragmove dragend', event => {
-        event.type === 'dragmove' ? throttleDrag(event) : handleDrag(event)
+        const threshold = effectiveDragThreshold.value
+
+        if (event.type === 'dragstart') {
+          // 记录拖拽起始位置
+          dragStartPos = { x: event.clientX, y: event.clientY }
+          dragThresholdExceeded = threshold <= 0
+          if (dragThresholdExceeded) {
+            handleDrag(event)
+          }
+        } else if (event.type === 'dragmove') {
+          if (!dragThresholdExceeded && dragStartPos) {
+            const dx = event.clientX - dragStartPos.x
+            const dy = event.clientY - dragStartPos.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+            if (distance >= threshold) {
+              dragThresholdExceeded = true
+              // 触发 dragstart 以初始化拖拽状态
+              handleDrag({ ...event, type: 'dragstart' })
+            }
+          }
+          if (dragThresholdExceeded) {
+            throttleDrag(event)
+          }
+        } else if (event.type === 'dragend') {
+          if (dragThresholdExceeded) {
+            handleDrag(event)
+          }
+          dragStartPos = null
+          dragThresholdExceeded = false
+        }
       })
     }
   } else {
@@ -764,6 +784,28 @@ function tryMakeDraggable() {
 }
 
 const throttleResize = throttle(handleResize)
+
+/**
+ * 根据缩放手柄方向计算 interactjs 的 edges 配置。
+ */
+function getEdgesForHandles(handles: ResizeHandle[]) {
+  const hasHandle = (h: ResizeHandle) => handles.includes(h)
+
+  const hasTop = hasHandle('n') || hasHandle('nw') || hasHandle('ne')
+  const hasBottom = hasHandle('s') || hasHandle('sw') || hasHandle('se')
+  const hasLeft = hasHandle('w') || hasHandle('nw') || hasHandle('sw')
+  const hasRight = hasHandle('e') || hasHandle('ne') || hasHandle('se')
+
+  // 使用 CSS 选择器匹配对应方向的手柄元素
+  const resizerBase = `.${nh.be('resizer')}`
+
+  return {
+    top: hasTop ? resizerBase : false,
+    bottom: hasBottom ? resizerBase : false,
+    left: hasLeft ? resizerBase : false,
+    right: hasRight ? resizerBase : false,
+  }
+}
 
 function tryMakeResizable() {
   tryInteract()
@@ -774,22 +816,20 @@ function tryMakeResizable() {
     const maximum = calcPosition(0, 0, props.maxW, props.maxH)
     const minimum = calcPosition(0, 0, props.minW, props.minH)
 
+    const handles = effectiveResizeHandles.value
+    const edges = getEdgesForHandles(handles)
+
     const opts: Record<string, any> = {
-      edges: {
-        left: renderRtl.value ? `.${resizerClass.value[0]}` : false,
-        right: !renderRtl.value ? `.${resizerClass.value[0]}` : false,
-        bottom: `.${resizerClass.value[0]}`,
-        top: false,
-      },
+      edges,
       ignoreFrom: props.resizeIgnoreFrom,
       restrictSize: {
         min: {
-          height: minimum.height * state.transformScale,
-          width: minimum.width * state.transformScale,
+          height: minimum.height,
+          width: minimum.width,
         },
         max: {
-          height: maximum.height * state.transformScale,
-          width: maximum.width * state.transformScale,
+          height: maximum.height,
+          width: maximum.width,
         },
       },
       ...props.resizeOption,
@@ -815,6 +855,12 @@ function tryMakeResizable() {
 <template>
   <section ref="wrapper" :class="className" :style="state.style">
     <slot></slot>
-    <span v-if="resizableAndNotStatic" :class="resizerClass"></span>
+    <template v-if="resizableAndNotStatic">
+      <span
+        v-for="handle in effectiveResizeHandles"
+        :key="handle"
+        :class="getHandleClass(handle)"
+      ></span>
+    </template>
   </section>
 </template>

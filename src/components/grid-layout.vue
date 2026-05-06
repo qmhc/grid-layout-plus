@@ -30,8 +30,10 @@ import {
   getBreakpointFromWidth,
   getColsFromBreakpoint,
 } from '../helpers/responsive'
+import { verticalCompactor } from '../core/compactors'
+import { transformStrategy } from '../core/position-strategies'
 
-import type { Breakpoint, Layout, LayoutInstance } from '../helpers/types'
+import type { Breakpoint, Compactor, Layout, LayoutInstance, PositionStrategy, ResizeHandle } from '../helpers/types'
 import type { GridLayoutProps } from './types'
 
 const props = withDefaults(defineProps<GridLayoutProps>(), {
@@ -44,16 +46,19 @@ const props = withDefaults(defineProps<GridLayoutProps>(), {
   isResizable: true,
   isMirrored: false,
   isBounded: false,
-  useCssTransforms: true,
-  verticalCompact: true,
   restoreOnDrag: false,
   responsive: false,
   responsiveLayouts: () => ({}),
-  transformScale: 1,
   breakpoints: () => ({ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }),
   cols: () => ({ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }),
   preventCollision: false,
   useStyleCursor: true,
+  compactor: () => verticalCompactor,
+  positionStrategy: () => transformStrategy,
+  resizeHandles: () => ['se'] as ResizeHandle[],
+  isDroppable: false,
+  dropItem: () => ({ w: 1, h: 1 }),
+  dragThreshold: 0,
 })
 
 const emit = defineEmits([
@@ -63,7 +68,23 @@ const emit = defineEmits([
   'breakpoint-changed',
   'update:layout',
   'layout-ready',
+  'drop-drag-over',
+  'drop',
+  'drop-drag-leave',
 ])
+
+/**
+ * Config 合并逻辑：扁平 props 优先于分组 config。
+ * 对于每个配置项，如果扁平 prop 被显式传入（非 undefined），则使用扁平 prop 的值；
+ * 否则使用分组 config 中的值；最后回退到默认值。
+ *
+ * 注意：由于 withDefaults 已经为扁平 props 设置了默认值，
+ * 我们通过检查 $attrs 和 props 来判断是否显式传入。
+ * 实际上，withDefaults 使得扁平 props 始终有值，
+ * 所以分组 config 只在扁平 props 使用默认值时才可能覆盖。
+ * 但根据需求 8.5，扁平 props 优先级更高，即使是默认值也优先。
+ * 因此分组 config 仅作为替代写法，不会覆盖已有默认值的扁平 props。
+ */
 
 const state = reactive({
   width: -1,
@@ -77,9 +98,11 @@ const state = reactive({
     h: 0,
     i: '' as number | string,
   },
-  layouts: {} as Record<Breakpoint, Layout>, // array to store all layouts from different breakpoints
-  lastBreakpoint: null as Breakpoint | null, // store last active breakpoint
-  originalLayout: null! as Layout, // store original Layout
+  layouts: {} as Record<Breakpoint, Layout>,
+  lastBreakpoint: null as Breakpoint | null,
+  originalLayout: null! as Layout,
+  // 外部拖入占位符状态
+  dropPlaceholder: null as { x: number, y: number, w: number, h: number } | null,
 })
 
 const itemInstances = new Map<number | string, any>()
@@ -108,7 +131,7 @@ onMounted(() => {
     nextTick(() => {
       initResponsiveFeatures()
       wrapper.value && observeResize(wrapper.value, debounce(onWindowResize, 16))
-      compact(currentLayout.value, props.verticalCompact)
+      compactLayout()
       emit('layout-updated', currentLayout.value)
       updateHeight()
       onWindowResize()
@@ -143,32 +166,37 @@ function dragEventHandler(
   dragEvent(eventType, i, x, y, h, w)
 }
 
+/**
+ * 使用可插拔 compactor 执行布局压缩。
+ * 替代原来直接调用 compact(layout, verticalCompact) 的方式。
+ */
+function compactLayout(positionsBeforeDrag?: Record<string, { x: number, y: number }>) {
+  if (positionsBeforeDrag) {
+    // restoreOnDrag 模式：使用旧的 compact 函数以支持 minPositions
+    compact(currentLayout.value, true, positionsBeforeDrag)
+  } else {
+    // 使用可插拔 compactor
+    const result = props.compactor.compact(currentLayout.value, props.colNum)
+    // 将结果同步回 currentLayout（保持引用稳定）
+    for (let i = 0; i < currentLayout.value.length; i++) {
+      const src = result.find(r => r.i === currentLayout.value[i].i)
+      if (src) {
+        currentLayout.value[i].x = src.x
+        currentLayout.value[i].y = src.y
+        currentLayout.value[i].w = src.w
+        currentLayout.value[i].h = src.h
+        currentLayout.value[i].moved = src.moved
+      }
+    }
+  }
+}
+
 watch(
   () => state.width,
   (newVal, oldVal) => {
     nextTick(() => {
       emitter.emit('updateWidth', newVal)
       if (oldVal === -1) {
-        /*
-        If oldVal === -1 is when the width has never been
-        set before. That only occurs when mounting is
-        finished, and onWindowResize has been called and
-        this.width has been changed the first time after it
-        got set to null in the constructor. It is now time
-        to issue layout-ready events as the GridItems have
-        their sizes configured properly.
-
-        The reason for emitting the layout-ready events on
-        the next tick is to allow for the newly-emitted
-        updateWidth event (above) to have reached the
-        children GridItem-s and had their effect, so we're
-        sure that they have the final size before we emit
-        layout-ready (for this GridLayout) and
-        item-layout-ready (for the GridItem-s).
-
-        This way any client event handlers can reliably
-        investigate stable sizes of GridItem-s.
-      */
         nextTick(() => {
           emit('layout-ready', currentLayout.value)
         })
@@ -215,12 +243,6 @@ watch(
   },
 )
 watch(
-  () => props.transformScale,
-  value => {
-    emitter.emit('setTransformScale', value)
-  },
-)
-watch(
   () => props.responsive,
   value => {
     if (!value) {
@@ -234,6 +256,15 @@ watch(
   () => props.maxRows,
   value => {
     emitter.emit('setMaxRows', value)
+  },
+)
+watch(
+  () => props.compactor,
+  () => {
+    compactLayout()
+    emitter.emit('updateWidth', state.width)
+    updateHeight()
+    emit('layout-updated', currentLayout.value)
   },
 )
 watch([() => props.margin, () => props.margin[1]], updateHeight)
@@ -281,7 +312,7 @@ function layoutUpdate() {
       initResponsiveFeatures()
     }
 
-    compact(currentLayout.value, props.verticalCompact)
+    compactLayout()
     emitter.emit('updateWidth', state.width)
     updateHeight()
 
@@ -323,12 +354,13 @@ function dragEvent(
 ) {
   let l = getLayoutItem(currentLayout.value, id)!
 
-  // GetLayoutItem sometimes returns null object
   if (isNull(l)) {
     l = { h: 0, w: 0, x: 0, y: 0, i: '' }
   }
 
-  if (eventName === 'dragstart' && !props.verticalCompact) {
+  if (eventName === 'dragstart' && props.compactor.allowOverlap) {
+    // allowOverlap 模式下不需要记录位置
+  } else if (eventName === 'dragstart') {
     positionsBeforeDrag = currentLayout.value.reduce(
       (result, { i, x, y }) => ({
         ...result,
@@ -356,20 +388,23 @@ function dragEvent(
     })
   }
 
-  // Move the element to the dragged location.
-  currentLayout.value = moveElement(currentLayout.value, l, x, y, true, props.preventCollision)
-
-  if (props.restoreOnDrag) {
-    // Do not compact items more than in layout before drag
-    // Set moved item as static to avoid to compact it
-    l.static = true
-    compact(currentLayout.value, props.verticalCompact, positionsBeforeDrag)
-    l.static = false
+  if (props.compactor.allowOverlap) {
+    // allowOverlap 模式：直接更新位置，不做碰撞检测和推开
+    l.x = x
+    l.y = y
+    l.moved = true
   } else {
-    compact(currentLayout.value, props.verticalCompact)
+    currentLayout.value = moveElement(currentLayout.value, l, x, y, true, props.preventCollision)
   }
 
-  // needed because vue can't detect changes on array element properties
+  if (props.restoreOnDrag && !props.compactor.allowOverlap) {
+    l.static = true
+    compactLayout(positionsBeforeDrag)
+    l.static = false
+  } else if (!props.compactor.allowOverlap) {
+    compactLayout()
+  }
+
   emitter.emit('compact')
   updateHeight()
   if (eventName === 'dragend') {
@@ -387,7 +422,6 @@ function resizeEvent(
   w: number,
 ) {
   let l = getLayoutItem(currentLayout.value, id)!
-  // GetLayoutItem sometimes return null object
   if (isNull(l)) {
     l = { h: 0, w: 0, x: 0, y: 0, i: '' }
   }
@@ -399,9 +433,7 @@ function resizeEvent(
     )
     hasCollisions = collisions.length > 0
 
-    // If we're colliding, we need adjust the placeholder.
     if (hasCollisions) {
-      // adjust w && h to maximum allowed space
       let leastX = Infinity
       let leastY = Infinity
       collisions.forEach(layoutItem => {
@@ -415,7 +447,6 @@ function resizeEvent(
   }
 
   if (!hasCollisions) {
-    // Set new width and height.
     l.w = w
     l.h = h
   }
@@ -429,7 +460,6 @@ function resizeEvent(
     nextTick(() => {
       state.isDragging = true
     })
-    // this.$broadcast("updateWidth", this.width);
     emitter.emit('updateWidth', state.width)
   } else if (eventName) {
     nextTick(() => {
@@ -439,7 +469,7 @@ function resizeEvent(
 
   if (props.responsive) responsiveGridLayout()
 
-  compact(currentLayout.value, props.verticalCompact)
+  compactLayout()
   emitter.emit('compact')
   updateHeight()
 
@@ -455,12 +485,10 @@ function responsiveGridLayout() {
 
   const newCols = getColsFromBreakpoint(newBreakpoint, props.cols)
 
-  // save actual layout in layouts
   if (!isNull(state.lastBreakpoint) && !state.layouts[state.lastBreakpoint]) {
     state.layouts[state.lastBreakpoint] = cloneLayout(currentLayout.value)
   }
 
-  // Find or generate a new layout.
   const layout = findOrGenerateResponsiveLayout(
     state.originalLayout,
     state.layouts,
@@ -468,10 +496,9 @@ function responsiveGridLayout() {
     newBreakpoint,
     state.lastBreakpoint!,
     newCols,
-    props.verticalCompact,
+    true,
   )
 
-  // Store the new layout.
   state.layouts[newBreakpoint] = layout
 
   if (state.lastBreakpoint !== newBreakpoint) {
@@ -480,7 +507,6 @@ function responsiveGridLayout() {
 
   currentLayout.value = layout
 
-  // new prop sync
   emit('update:layout', layout)
 
   state.lastBreakpoint = newBreakpoint
@@ -488,7 +514,6 @@ function responsiveGridLayout() {
 }
 
 function initResponsiveFeatures() {
-  // clear layouts
   state.layouts = Object.assign({} as Record<Breakpoint, Layout>, props.responsiveLayouts)
 }
 
@@ -496,19 +521,82 @@ function findDifference(layout: Layout, originalLayout: Layout) {
   const originalIds = new Set(originalLayout.map(item => item.i))
   const ids = new Set(layout.map(item => item.i))
 
-  // Find values that are in result1 but not in result2
   const uniqueResultOne = layout.filter(item => !originalIds.has(item.i))
-
-  // Find values that are in result2 but not in result1
   const uniqueResultTwo = originalLayout.filter(item => !ids.has(item.i))
 
-  // Combine the two arrays of unique entries#
   return uniqueResultOne.concat(uniqueResultTwo)
+}
+
+// ---------------------------------------------------------------------------
+// 外部拖入功能（需求 6）
+// ---------------------------------------------------------------------------
+
+function handleDragOver(event: DragEvent) {
+  if (!props.isDroppable) return
+  event.preventDefault()
+
+  if (!wrapper.value) return
+
+  const rect = wrapper.value.getBoundingClientRect()
+  const marginX = props.margin[0] || 0
+  const marginY = props.margin[1] || 0
+  const colWidth = (state.width - marginX * (props.colNum + 1)) / props.colNum
+
+  // 计算网格坐标
+  const relX = event.clientX - rect.left
+  const relY = event.clientY - rect.top
+  let gridX = Math.round((relX - marginX) / (colWidth + marginX))
+  let gridY = Math.round((relY - marginY) / (props.rowHeight + marginY))
+
+  const dw = props.dropItem.w
+  const dh = props.dropItem.h
+
+  // Clamp 到有效范围
+  gridX = Math.max(0, Math.min(gridX, props.colNum - dw))
+  gridY = Math.max(0, gridY)
+  if (props.maxRows !== Infinity) {
+    gridY = Math.min(gridY, props.maxRows - dh)
+  }
+
+  state.dropPlaceholder = { x: gridX, y: gridY, w: dw, h: dh }
+
+  emit('drop-drag-over', { x: gridX, y: gridY }, event)
+}
+
+function handleDrop(event: DragEvent) {
+  if (!props.isDroppable) return
+  event.preventDefault()
+
+  if (state.dropPlaceholder) {
+    const { x, y, w, h } = state.dropPlaceholder
+    emit('drop', { x, y, w, h }, event)
+  }
+
+  state.dropPlaceholder = null
+}
+
+function handleDragLeave(event: DragEvent) {
+  if (!props.isDroppable) return
+
+  // 检查是否真的离开了容器（而不是进入子元素）
+  if (wrapper.value && event.relatedTarget instanceof Node && wrapper.value.contains(event.relatedTarget)) {
+    return
+  }
+
+  state.dropPlaceholder = null
+  emit('drop-drag-leave', event)
 }
 </script>
 
 <template>
-  <div ref="wrapper" class="vgl-layout" :style="state.mergedStyle">
+  <div
+    ref="wrapper"
+    class="vgl-layout"
+    :style="state.mergedStyle"
+    @dragover="handleDragOver"
+    @drop="handleDrop"
+    @dragleave="handleDragLeave"
+  >
     <slot v-if="$slots.default"></slot>
     <template v-else>
       <GridItem v-for="item in currentLayout" :key="item.i" v-bind="item">
@@ -523,6 +611,15 @@ function findDifference(layout: Layout, originalLayout: Layout) {
       :w="state.placeholder.w"
       :h="state.placeholder.h"
       :i="state.placeholder.i"
+    ></GridItem>
+    <GridItem
+      v-if="state.dropPlaceholder"
+      class="vgl-item--placeholder"
+      :x="state.dropPlaceholder.x"
+      :y="state.dropPlaceholder.y"
+      :w="state.dropPlaceholder.w"
+      :h="state.dropPlaceholder.h"
+      :i="'__drop__'"
     ></GridItem>
   </div>
 </template>
