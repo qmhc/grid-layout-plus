@@ -14,6 +14,9 @@
     @layout-ready="layoutReady"
     @layout-updated="layoutUpdated"
     @breakpoint-changed="breakpointChanged"
+    @drop-drag-over="dropDragOver"
+    @drop="handleDrop"
+    @drop-drag-leave="dropDragLeave"
   >
     <GridItem
       v-for="item in layout"
@@ -85,6 +88,40 @@ function layoutUpdated(newLayout: Layout): void
 
 ```ts
 function breakpointChanged(newBreakpoint: Breakpoint, newLayout: Layout): void
+```
+
+### drop-drag-over
+
+拖放悬停事件。
+
+当外部可拖拽元素在栅格上方拖动时持续派发。仅在 [`is-droppable`](./properties#is-droppable) 为 `true` 时触发。
+
+`position` 对象包含元素将被放置的栅格坐标。
+
+```ts
+function dropDragOver(position: { x: number; y: number }, event: DragEvent): void
+```
+
+### drop
+
+拖放事件。
+
+当外部可拖拽元素被放置到栅格上时派发。仅在 [`is-droppable`](./properties#is-droppable) 为 `true` 时触发。
+
+`item` 对象包含被放置元素的栅格位置和大小（来自 [`drop-item`](./properties#drop-item)）。
+
+```ts
+function drop(item: { x: number; y: number; w: number; h: number }, event: DragEvent): void
+```
+
+### drop-drag-leave
+
+拖放离开事件。
+
+当外部可拖拽元素离开栅格区域时派发。仅在 [`is-droppable`](./properties#is-droppable) 为 `true` 时触发。
+
+```ts
+function dropDragLeave(event: DragEvent): void
 ```
 
 ## GridItem

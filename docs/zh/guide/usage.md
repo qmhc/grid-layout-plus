@@ -30,8 +30,6 @@ const layout = reactive([
     :row-height="30"
     is-draggable
     is-resizable
-    vertical-compact
-    use-css-transforms
   >
     <template #item="{ item }">
       {{ item.i }}
@@ -51,8 +49,6 @@ const layout = reactive([
     :row-height="30"
     is-draggable
     is-resizable
-    vertical-compact
-    use-css-transforms
   >
     <GridItem
       v-for="item in layout"
@@ -69,3 +65,23 @@ const layout = reactive([
   </GridLayout>
 </template>
 ```
+
+## 压缩与定位
+
+在 v2 中，`vertical-compact` 和 `use-css-transforms` 布尔属性已被可插拔的 `compactor` 和 `positionStrategy` 属性替代。默认行为保持不变——垂直压缩配合 CSS transforms——因此现有代码无需修改即可正常工作。
+
+```vue
+<template>
+  <GridLayout
+    v-model:layout="layout"
+    :compactor="horizontalCompactor"
+    :position-strategy="absoluteStrategy"
+  >
+    <template #item="{ item }">
+      {{ item.i }}
+    </template>
+  </GridLayout>
+</template>
+```
+
+详见 [属性](./properties#compactor) 了解所有可用的压缩器和定位策略。

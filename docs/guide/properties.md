@@ -53,6 +53,93 @@ type Breakpoints = Record<Breakpoint, number>
 type ResponsiveLayout = Record<Breakpoint, Layout>
 ```
 
+### ResizeHandle
+
+```ts
+type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
+```
+
+### Compactor
+
+The pluggable compaction algorithm interface. A compactor receives a layout and column count, and returns a new compacted layout.
+
+```ts
+interface Compactor {
+  compact(layout: Layout, cols: number): Layout
+  allowOverlap?: boolean
+}
+```
+
+Built-in compactors:
+
+| Compactor | Description |
+| --- | --- |
+| `verticalCompactor` | Compacts items upward (default, equivalent to v1 `verticalCompact: true`) |
+| `horizontalCompactor` | Compacts items to the left |
+| `noCompactor` | No compaction, free-form positioning |
+| `fastVerticalCompactor` | Interval-tree accelerated vertical compaction, O(n log n) |
+| `fastHorizontalCompactor` | Interval-tree accelerated horizontal compaction, O(n log n) |
+| `withOverlap(compactor)` | Wraps any compactor to allow items to overlap |
+
+### PositionStrategy
+
+The pluggable positioning strategy interface. Controls how grid items are positioned in the DOM.
+
+```ts
+interface PositionStrategy {
+  getStyle(top: number, left: number, width: number, height: number): Record<string, string>
+  getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>
+}
+```
+
+Built-in strategies:
+
+| Strategy | Description |
+| --- | --- |
+| `transformStrategy` | Uses CSS `translate3d` for positioning (default) |
+| `absoluteStrategy` | Uses CSS `top`/`left` for positioning |
+| `scaledStrategy(scale)` | Applies a scaling factor to positions and sizes |
+
+### GridConfig
+
+```ts
+interface GridConfig {
+  colNum?: number
+  rowHeight?: number
+  maxRows?: number
+  margin?: number[]
+  autoSize?: boolean
+}
+```
+
+### DragConfig
+
+```ts
+interface DragConfig {
+  isDraggable?: boolean
+  dragThreshold?: number
+  restoreOnDrag?: boolean
+}
+```
+
+### ResizeConfig
+
+```ts
+interface ResizeConfig {
+  isResizable?: boolean
+  resizeHandles?: ResizeHandle[]
+}
+```
+
+### DropConfig
+
+```ts
+interface DropConfig {
+  isDroppable?: boolean
+  dropItem?: { w: number; h: number }
+}
+```
+
 ## GridLayout
 
 ### layout
@@ -144,6 +231,8 @@ Says if the container height should swells and contracts to fit contents.
 
 ### vertical-compact
 
+> ⚠️ **Deprecated** — Use [`compactor`](#compactor) instead. Pass `verticalCompactor` (default) or `noCompactor` to control compaction behavior.
+
 - type: `boolean`
 - default: `true`
 
@@ -164,6 +253,8 @@ Says if the moved grid items should be restored after an item has been dragged o
 Says whether to prevent items collision. When `true`, the items can only be dropped to the blank space.
 
 ### use-css-transforms
+
+> ⚠️ **Deprecated** — Use [`positionStrategy`](#position-strategy) instead. Pass `transformStrategy` (default) or `absoluteStrategy`.
 
 - type: `boolean`
 - default: `true`
@@ -206,10 +297,128 @@ Says if set the cursor style dynamically. When dragging freezes, setting this va
 
 ### transform-scale
 
+> ⚠️ **Deprecated** — Use [`positionStrategy`](#position-strategy) with `scaledStrategy(scale)` instead.
+
 - type: `number`
 - default: `1`
 
 Sets a scaling factor to the size of the grid items, `1` means 100%.
+
+### compactor
+
+- type: `Compactor`
+- default: `verticalCompactor`
+
+Sets the compaction algorithm for the layout. Import a built-in compactor from `grid-layout-plus`:
+
+```ts
+import { horizontalCompactor, noCompactor, verticalCompactor, withOverlap } from 'grid-layout-plus'
+```
+
+Use `withOverlap(compactor)` to allow items to overlap while still applying compaction.
+
+### position-strategy
+
+- type: `PositionStrategy`
+- default: `transformStrategy`
+
+Sets the positioning strategy for grid items. Import a built-in strategy from `grid-layout-plus`:
+
+```ts
+import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout-plus'
+```
+
+Use `scaledStrategy(scale)` when the grid is rendered inside a scaled container.
+
+### resize-handles
+
+- type: `ResizeHandle[]`
+- default: `['se']`
+
+Defines which resize handles are shown on all grid items. Each item can override this via its own `resize-handles` prop.
+
+Possible values: `'s'`, `'w'`, `'e'`, `'n'`, `'sw'`, `'nw'`, `'se'`, `'ne'`.
+
+### is-droppable
+
+- type: `boolean`
+- default: `false`
+
+Enables native HTML5 drag-and-drop into the grid from external elements. Use together with [`drop-item`](#drop-item) and the [drop events](./events#drop-drag-over).
+
+### drop-item
+
+- type: `{ w: number, h: number }`
+- default: `{ w: 1, h: 1 }`
+
+Sets the default size (in grid units) for items dropped from outside the grid. Only effective when [`is-droppable`](#is-droppable) is `true`.
+
+### drag-threshold
+
+- type: `number`
+- default: `0`
+
+Sets the minimum distance in pixels that the pointer must move before a drag operation starts. Useful for preventing accidental drags. Each item can override this via its own `drag-threshold` prop.
+
+### grid-config
+
+- type: `GridConfig`
+- default: `undefined`
+
+A grouped configuration object for grid-related props. When provided, its values override the corresponding individual props (`col-num`, `row-height`, `max-rows`, `margin`, `auto-size`).
+
+```ts
+interface GridConfig {
+  colNum?: number
+  rowHeight?: number
+  maxRows?: number
+  margin?: number[]
+  autoSize?: boolean
+}
+```
+
+### drag-config
+
+- type: `DragConfig`
+- default: `undefined`
+
+A grouped configuration object for drag-related props. When provided, its values override the corresponding individual props (`is-draggable`, `drag-threshold`, `restore-on-drag`).
+
+```ts
+interface DragConfig {
+  isDraggable?: boolean
+  dragThreshold?: number
+  restoreOnDrag?: boolean
+}
+```
+
+### resize-config
+
+- type: `ResizeConfig`
+- default: `undefined`
+
+A grouped configuration object for resize-related props. When provided, its values override the corresponding individual props (`is-resizable`, `resize-handles`).
+
+```ts
+interface ResizeConfig {
+  isResizable?: boolean
+  resizeHandles?: ResizeHandle[]
+}
+```
+
+### drop-config
+
+- type: `DropConfig`
+- default: `undefined`
+
+A grouped configuration object for drop-related props. When provided, its values override the corresponding individual props (`is-droppable`, `drop-item`).
+
+```ts
+interface DropConfig {
+  isDroppable?: boolean
+  dropItem?: { w: number; h: number }
+}
+```
 
 ## GridItem
 
@@ -353,3 +562,19 @@ Passthrough object for the grid item [interact.js draggable configuration](https
 - default: `{}`
 
 Passthrough object for the grid item [interact.js resizable configuration](https://interactjs.io/docs/resizable/).
+
+### resize-handles
+
+- type: `ResizeHandle[]`
+- default: `null`
+
+Sets which resize handles are shown on this item. If `null`, inherits from the parent GridLayout's [`resize-handles`](#resize-handles) prop.
+
+Possible values: `'s'`, `'w'`, `'e'`, `'n'`, `'sw'`, `'nw'`, `'se'`, `'ne'`.
+
+### drag-threshold
+
+- type: `number`
+- default: `null`
+
+Sets the minimum drag distance in pixels for this item. If `null`, inherits from the parent GridLayout's [`drag-threshold`](#drag-threshold) prop.

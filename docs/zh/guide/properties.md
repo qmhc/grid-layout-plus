@@ -53,6 +53,93 @@ type Breakpoints = Record<Breakpoint, number>
 type ResponsiveLayout = Record<Breakpoint, Layout>
 ```
 
+### ResizeHandle
+
+```ts
+type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
+```
+
+### Compactor
+
+可插拔的布局压缩算法接口。压缩器接收布局和列数，返回压缩后的新布局。
+
+```ts
+interface Compactor {
+  compact(layout: Layout, cols: number): Layout
+  allowOverlap?: boolean
+}
+```
+
+内置压缩器：
+
+| 压缩器 | 说明 |
+| --- | --- |
+| `verticalCompactor` | 向上压缩元素（默认，等价于 v1 的 `verticalCompact: true`） |
+| `horizontalCompactor` | 向左压缩元素 |
+| `noCompactor` | 无压缩，自由定位 |
+| `fastVerticalCompactor` | 区间树加速的垂直压缩，O(n log n) |
+| `fastHorizontalCompactor` | 区间树加速的水平压缩，O(n log n) |
+| `withOverlap(compactor)` | 包装任意压缩器以允许元素重叠 |
+
+### PositionStrategy
+
+可插拔的定位策略接口。控制栅格元素在 DOM 中的定位方式。
+
+```ts
+interface PositionStrategy {
+  getStyle(top: number, left: number, width: number, height: number): Record<string, string>
+  getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>
+}
+```
+
+内置策略：
+
+| 策略 | 说明 |
+| --- | --- |
+| `transformStrategy` | 使用 CSS `translate3d` 定位（默认） |
+| `absoluteStrategy` | 使用 CSS `top`/`left` 定位 |
+| `scaledStrategy(scale)` | 对位置和尺寸应用缩放因子 |
+
+### GridConfig
+
+```ts
+interface GridConfig {
+  colNum?: number
+  rowHeight?: number
+  maxRows?: number
+  margin?: number[]
+  autoSize?: boolean
+}
+```
+
+### DragConfig
+
+```ts
+interface DragConfig {
+  isDraggable?: boolean
+  dragThreshold?: number
+  restoreOnDrag?: boolean
+}
+```
+
+### ResizeConfig
+
+```ts
+interface ResizeConfig {
+  isResizable?: boolean
+  resizeHandles?: ResizeHandle[]
+}
+```
+
+### DropConfig
+
+```ts
+interface DropConfig {
+  isDroppable?: boolean
+  dropItem?: { w: number; h: number }
+}
+```
+
 ## GridLayout
 
 ### layout
@@ -71,7 +158,7 @@ type ResponsiveLayout = Record<Breakpoint, Layout>
 
 如果 `responsive` 设置为 `true`，该配置将作为栅格中每个断点的初始布局。
 
-对象的键值是断点的名称，每个值则对应 `layout` 属性所定义的数组，例如：`{ lg: [layout items], md: [layout items] }`.
+对象的键值是断点的名称，每个值则对应 `layout` 属性所定义的数组，例如：`{ lg: [layout items], md: [layout items] }`。
 
 注意，在创建栅格布局后再设置该属性是无效的。
 
@@ -144,6 +231,8 @@ type ResponsiveLayout = Record<Breakpoint, Layout>
 
 ### vertical-compact
 
+> ⚠️ **已废弃** — 请使用 [`compactor`](#compactor) 代替。传入 `verticalCompactor`（默认）或 `noCompactor` 来控制压缩行为。
+
 - 类型：`boolean`
 - 默认值：`true`
 
@@ -161,9 +250,11 @@ type ResponsiveLayout = Record<Breakpoint, Layout>
 - 类型：`boolean`
 - 默认值：`false`
 
-表示是否防止元素碰撞，值为 `ture` 时，元素只能拖放至空白处。
+表示是否防止元素碰撞，值为 `true` 时，元素只能拖放至空白处。
 
 ### use-css-transforms
+
+> ⚠️ **已废弃** — 请使用 [`positionStrategy`](#position-strategy) 代替。传入 `transformStrategy`（默认）或 `absoluteStrategy`。
 
 - 类型：`boolean`
 - 默认值：`true`
@@ -206,10 +297,128 @@ type ResponsiveLayout = Record<Breakpoint, Layout>
 
 ### transform-scale
 
+> ⚠️ **已废弃** — 请使用 [`positionStrategy`](#position-strategy) 配合 `scaledStrategy(scale)` 代替。
+
 - 类型：`number`
 - 默认值：`1`
 
 为栅格元素的大小设置缩放比例，`1` 表示 100%。
+
+### compactor
+
+- 类型：`Compactor`
+- 默认值：`verticalCompactor`
+
+设置布局的压缩算法。从 `grid-layout-plus` 导入内置压缩器：
+
+```ts
+import { horizontalCompactor, noCompactor, verticalCompactor, withOverlap } from 'grid-layout-plus'
+```
+
+使用 `withOverlap(compactor)` 可以在应用压缩的同时允许元素重叠。
+
+### position-strategy
+
+- 类型：`PositionStrategy`
+- 默认值：`transformStrategy`
+
+设置栅格元素的定位策略。从 `grid-layout-plus` 导入内置策略：
+
+```ts
+import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout-plus'
+```
+
+当栅格在缩放容器中渲染时，使用 `scaledStrategy(scale)`。
+
+### resize-handles
+
+- 类型：`ResizeHandle[]`
+- 默认值：`['se']`
+
+定义所有栅格元素上显示的缩放手柄方向。每个元素可以通过自身的 `resize-handles` 属性覆盖此设置。
+
+可选值：`'s'`、`'w'`、`'e'`、`'n'`、`'sw'`、`'nw'`、`'se'`、`'ne'`。
+
+### is-droppable
+
+- 类型：`boolean`
+- 默认值：`false`
+
+启用从外部元素通过原生 HTML5 拖放到栅格中。需配合 [`drop-item`](#drop-item) 和 [拖放事件](./events#drop-drag-over) 使用。
+
+### drop-item
+
+- 类型：`{ w: number, h: number }`
+- 默认值：`{ w: 1, h: 1 }`
+
+设置从外部拖入栅格的元素的默认大小（栅格单位）。仅在 [`is-droppable`](#is-droppable) 为 `true` 时生效。
+
+### drag-threshold
+
+- 类型：`number`
+- 默认值：`0`
+
+设置指针在拖拽操作开始前必须移动的最小像素距离。用于防止意外拖拽。每个元素可以通过自身的 `drag-threshold` 属性覆盖此设置。
+
+### grid-config
+
+- 类型：`GridConfig`
+- 默认值：`undefined`
+
+栅格相关属性的分组配置对象。提供时，其值会覆盖对应的独立属性（`col-num`、`row-height`、`max-rows`、`margin`、`auto-size`）。
+
+```ts
+interface GridConfig {
+  colNum?: number
+  rowHeight?: number
+  maxRows?: number
+  margin?: number[]
+  autoSize?: boolean
+}
+```
+
+### drag-config
+
+- 类型：`DragConfig`
+- 默认值：`undefined`
+
+拖拽相关属性的分组配置对象。提供时，其值会覆盖对应的独立属性（`is-draggable`、`drag-threshold`、`restore-on-drag`）。
+
+```ts
+interface DragConfig {
+  isDraggable?: boolean
+  dragThreshold?: number
+  restoreOnDrag?: boolean
+}
+```
+
+### resize-config
+
+- 类型：`ResizeConfig`
+- 默认值：`undefined`
+
+缩放相关属性的分组配置对象。提供时，其值会覆盖对应的独立属性（`is-resizable`、`resize-handles`）。
+
+```ts
+interface ResizeConfig {
+  isResizable?: boolean
+  resizeHandles?: ResizeHandle[]
+}
+```
+
+### drop-config
+
+- 类型：`DropConfig`
+- 默认值：`undefined`
+
+拖放相关属性的分组配置对象。提供时，其值会覆盖对应的独立属性（`is-droppable`、`drop-item`）。
+
+```ts
+interface DropConfig {
+  isDroppable?: boolean
+  dropItem?: { w: number; h: number }
+}
+```
 
 ## GridItem
 
@@ -267,14 +476,14 @@ type ResponsiveLayout = Record<Breakpoint, Layout>
 - 类型：`number`
 - 默认值：`Infinity`
 
-表示栅格元素的最大宽度。如果 `w` 大于 `min-w`，那 `w` 会被设置成 `min-w`。
+表示栅格元素的最大宽度。如果 `w` 大于 `max-w`，那 `w` 会被设置成 `max-w`。
 
 ### max-h
 
 - 类型：`number`
 - 默认值：`Infinity`
 
-表示栅格元素的最大高度。如果 `h` 大于 `min-h`，那 `h` 会被设置成 `min-h`。
+表示栅格元素的最大高度。如果 `h` 大于 `max-h`，那 `h` 会被设置成 `max-h`。
 
 ### is-draggable
 
@@ -352,4 +561,20 @@ type ResponsiveLayout = Record<Breakpoint, Layout>
 - 类型：`Record<string, any>`
 - 默认值：`{}`
 
-传递给 [interact.js 缩放配置](https://interactjs.io/docs/draggable/) 的对象。
+传递给 [interact.js 缩放配置](https://interactjs.io/docs/resizable/) 的对象。
+
+### resize-handles
+
+- 类型：`ResizeHandle[]`
+- 默认值：`null`
+
+设置该元素上显示的缩放手柄方向。如果为 `null`，则继承父容器 GridLayout 的 [`resize-handles`](#resize-handles) 属性。
+
+可选值：`'s'`、`'w'`、`'e'`、`'n'`、`'sw'`、`'nw'`、`'se'`、`'ne'`。
+
+### drag-threshold
+
+- 类型：`number`
+- 默认值：`null`
+
+设置该元素的最小拖拽像素距离。如果为 `null`，则继承父容器 GridLayout 的 [`drag-threshold`](#drag-threshold) 属性。

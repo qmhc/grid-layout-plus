@@ -14,6 +14,9 @@ Working example [here](../example/events).
     @layout-ready="layoutReady"
     @layout-updated="layoutUpdated"
     @breakpoint-changed="breakpointChanged"
+    @drop-drag-over="dropDragOver"
+    @drop="handleDrop"
+    @drop-drag-leave="dropDragLeave"
   >
     <GridItem
       v-for="item in layout"
@@ -85,6 +88,40 @@ Emitted every time the breakpoint value changes due to window resize.
 
 ```ts
 function breakpointChanged(newBreakpoint: Breakpoint, newLayout: Layout): void
+```
+
+### drop-drag-over
+
+Drop drag over event.
+
+Emitted continuously while an external draggable element is being dragged over the grid. Only fires when [`is-droppable`](./properties#is-droppable) is `true`.
+
+The `position` object contains the grid coordinates where the item would be placed.
+
+```ts
+function dropDragOver(position: { x: number; y: number }, event: DragEvent): void
+```
+
+### drop
+
+Drop event.
+
+Emitted when an external draggable element is dropped onto the grid. Only fires when [`is-droppable`](./properties#is-droppable) is `true`.
+
+The `item` object contains the grid position and size (from [`drop-item`](./properties#drop-item)) of the dropped element.
+
+```ts
+function drop(item: { x: number; y: number; w: number; h: number }, event: DragEvent): void
+```
+
+### drop-drag-leave
+
+Drop drag leave event.
+
+Emitted when an external draggable element leaves the grid area. Only fires when [`is-droppable`](./properties#is-droppable) is `true`.
+
+```ts
+function dropDragLeave(event: DragEvent): void
 ```
 
 ## GridItem

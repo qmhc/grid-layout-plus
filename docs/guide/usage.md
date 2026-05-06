@@ -30,8 +30,6 @@ Using `item` slot is an easier way to define elements of each item, the properti
     :row-height="30"
     is-draggable
     is-resizable
-    vertical-compact
-    use-css-transforms
   >
     <template #item="{ item }">
       {{ item.i }}
@@ -51,8 +49,6 @@ If you want a more flexible way to listen events of GridItem component, you also
     :row-height="30"
     is-draggable
     is-resizable
-    vertical-compact
-    use-css-transforms
   >
     <GridItem
       v-for="item in layout"
@@ -69,3 +65,23 @@ If you want a more flexible way to listen events of GridItem component, you also
   </GridLayout>
 </template>
 ```
+
+## Compaction and Positioning
+
+In v2, the `vertical-compact` and `use-css-transforms` boolean props have been replaced by pluggable `compactor` and `positionStrategy` props. The defaults remain the same — vertical compaction with CSS transforms — so existing code works without changes.
+
+```vue
+<template>
+  <GridLayout
+    v-model:layout="layout"
+    :compactor="horizontalCompactor"
+    :position-strategy="absoluteStrategy"
+  >
+    <template #item="{ item }">
+      {{ item.i }}
+    </template>
+  </GridLayout>
+</template>
+```
+
+See [Properties](./properties#compactor) for all available compactors and strategies.

@@ -53,3 +53,32 @@ export default defineComponent({
 ```html
 <script src="dist/grid-layout-plus.js"></script>
 ```
+
+## 额外引入
+
+`GridLayout` 和 `GridItem` 是主要组件。其他功能需要显式引入。
+
+> **注意：** `GridBackground` 不包含在默认注册中，必须手动引入。
+
+```ts
+import {
+  // 组件
+  GridBackground,
+
+  // 压缩器
+  verticalCompactor,
+  horizontalCompactor,
+  noCompactor,
+  withOverlap,
+
+  // 定位策略
+  transformStrategy,
+  absoluteStrategy,
+  scaledStrategy,
+
+  // 组合式 API
+  useGridLayout,
+  useContainerWidth,
+  useResponsiveLayout,
+} from 'grid-layout-plus'
+```

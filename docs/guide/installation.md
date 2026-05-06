@@ -53,3 +53,32 @@ Include the browser-ready bundle (download from [releases](https://github.com/qm
 ```html
 <script src="dist/grid-layout-plus.js"></script>
 ```
+
+## Additional Imports
+
+`GridLayout` and `GridItem` are the main components. Other features need to be imported explicitly.
+
+> **Note:** `GridBackground` is NOT included in the default registration. You must import it manually.
+
+```ts
+import {
+  // Components
+  GridBackground,
+
+  // Compactors
+  verticalCompactor,
+  horizontalCompactor,
+  noCompactor,
+  withOverlap,
+
+  // Position strategies
+  transformStrategy,
+  absoluteStrategy,
+  scaledStrategy,
+
+  // Composables
+  useGridLayout,
+  useContainerWidth,
+  useResponsiveLayout,
+} from 'grid-layout-plus'
+```
