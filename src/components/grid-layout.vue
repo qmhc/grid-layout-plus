@@ -449,6 +449,8 @@ function resizeEvent(
   if (!hasCollisions) {
     l.w = w
     l.h = h
+    l.x = x
+    l.y = y
   }
 
   if (eventName === 'resizestart' || eventName === 'resizemove') {

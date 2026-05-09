@@ -103,6 +103,15 @@ let innerY = props.y
 let innerW = props.w
 let innerH = props.h
 
+// resize 过程中跟踪当前状态（用于 n/w/nw/ne 方向）
+let resizeCurrX = innerX
+let resizeCurrY = innerY
+let resizeCurrW = innerW
+let resizeCurrH = innerH
+
+// 通过 interactjs event.edges 记录 resize 方向
+let resizeDirection = ''
+
 // 拖拽阈值相关状态
 let dragStartPos: { x: number, y: number } | null = null
 let dragThresholdExceeded = false
@@ -357,15 +366,29 @@ watch([() => layout.margin, () => layout.margin[0], () => layout.margin[1]], () 
 })
 
 function createStyle() {
-  if (props.x + props.w > state.cols) {
-    innerX = 0
-    innerW = props.w > state.cols ? state.cols : props.w
+  let x: number, y: number, w: number, h: number
+  if (state.isResizing) {
+    x = resizeCurrX
+    y = resizeCurrY
+    w = resizeCurrW
+    h = resizeCurrH
   } else {
-    innerX = props.x
-    innerW = props.w
+    if (props.x + props.w > state.cols) {
+      x = 0
+      w = props.w > state.cols ? state.cols : props.w
+    } else {
+      x = props.x
+      w = props.w
+    }
+    y = props.y
+    h = props.h
+    innerX = x
+    innerY = y
+    innerW = w
+    innerH = h
   }
 
-  const pos = calcPosition(innerX, innerY, innerW, innerH)
+  const pos = calcPosition(x, y, w, h)
 
   if (state.isDragging) {
     pos.top = state.dragging.top
@@ -426,6 +449,17 @@ function handleResize(event: MouseEvent & { edges: any }) {
       tryMakeResizable()
       previousW = innerW
       previousH = innerH
+      resizeCurrX = innerX
+      resizeCurrY = innerY
+      resizeCurrW = innerW
+      resizeCurrH = innerH
+      resizeDirection = ''
+      // 使用 interactjs 的 event.edges（edges 改回 CSS 选择器后已可正确识别）
+      const edges = event.edges || {}
+      if (edges.left) resizeDirection += 'L'
+      if (edges.right) resizeDirection += 'R'
+      if (edges.top) resizeDirection += 'T'
+      if (edges.bottom) resizeDirection += 'B'
       pos = calcPosition(innerX, innerY, innerW, innerH)
       newSize.width = pos.width
       newSize.height = pos.height
@@ -436,14 +470,16 @@ function handleResize(event: MouseEvent & { edges: any }) {
     case 'resizemove': {
       const coreEvent = createCoreData(lastW, lastH, x, y)
 
-      // 根据缩放方向处理尺寸变化
-      if (event.edges.right) {
+      // 使用 interactjs 的 event.edges 判断方向
+      const edges = event.edges || {}
+
+      if (edges.right) {
         if (renderRtl.value) {
           newSize.width = state.resizing.width - coreEvent.deltaX
         } else {
           newSize.width = state.resizing.width + coreEvent.deltaX
         }
-      } else if (event.edges.left) {
+      } else if (edges.left) {
         if (renderRtl.value) {
           newSize.width = state.resizing.width + coreEvent.deltaX
         } else {
@@ -453,9 +489,9 @@ function handleResize(event: MouseEvent & { edges: any }) {
         newSize.width = state.resizing.width
       }
 
-      if (event.edges.bottom) {
+      if (edges.bottom) {
         newSize.height = state.resizing.height + coreEvent.deltaY
-      } else if (event.edges.top) {
+      } else if (edges.top) {
         newSize.height = state.resizing.height - coreEvent.deltaY
       } else {
         newSize.height = state.resizing.height
@@ -471,6 +507,7 @@ function handleResize(event: MouseEvent & { edges: any }) {
 
       state.resizing = { width: -1, height: -1 }
       state.isResizing = false
+      resizeDirection = ''
       break
     }
   }
@@ -500,16 +537,30 @@ function handleResize(event: MouseEvent & { edges: any }) {
   lastW = x
   lastH = y
 
+  // TODO: placeholder 在 n/w/nw 方向 resize 时存在视觉抖动问题。
+  // 根因是 interactjs 直接修改 DOM 位置与 Vue 响应式样式更新之间存在时间差。
+  // 当从左侧/顶部 resize 时，interactjs 先修改 DOM 的 left/top，然后 createStyle()
+  // 在下一次 tick 才覆盖，导致 placeholder 和 item 之间出现短暂错位。
   // 处理 n/w/nw 等方向缩放时同时更新位置
-  let newX = innerX
-  let newY = innerY
-  if (event.edges.left) {
+  let newX = resizeCurrX
+  let newY = resizeCurrY
+  if (event.edges?.left) {
     // 从左侧缩放：x 位置需要调整
-    newX = innerX + (innerW - pos.w)
+    newX = resizeCurrX + (resizeCurrW - pos.w)
   }
-  if (event.edges.top) {
+  if (event.edges?.top) {
     // 从顶部缩放：y 位置需要调整
-    newY = innerY + (innerH - pos.h)
+    newY = resizeCurrY + (resizeCurrH - pos.h)
+  }
+
+  // 同步 resize 跟踪状态，使连续 resize 计算正确
+  resizeCurrX = newX
+  resizeCurrY = newY
+  resizeCurrW = pos.w
+  resizeCurrH = pos.h
+
+  if (state.isResizing) {
+    createStyle()
   }
 
   if (innerW !== pos.w || innerH !== pos.h) {
@@ -796,14 +847,13 @@ function getEdgesForHandles(handles: ResizeHandle[]) {
   const hasLeft = hasHandle('w') || hasHandle('nw') || hasHandle('sw')
   const hasRight = hasHandle('e') || hasHandle('ne') || hasHandle('se')
 
-  // 使用 CSS 选择器匹配对应方向的手柄元素
   const resizerBase = `.${nh.be('resizer')}`
 
   return {
-    top: hasTop ? resizerBase : false,
-    bottom: hasBottom ? resizerBase : false,
-    left: hasLeft ? resizerBase : false,
-    right: hasRight ? resizerBase : false,
+    top: hasTop ? `${resizerBase}--n, ${resizerBase}--nw, ${resizerBase}--ne` : false,
+    bottom: hasBottom ? `${resizerBase}--s, ${resizerBase}--sw, ${resizerBase}--se` : false,
+    left: hasLeft ? `${resizerBase}--w, ${resizerBase}--nw, ${resizerBase}--sw` : false,
+    right: hasRight ? `${resizerBase}--e, ${resizerBase}--ne, ${resizerBase}--se` : false,
   }
 }
 
