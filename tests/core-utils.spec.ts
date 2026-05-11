@@ -99,8 +99,8 @@ describe('calcGridCellDimensions', () => {
       rowHeight: 30,
     })
 
-    // (10 - 10 * 13) / 12 = (10 - 130) / 12 = -10
-    expect(result.cellWidth).toBeCloseTo(-10)
+    // (10 - 10 * 13) / 12 = (10 - 130) / 12 = -10，但会被 clamp 到 0
+    expect(result.cellWidth).toBeCloseTo(0)
   })
 })
 

@@ -18,7 +18,7 @@ export function calcGridCellDimensions(params: {
 
   const cellWidth = cols <= 0
     ? 0
-    : (containerWidth - marginX * (cols + 1)) / cols
+    : Math.max(0, (containerWidth - marginX * (cols + 1)) / cols)
 
   return {
     cellWidth,

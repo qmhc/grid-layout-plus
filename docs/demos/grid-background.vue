@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 
-import { GridBackground } from 'grid-layout-plus'
+import { GridBackground } from '../../src'
 
 const color = ref('rgba(0,0,0,0.1)')
 const strokeWidth = ref(1)
@@ -35,9 +35,9 @@ const layout = reactive([
   </div>
   <GridLayout v-model:layout="layout" :row-height="30">
     <GridBackground :color="color" :stroke-width="strokeWidth"></GridBackground>
-    <template #item="{ item }">
+    <GridItem v-for="item in layout" :key="item.i" v-bind="item">
       <span class="text">{{ item.i }}</span>
-    </template>
+    </GridItem>
   </GridLayout>
 </template>
 

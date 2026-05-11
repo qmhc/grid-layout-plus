@@ -37,8 +37,8 @@ const cellDims = computed(() =>
   }),
 )
 
-const patternWidth = computed(() => cellDims.value.cellWidth + cellDims.value.marginX)
-const patternHeight = computed(() => cellDims.value.cellHeight + cellDims.value.marginY)
+const patternWidth = computed(() => Math.max(0, cellDims.value.cellWidth + cellDims.value.marginX))
+const patternHeight = computed(() => Math.max(0, cellDims.value.cellHeight + cellDims.value.marginY))
 
 const svgHeight = computed(() => {
   if (props.rows != null && props.rows > 0) {
@@ -49,32 +49,15 @@ const svgHeight = computed(() => {
 </script>
 
 <template>
-  <svg
+  <div
+    v-if="resolvedWidth > 0"
     class="vgl-background"
-    :width="resolvedWidth"
-    :height="svgHeight"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <defs>
-      <pattern
-        id="vgl-grid-pattern"
-        :width="patternWidth"
-        :height="patternHeight"
-        patternUnits="userSpaceOnUse"
-        :x="cellDims.marginX / 2"
-        :y="cellDims.marginY / 2"
-      >
-        <rect
-          :x="cellDims.marginX / 2"
-          :y="cellDims.marginY / 2"
-          :width="cellDims.cellWidth"
-          :height="cellDims.cellHeight"
-          fill="none"
-          :stroke="props.color"
-          :stroke-width="props.strokeWidth"
-        />
-      </pattern>
-    </defs>
-    <rect width="100%" height="100%" fill="url(#vgl-grid-pattern)" />
-  </svg>
+    :style="{
+      width: resolvedWidth + 'px',
+      height: typeof svgHeight === 'number' ? svgHeight + 'px' : svgHeight,
+      backgroundImage: `linear-gradient(to right, ${props.color} ${props.strokeWidth}px, transparent ${props.strokeWidth}px), linear-gradient(to bottom, ${props.color} ${props.strokeWidth}px, transparent ${props.strokeWidth}px)`,
+      backgroundSize: `${patternWidth}px ${patternHeight}px`,
+      backgroundPosition: `${cellDims.cellWidth + cellDims.marginX * 1.5}px ${cellDims.cellHeight + cellDims.marginY * 1.5}px`,
+    }"
+  ></div>
 </template>
