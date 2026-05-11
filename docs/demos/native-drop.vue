@@ -12,6 +12,7 @@ const layout = reactive([
   { x: 10, y: 0, w: 2, h: 3, i: '5' },
 ])
 
+const isDroppable = ref(true)
 const dropStatus = ref('')
 
 function handleDropDragOver(pos: { x: number, y: number }) {
@@ -36,11 +37,15 @@ function handleDropDragLeave() {
     >
       Drag me into the grid
     </div>
+    <label style="margin-left: 8px">
+      <input v-model="isDroppable" type="checkbox" />
+      isDroppable
+    </label>
     <span v-if="dropStatus" style="margin-left: 8px; color: #666">{{ dropStatus }}</span>
   </div>
   <GridLayout
     v-model:layout="layout"
-    is-droppable
+    :is-droppable="isDroppable"
     :drop-item="{ w: 2, h: 2 }"
     :row-height="30"
     @drop-drag-over="handleDropDragOver"

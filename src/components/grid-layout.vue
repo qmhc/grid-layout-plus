@@ -540,18 +540,33 @@ function handleDragOver(event: DragEvent) {
   if (!wrapper.value) return
 
   const rect = wrapper.value.getBoundingClientRect()
+
+  // 直接检查鼠标坐标是否在容器内（不依赖 dragover 的触发区域，
+  // 因为 ghost image 可能覆盖 div 导致 dragover 在 div 外仍触发）。
+  // 只在 rect 有有效尺寸时检查（happy-dom 测试环境中 rect 可能为 0）
+  const mouseX = event.clientX
+  const mouseY = event.clientY
+  if (rect.width > 0 && rect.height > 0) {
+    if (mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom) {
+      state.dropPlaceholder = null
+      return
+    }
+  }
+
   const marginX = props.margin[0] || 0
   const marginY = props.margin[1] || 0
   const colWidth = (state.width - marginX * (props.colNum + 1)) / props.colNum
 
-  // 计算网格坐标
-  const relX = event.clientX - rect.left
-  const relY = event.clientY - rect.top
-  let gridX = Math.round((relX - marginX) / (colWidth + marginX))
-  let gridY = Math.round((relY - marginY) / (props.rowHeight + marginY))
-
   const dw = props.dropItem.w
   const dh = props.dropItem.h
+
+  // 计算网格坐标：让 placeholder 中心对齐鼠标，体验更自然
+  const relX = mouseX - rect.left
+  const relY = mouseY - rect.top
+  const placeholderHalfW = (dw * colWidth + (dw - 1) * marginX) / 2
+  const placeholderHalfH = (dh * props.rowHeight + (dh - 1) * marginY) / 2
+  let gridX = Math.round((relX - marginX - placeholderHalfW) / (colWidth + marginX))
+  let gridY = Math.round((relY - marginY - placeholderHalfH) / (props.rowHeight + marginY))
 
   // Clamp 到有效范围
   gridX = Math.max(0, Math.min(gridX, props.colNum - dw))
@@ -580,9 +595,14 @@ function handleDrop(event: DragEvent) {
 function handleDragLeave(event: DragEvent) {
   if (!props.isDroppable) return
 
-  // 检查是否真的离开了容器（而不是进入子元素）
-  if (wrapper.value && event.relatedTarget instanceof Node && wrapper.value.contains(event.relatedTarget)) {
-    return
+  // 检查鼠标是否真的在容器外（不依赖 relatedTarget，跨浏览器更可靠）
+  if (wrapper.value) {
+    const rect = wrapper.value.getBoundingClientRect()
+    const x = event.clientX
+    const y = event.clientY
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      return // 鼠标还在容器内（可能是进入了子元素）
+    }
   }
 
   state.dropPlaceholder = null
