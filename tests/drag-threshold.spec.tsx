@@ -25,7 +25,7 @@ describe('拖拽阈值配置（需求 7.2, 7.3）', () => {
     })
 
     const vm = wrapper.vm as any
-    expect(vm.$props.dragThreshold).toBe(0)
+    expect(vm.effectiveConfig.dragThreshold).toBe(0)
     wrapper.unmount()
   })
 

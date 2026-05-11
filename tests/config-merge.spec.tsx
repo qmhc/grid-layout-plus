@@ -79,12 +79,9 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
       },
     })
 
-    // gridConfig.rowHeight 不会覆盖 withDefaults 的默认值 150
-    // 因为扁平 props 始终有默认值，分组 config 仅作为替代 API
     const vm = wrapper.vm as any
-    // 默认 rowHeight 是 150（来自 withDefaults）
-    expect(vm.$props.rowHeight).toBe(150)
-    // gridConfig 作为独立 prop 存在
+    // 扁平 prop 未传入，分组 config 生效
+    expect(vm.effectiveConfig.rowHeight).toBe(200)
     expect(vm.$props.gridConfig).toEqual({ rowHeight: 200 })
     wrapper.unmount()
   })
@@ -97,13 +94,13 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     })
 
     const vm = wrapper.vm as any
-    expect(vm.$props.colNum).toBe(12)
-    expect(vm.$props.rowHeight).toBe(150)
-    expect(vm.$props.isDraggable).toBe(true)
-    expect(vm.$props.isResizable).toBe(true)
-    expect(vm.$props.isDroppable).toBe(false)
-    expect(vm.$props.dragThreshold).toBe(0)
-    expect(vm.$props.resizeHandles).toEqual(['se'])
+    expect(vm.effectiveConfig.colNum).toBe(12)
+    expect(vm.effectiveConfig.rowHeight).toBe(150)
+    expect(vm.effectiveConfig.isDraggable).toBe(true)
+    expect(vm.effectiveConfig.isResizable).toBe(true)
+    expect(vm.effectiveConfig.isDroppable).toBe(false)
+    expect(vm.effectiveConfig.dragThreshold).toBe(0)
+    expect(vm.effectiveConfig.resizeHandles).toEqual(['se'])
     wrapper.unmount()
   })
 

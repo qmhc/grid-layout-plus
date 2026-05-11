@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  computed,
   nextTick,
   onBeforeMount,
   onBeforeUnmount,
@@ -37,16 +38,16 @@ import type { Breakpoint, Compactor, Layout, LayoutInstance, PositionStrategy, R
 import type { GridLayoutProps } from './types'
 
 const props = withDefaults(defineProps<GridLayoutProps>(), {
-  autoSize: true,
-  colNum: 12,
-  rowHeight: 150,
-  maxRows: Infinity,
-  margin: () => [10, 10],
-  isDraggable: true,
-  isResizable: true,
+  autoSize: undefined,
+  colNum: undefined,
+  rowHeight: undefined,
+  maxRows: undefined,
+  margin: undefined,
+  isDraggable: undefined,
+  isResizable: undefined,
   isMirrored: false,
   isBounded: false,
-  restoreOnDrag: false,
+  restoreOnDrag: undefined,
   responsive: false,
   responsiveLayouts: () => ({}),
   breakpoints: () => ({ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }),
@@ -55,10 +56,10 @@ const props = withDefaults(defineProps<GridLayoutProps>(), {
   useStyleCursor: true,
   compactor: () => verticalCompactor,
   positionStrategy: () => transformStrategy,
-  resizeHandles: () => ['se'] as ResizeHandle[],
-  isDroppable: false,
-  dropItem: () => ({ w: 1, h: 1 }),
-  dragThreshold: 0,
+  resizeHandles: undefined,
+  isDroppable: undefined,
+  dropItem: undefined,
+  dragThreshold: undefined,
 })
 
 const emit = defineEmits([
@@ -75,16 +76,41 @@ const emit = defineEmits([
 
 /**
  * Config 合并逻辑：扁平 props 优先于分组 config。
- * 对于每个配置项，如果扁平 prop 被显式传入（非 undefined），则使用扁平 prop 的值；
+ * 扁平 prop 显式传入时（非 undefined）优先使用；
  * 否则使用分组 config 中的值；最后回退到默认值。
- *
- * 注意：由于 withDefaults 已经为扁平 props 设置了默认值，
- * 我们通过检查 $attrs 和 props 来判断是否显式传入。
- * 实际上，withDefaults 使得扁平 props 始终有值，
- * 所以分组 config 只在扁平 props 使用默认值时才可能覆盖。
- * 但根据需求 8.5，扁平 props 优先级更高，即使是默认值也优先。
- * 因此分组 config 仅作为替代写法，不会覆盖已有默认值的扁平 props。
  */
+
+const effectiveAutoSize = computed(() => props.autoSize ?? props.gridConfig?.autoSize ?? true)
+const effectiveColNum = computed(() => props.colNum ?? props.gridConfig?.colNum ?? 12)
+const effectiveRowHeight = computed(() => props.rowHeight ?? props.gridConfig?.rowHeight ?? 150)
+const effectiveMaxRows = computed(() => props.maxRows ?? props.gridConfig?.maxRows ?? Infinity)
+const effectiveMargin = computed<[number, number]>(() =>
+  (props.margin ?? props.gridConfig?.margin ?? [10, 10]) as [number, number],
+)
+const effectiveIsDraggable = computed(() => props.isDraggable ?? props.dragConfig?.isDraggable ?? true)
+const effectiveDragThreshold = computed(() => props.dragThreshold ?? props.dragConfig?.dragThreshold ?? 0)
+const effectiveRestoreOnDrag = computed(() => props.restoreOnDrag ?? props.dragConfig?.restoreOnDrag ?? false)
+const effectiveIsResizable = computed(() => props.isResizable ?? props.resizeConfig?.isResizable ?? true)
+const effectiveResizeHandles = computed<ResizeHandle[]>(() =>
+  (props.resizeHandles ?? props.resizeConfig?.resizeHandles ?? ['se']) as ResizeHandle[],
+)
+const effectiveIsDroppable = computed(() => props.isDroppable ?? props.dropConfig?.isDroppable ?? false)
+const effectiveDropItem = computed(() => props.dropItem ?? props.dropConfig?.dropItem ?? { w: 1, h: 1 })
+
+const effectiveConfig = computed(() => ({
+  autoSize: effectiveAutoSize.value,
+  colNum: effectiveColNum.value,
+  rowHeight: effectiveRowHeight.value,
+  maxRows: effectiveMaxRows.value,
+  margin: effectiveMargin.value,
+  isDraggable: effectiveIsDraggable.value,
+  isResizable: effectiveIsResizable.value,
+  isDroppable: effectiveIsDroppable.value,
+  dropItem: effectiveDropItem.value,
+  dragThreshold: effectiveDragThreshold.value,
+  resizeHandles: effectiveResizeHandles.value,
+  restoreOnDrag: effectiveRestoreOnDrag.value,
+}))
 
 const state = reactive({
   width: -1,
@@ -176,7 +202,7 @@ function compactLayout(positionsBeforeDrag?: Record<string, { x: number, y: numb
     compact(currentLayout.value, true, positionsBeforeDrag)
   } else {
     // 使用可插拔 compactor
-    const result = props.compactor.compact(currentLayout.value, props.colNum)
+    const result = props.compactor.compact(currentLayout.value, effectiveColNum.value)
     // 将结果同步回 currentLayout（保持引用稳定）
     for (let i = 0; i < currentLayout.value.length; i++) {
       const src = result.find(r => r.i === currentLayout.value[i].i)
@@ -213,25 +239,25 @@ watch(
   },
 )
 watch(
-  () => props.colNum,
+  effectiveColNum,
   val => {
     emitter.emit('setColNum', val)
   },
 )
 watch(
-  () => props.rowHeight,
+  effectiveRowHeight,
   value => {
     emitter.emit('setRowHeight', value)
   },
 )
 watch(
-  () => props.isDraggable,
+  effectiveIsDraggable,
   value => {
     emitter.emit('setDraggable', value)
   },
 )
 watch(
-  () => props.isResizable,
+  effectiveIsResizable,
   value => {
     emitter.emit('setResizable', value)
   },
@@ -247,13 +273,13 @@ watch(
   value => {
     if (!value) {
       emit('update:layout', state.originalLayout)
-      emitter.emit('setColNum', props.colNum)
+      emitter.emit('setColNum', effectiveColNum.value)
     }
     onWindowResize()
   },
 )
 watch(
-  () => props.maxRows,
+  effectiveMaxRows,
   value => {
     emitter.emit('setMaxRows', value)
   },
@@ -267,20 +293,32 @@ watch(
     emit('layout-updated', currentLayout.value)
   },
 )
-watch([() => props.margin, () => props.margin[1]], updateHeight)
+watch(effectiveMargin, updateHeight, { deep: true })
 
 provide(
   LAYOUT_KEY,
   reactive({
     ...toRefs(props),
     ...toRefs(state),
+    autoSize: effectiveAutoSize,
+    colNum: effectiveColNum,
+    rowHeight: effectiveRowHeight,
+    maxRows: effectiveMaxRows,
+    margin: effectiveMargin,
+    isDraggable: effectiveIsDraggable,
+    isResizable: effectiveIsResizable,
+    isDroppable: effectiveIsDroppable,
+    dropItem: effectiveDropItem,
+    dragThreshold: effectiveDragThreshold,
+    resizeHandles: effectiveResizeHandles,
+    restoreOnDrag: effectiveRestoreOnDrag,
     increaseItem,
     decreaseItem,
-  }) as LayoutInstance,
+  }) as unknown as LayoutInstance,
 )
 provide(EMITTER_KEY, emitter)
 
-defineExpose({ state, getItem, resizeEvent, dragEvent, layoutUpdate })
+defineExpose({ state, getItem, resizeEvent, dragEvent, layoutUpdate, effectiveConfig })
 
 function increaseItem(item: any) {
   itemInstances.set(item.i, item)
@@ -335,10 +373,10 @@ function onWindowResize() {
 }
 
 function containerHeight() {
-  if (!props.autoSize) return
+  if (!effectiveAutoSize.value) return
 
-  const marginY = parseFloat(props.margin[1] as any)
-  const containerHeight = bottom(currentLayout.value) * (props.rowHeight + marginY) + marginY + 'px'
+  const marginY = parseFloat(effectiveMargin.value[1] as any)
+  const containerHeight = bottom(currentLayout.value) * (effectiveRowHeight.value + marginY) + marginY + 'px'
   return containerHeight
 }
 
@@ -397,7 +435,7 @@ function dragEvent(
     currentLayout.value = moveElement(currentLayout.value, l, x, y, true, props.preventCollision)
   }
 
-  if (props.restoreOnDrag && !props.compactor.allowOverlap) {
+  if (effectiveRestoreOnDrag.value && !props.compactor.allowOverlap) {
     l.static = true
     compactLayout(positionsBeforeDrag)
     l.static = false
@@ -534,7 +572,7 @@ function findDifference(layout: Layout, originalLayout: Layout) {
 // ---------------------------------------------------------------------------
 
 function handleDragOver(event: DragEvent) {
-  if (!props.isDroppable) return
+  if (!effectiveIsDroppable.value) return
   event.preventDefault()
 
   if (!wrapper.value) return
@@ -553,26 +591,26 @@ function handleDragOver(event: DragEvent) {
     }
   }
 
-  const marginX = props.margin[0] || 0
-  const marginY = props.margin[1] || 0
-  const colWidth = (state.width - marginX * (props.colNum + 1)) / props.colNum
+  const marginX = effectiveMargin.value[0] || 0
+  const marginY = effectiveMargin.value[1] || 0
+  const colWidth = (state.width - marginX * (effectiveColNum.value + 1)) / effectiveColNum.value
 
-  const dw = props.dropItem.w
-  const dh = props.dropItem.h
+  const dw = effectiveDropItem.value.w
+  const dh = effectiveDropItem.value.h
 
   // 计算网格坐标：让 placeholder 中心对齐鼠标，体验更自然
   const relX = mouseX - rect.left
   const relY = mouseY - rect.top
   const placeholderHalfW = (dw * colWidth + (dw - 1) * marginX) / 2
-  const placeholderHalfH = (dh * props.rowHeight + (dh - 1) * marginY) / 2
+  const placeholderHalfH = (dh * effectiveRowHeight.value + (dh - 1) * marginY) / 2
   let gridX = Math.round((relX - marginX - placeholderHalfW) / (colWidth + marginX))
-  let gridY = Math.round((relY - marginY - placeholderHalfH) / (props.rowHeight + marginY))
+  let gridY = Math.round((relY - marginY - placeholderHalfH) / (effectiveRowHeight.value + marginY))
 
   // Clamp 到有效范围
-  gridX = Math.max(0, Math.min(gridX, props.colNum - dw))
+  gridX = Math.max(0, Math.min(gridX, effectiveColNum.value - dw))
   gridY = Math.max(0, gridY)
-  if (props.maxRows !== Infinity) {
-    gridY = Math.min(gridY, props.maxRows - dh)
+  if (effectiveMaxRows.value !== Infinity) {
+    gridY = Math.min(gridY, effectiveMaxRows.value - dh)
   }
 
   state.dropPlaceholder = { x: gridX, y: gridY, w: dw, h: dh }
@@ -581,7 +619,7 @@ function handleDragOver(event: DragEvent) {
 }
 
 function handleDrop(event: DragEvent) {
-  if (!props.isDroppable) return
+  if (!effectiveIsDroppable.value) return
   event.preventDefault()
 
   if (state.dropPlaceholder) {
@@ -593,7 +631,7 @@ function handleDrop(event: DragEvent) {
 }
 
 function handleDragLeave(event: DragEvent) {
-  if (!props.isDroppable) return
+  if (!effectiveIsDroppable.value) return
 
   // 检查鼠标是否真的在容器外（不依赖 relatedTarget，跨浏览器更可靠）
   if (wrapper.value) {

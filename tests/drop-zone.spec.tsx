@@ -234,7 +234,7 @@ describe('外部拖入功能（需求 6.1-6.6）', () => {
     })
 
     const vm = wrapper.vm as any
-    expect(vm.$props.dropItem).toEqual({ w: 1, h: 1 })
+    expect(vm.effectiveConfig.dropItem).toEqual({ w: 1, h: 1 })
 
     wrapper.unmount()
   })
