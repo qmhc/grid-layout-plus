@@ -3,7 +3,6 @@ import type {
   Compactor,
   Layout,
   PositionStrategy,
-  ResizeHandle,
   ResponsiveLayout,
 } from '../helpers/types'
 
@@ -23,7 +22,6 @@ export interface DragConfig {
 
 export interface ResizeConfig {
   isResizable?: boolean,
-  resizeHandles?: ResizeHandle[],
 }
 
 export interface DropConfig {
@@ -54,8 +52,6 @@ export interface GridLayoutProps {
   compactor?: Compactor,
   /** 可插拔定位策略（默认 transformStrategy） */
   positionStrategy?: PositionStrategy,
-  /** 所有子项的默认缩放手柄方向 */
-  resizeHandles?: ResizeHandle[],
   /** 是否允许外部拖入 */
   isDroppable?: boolean,
   /** 外部拖入元素的默认尺寸 */
@@ -91,8 +87,6 @@ export interface GridItemProps {
   dragOption?: Record<string, any>,
   resizeOption?: Record<string, any>,
 
-  /** 缩放手柄方向（覆盖 GridLayout 的默认值） */
-  resizeHandles?: ResizeHandle[],
   /** 拖拽阈值（覆盖 GridLayout 的默认值） */
   dragThreshold?: number,
 }

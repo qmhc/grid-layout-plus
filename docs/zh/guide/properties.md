@@ -53,12 +53,6 @@ type Breakpoints = Record<Breakpoint, number>
 type ResponsiveLayout = Record<Breakpoint, Layout>
 ```
 
-### ResizeHandle
-
-```ts
-type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
-```
-
 ### Compactor
 
 可插拔的布局压缩算法接口。压缩器接收布局和列数，返回压缩后的新布局。
@@ -127,7 +121,6 @@ interface DragConfig {
 ```ts
 interface ResizeConfig {
   isResizable?: boolean
-  resizeHandles?: ResizeHandle[]
 }
 ```
 
@@ -329,15 +322,6 @@ import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout
 ```
 
 当栅格在缩放容器中渲染时，使用 `scaledStrategy(scale)`。
-
-### resize-handles
-
-- 类型：`ResizeHandle[]`
-- 默认值：`['se']`
-
-定义所有栅格元素上显示的缩放手柄方向。每个元素可以通过自身的 `resize-handles` 属性覆盖此设置。
-
-可选值：`'s'`、`'w'`、`'e'`、`'n'`、`'sw'`、`'nw'`、`'se'`、`'ne'`。
 
 ### is-droppable
 
@@ -562,15 +546,6 @@ interface DropConfig {
 - 默认值：`{}`
 
 传递给 [interact.js 缩放配置](https://interactjs.io/docs/resizable/) 的对象。
-
-### resize-handles
-
-- 类型：`ResizeHandle[]`
-- 默认值：`null`
-
-设置该元素上显示的缩放手柄方向。如果为 `null`，则继承父容器 GridLayout 的 [`resize-handles`](#resize-handles) 属性。
-
-可选值：`'s'`、`'w'`、`'e'`、`'n'`、`'sw'`、`'nw'`、`'se'`、`'ne'`。
 
 ### drag-threshold
 

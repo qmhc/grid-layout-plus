@@ -25,7 +25,7 @@ import { getDocumentDir } from '../helpers/dom'
 
 import interact from 'interactjs'
 
-import type { PositionStrategy, ResizeHandle } from '../helpers/types'
+import type { PositionStrategy } from '../helpers/types'
 import type { GridItemProps } from './types'
 
 const props = withDefaults(defineProps<GridItemProps>(), {
@@ -43,7 +43,6 @@ const props = withDefaults(defineProps<GridItemProps>(), {
   preserveAspectRatio: false,
   dragOption: () => ({}),
   resizeOption: () => ({}),
-  resizeHandles: undefined,
   dragThreshold: undefined,
 })
 
@@ -103,15 +102,6 @@ let innerY = props.y
 let innerW = props.w
 let innerH = props.h
 
-// resize 过程中跟踪当前状态（用于 n/w/nw/ne 方向）
-let resizeCurrX = innerX
-let resizeCurrY = innerY
-let resizeCurrW = innerW
-let resizeCurrH = innerH
-
-// 通过 interactjs event.edges 记录 resize 方向
-let resizeDirection = ''
-
 // 拖拽阈值相关状态
 let dragStartPos: { x: number, y: number } | null = null
 let dragThresholdExceeded = false
@@ -123,11 +113,6 @@ const instance = reactive({
   state,
   wrapper,
   calcXY,
-})
-
-/** 获取当前生效的缩放手柄方向列表 */
-const effectiveResizeHandles = computed<ResizeHandle[]>(() => {
-  return props.resizeHandles ?? layout.resizeHandles ?? ['se']
 })
 
 /** 获取当前生效的拖拽阈值 */
@@ -288,15 +273,6 @@ const className = computed(() => {
   }
 })
 
-/** 为每个缩放手柄方向生成 CSS 类名 */
-function getHandleClass(handle: ResizeHandle) {
-  return [
-    nh.be('resizer'),
-    nh.bem('resizer', handle),
-    renderRtl.value && nh.bem('resizer', 'rtl'),
-  ].filter(Boolean)
-}
-
 watch(
   () => props.isDraggable,
   value => {
@@ -368,10 +344,10 @@ watch([() => layout.margin, () => layout.margin[0], () => layout.margin[1]], () 
 function createStyle() {
   let x: number, y: number, w: number, h: number
   if (state.isResizing) {
-    x = resizeCurrX
-    y = resizeCurrY
-    w = resizeCurrW
-    h = resizeCurrH
+    x = innerX
+    y = innerY
+    w = innerW
+    h = innerH
   } else {
     if (props.x + props.w > state.cols) {
       x = 0
@@ -449,17 +425,6 @@ function handleResize(event: MouseEvent & { edges: any }) {
       tryMakeResizable()
       previousW = innerW
       previousH = innerH
-      resizeCurrX = innerX
-      resizeCurrY = innerY
-      resizeCurrW = innerW
-      resizeCurrH = innerH
-      resizeDirection = ''
-      // 使用 interactjs 的 event.edges（edges 改回 CSS 选择器后已可正确识别）
-      const edges = event.edges || {}
-      if (edges.left) resizeDirection += 'L'
-      if (edges.right) resizeDirection += 'R'
-      if (edges.top) resizeDirection += 'T'
-      if (edges.bottom) resizeDirection += 'B'
       pos = calcPosition(innerX, innerY, innerW, innerH)
       newSize.width = pos.width
       newSize.height = pos.height
@@ -469,34 +434,12 @@ function handleResize(event: MouseEvent & { edges: any }) {
     }
     case 'resizemove': {
       const coreEvent = createCoreData(lastW, lastH, x, y)
-
-      // 使用 interactjs 的 event.edges 判断方向
-      const edges = event.edges || {}
-
-      if (edges.right) {
-        if (renderRtl.value) {
-          newSize.width = state.resizing.width - coreEvent.deltaX
-        } else {
-          newSize.width = state.resizing.width + coreEvent.deltaX
-        }
-      } else if (edges.left) {
-        if (renderRtl.value) {
-          newSize.width = state.resizing.width + coreEvent.deltaX
-        } else {
-          newSize.width = state.resizing.width - coreEvent.deltaX
-        }
+      if (renderRtl.value) {
+        newSize.width = state.resizing.width - coreEvent.deltaX
       } else {
-        newSize.width = state.resizing.width
+        newSize.width = state.resizing.width + coreEvent.deltaX
       }
-
-      if (edges.bottom) {
-        newSize.height = state.resizing.height + coreEvent.deltaY
-      } else if (edges.top) {
-        newSize.height = state.resizing.height - coreEvent.deltaY
-      } else {
-        newSize.height = state.resizing.height
-      }
-
+      newSize.height = state.resizing.height + coreEvent.deltaY
       state.resizing = newSize
       break
     }
@@ -504,10 +447,8 @@ function handleResize(event: MouseEvent & { edges: any }) {
       pos = calcPosition(innerX, innerY, innerW, innerH)
       newSize.width = pos.width
       newSize.height = pos.height
-
       state.resizing = { width: -1, height: -1 }
       state.isResizing = false
-      resizeDirection = ''
       break
     }
   }
@@ -537,28 +478,6 @@ function handleResize(event: MouseEvent & { edges: any }) {
   lastW = x
   lastH = y
 
-  // TODO: placeholder 在 n/w/nw 方向 resize 时存在视觉抖动问题。
-  // 根因是 interactjs 直接修改 DOM 位置与 Vue 响应式样式更新之间存在时间差。
-  // 当从左侧/顶部 resize 时，interactjs 先修改 DOM 的 left/top，然后 createStyle()
-  // 在下一次 tick 才覆盖，导致 placeholder 和 item 之间出现短暂错位。
-  // 处理 n/w/nw 等方向缩放时同时更新位置
-  let newX = resizeCurrX
-  let newY = resizeCurrY
-  if (event.edges?.left) {
-    // 从左侧缩放：x 位置需要调整
-    newX = resizeCurrX + (resizeCurrW - pos.w)
-  }
-  if (event.edges?.top) {
-    // 从顶部缩放：y 位置需要调整
-    newY = resizeCurrY + (resizeCurrH - pos.h)
-  }
-
-  // 同步 resize 跟踪状态，使连续 resize 计算正确
-  resizeCurrX = newX
-  resizeCurrY = newY
-  resizeCurrW = pos.w
-  resizeCurrH = pos.h
-
   if (state.isResizing) {
     createStyle()
   }
@@ -569,7 +488,7 @@ function handleResize(event: MouseEvent & { edges: any }) {
   if (event.type === 'resizeend' && (previousW !== innerW || previousH !== innerH)) {
     emit('resized', props.i, pos.h, pos.w, newSize.height, newSize.width)
   }
-  emitter.emit('resizeEvent', event.type, props.i, newX, newY, pos.h, pos.w)
+  emitter.emit('resizeEvent', event.type, props.i, innerX, innerY, pos.h, pos.w)
 }
 
 function handleDrag(event: MouseEvent) {
@@ -836,27 +755,6 @@ function tryMakeDraggable() {
 
 const throttleResize = throttle(handleResize)
 
-/**
- * 根据缩放手柄方向计算 interactjs 的 edges 配置。
- */
-function getEdgesForHandles(handles: ResizeHandle[]) {
-  const hasHandle = (h: ResizeHandle) => handles.includes(h)
-
-  const hasTop = hasHandle('n') || hasHandle('nw') || hasHandle('ne')
-  const hasBottom = hasHandle('s') || hasHandle('sw') || hasHandle('se')
-  const hasLeft = hasHandle('w') || hasHandle('nw') || hasHandle('sw')
-  const hasRight = hasHandle('e') || hasHandle('ne') || hasHandle('se')
-
-  const resizerBase = `.${nh.be('resizer')}`
-
-  return {
-    top: hasTop ? `${resizerBase}--n, ${resizerBase}--nw, ${resizerBase}--ne` : false,
-    bottom: hasBottom ? `${resizerBase}--s, ${resizerBase}--sw, ${resizerBase}--se` : false,
-    left: hasLeft ? `${resizerBase}--w, ${resizerBase}--nw, ${resizerBase}--sw` : false,
-    right: hasRight ? `${resizerBase}--e, ${resizerBase}--ne, ${resizerBase}--se` : false,
-  }
-}
-
 function tryMakeResizable() {
   tryInteract()
 
@@ -866,11 +764,14 @@ function tryMakeResizable() {
     const maximum = calcPosition(0, 0, props.maxW, props.maxH)
     const minimum = calcPosition(0, 0, props.minW, props.minH)
 
-    const handles = effectiveResizeHandles.value
-    const edges = getEdgesForHandles(handles)
-
+    const resizerBase = `.${nh.be('resizer')}`
     const opts: Record<string, any> = {
-      edges,
+      edges: {
+        top: false,
+        bottom: `${resizerBase}--se`,
+        left: false,
+        right: `${resizerBase}--se`,
+      },
       ignoreFrom: props.resizeIgnoreFrom,
       restrictSize: {
         min: {
@@ -905,12 +806,9 @@ function tryMakeResizable() {
 <template>
   <section ref="wrapper" :class="className" :style="state.style">
     <slot></slot>
-    <template v-if="resizableAndNotStatic">
-      <span
-        v-for="handle in effectiveResizeHandles"
-        :key="handle"
-        :class="getHandleClass(handle)"
-      ></span>
-    </template>
+    <span
+      v-if="resizableAndNotStatic"
+      :class="[nh.be('resizer'), nh.bem('resizer', 'se'), renderRtl.value && nh.bem('resizer', 'rtl')]"
+    ></span>
   </section>
 </template>

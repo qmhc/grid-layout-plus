@@ -34,7 +34,7 @@ import {
 import { verticalCompactor } from '../core/compactors'
 import { transformStrategy } from '../core/position-strategies'
 
-import type { Breakpoint, Compactor, Layout, LayoutInstance, PositionStrategy, ResizeHandle } from '../helpers/types'
+import type { Breakpoint, Compactor, Layout, LayoutInstance, PositionStrategy } from '../helpers/types'
 import type { GridLayoutProps } from './types'
 
 const props = withDefaults(defineProps<GridLayoutProps>(), {
@@ -56,7 +56,6 @@ const props = withDefaults(defineProps<GridLayoutProps>(), {
   useStyleCursor: true,
   compactor: () => verticalCompactor,
   positionStrategy: () => transformStrategy,
-  resizeHandles: undefined,
   isDroppable: undefined,
   dropItem: undefined,
   dragThreshold: undefined,
@@ -91,9 +90,6 @@ const effectiveIsDraggable = computed(() => props.isDraggable ?? props.dragConfi
 const effectiveDragThreshold = computed(() => props.dragThreshold ?? props.dragConfig?.dragThreshold ?? 0)
 const effectiveRestoreOnDrag = computed(() => props.restoreOnDrag ?? props.dragConfig?.restoreOnDrag ?? false)
 const effectiveIsResizable = computed(() => props.isResizable ?? props.resizeConfig?.isResizable ?? true)
-const effectiveResizeHandles = computed<ResizeHandle[]>(() =>
-  (props.resizeHandles ?? props.resizeConfig?.resizeHandles ?? ['se']) as ResizeHandle[],
-)
 const effectiveIsDroppable = computed(() => props.isDroppable ?? props.dropConfig?.isDroppable ?? false)
 const effectiveDropItem = computed(() => props.dropItem ?? props.dropConfig?.dropItem ?? { w: 1, h: 1 })
 
@@ -108,7 +104,6 @@ const effectiveConfig = computed(() => ({
   isDroppable: effectiveIsDroppable.value,
   dropItem: effectiveDropItem.value,
   dragThreshold: effectiveDragThreshold.value,
-  resizeHandles: effectiveResizeHandles.value,
   restoreOnDrag: effectiveRestoreOnDrag.value,
 }))
 
@@ -310,7 +305,6 @@ provide(
     isDroppable: effectiveIsDroppable,
     dropItem: effectiveDropItem,
     dragThreshold: effectiveDragThreshold,
-    resizeHandles: effectiveResizeHandles,
     restoreOnDrag: effectiveRestoreOnDrag,
     increaseItem,
     decreaseItem,

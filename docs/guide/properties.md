@@ -53,12 +53,6 @@ type Breakpoints = Record<Breakpoint, number>
 type ResponsiveLayout = Record<Breakpoint, Layout>
 ```
 
-### ResizeHandle
-
-```ts
-type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
-```
-
 ### Compactor
 
 The pluggable compaction algorithm interface. A compactor receives a layout and column count, and returns a new compacted layout.
@@ -127,7 +121,6 @@ interface DragConfig {
 ```ts
 interface ResizeConfig {
   isResizable?: boolean
-  resizeHandles?: ResizeHandle[]
 }
 ```
 
@@ -329,15 +322,6 @@ import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout
 ```
 
 Use `scaledStrategy(scale)` when the grid is rendered inside a scaled container.
-
-### resize-handles
-
-- type: `ResizeHandle[]`
-- default: `['se']`
-
-Defines which resize handles are shown on all grid items. Each item can override this via its own `resize-handles` prop.
-
-Possible values: `'s'`, `'w'`, `'e'`, `'n'`, `'sw'`, `'nw'`, `'se'`, `'ne'`.
 
 ### is-droppable
 
@@ -563,14 +547,7 @@ Passthrough object for the grid item [interact.js draggable configuration](https
 
 Passthrough object for the grid item [interact.js resizable configuration](https://interactjs.io/docs/resizable/).
 
-### resize-handles
 
-- type: `ResizeHandle[]`
-- default: `null`
-
-Sets which resize handles are shown on this item. If `null`, inherits from the parent GridLayout's [`resize-handles`](#resize-handles) prop.
-
-Possible values: `'s'`, `'w'`, `'e'`, `'n'`, `'sw'`, `'nw'`, `'se'`, `'ne'`.
 
 ### drag-threshold
 

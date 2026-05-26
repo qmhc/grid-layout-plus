@@ -1,5 +1,3 @@
-export type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
-
 /** 压缩器接口 */
 export interface Compactor {
   /** 对布局执行压缩，返回新布局（不修改输入） */
@@ -39,7 +37,6 @@ export interface LayoutItem extends LayoutItemRequired {
   static?: boolean,
   isDraggable?: boolean,
   isResizable?: boolean,
-  resizeHandles?: ResizeHandle[],
 }
 
 export type Layout = Array<LayoutItem>
@@ -65,7 +62,6 @@ export interface LayoutInstance {
   isMirrored: boolean,
   compactor: Compactor,
   positionStrategy: PositionStrategy,
-  resizeHandles: ResizeHandle[],
   isDroppable: boolean,
   dropItem: { w: number, h: number },
   dragThreshold: number,

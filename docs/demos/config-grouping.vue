@@ -16,7 +16,6 @@ const dragConfig = reactive<DragConfig>({
 
 const resizeConfig = reactive<ResizeConfig>({
   isResizable: true,
-  resizeHandles: ['se'],
 })
 
 const dropConfig = reactive<DropConfig>({

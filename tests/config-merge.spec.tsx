@@ -100,7 +100,6 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     expect(vm.effectiveConfig.isResizable).toBe(true)
     expect(vm.effectiveConfig.isDroppable).toBe(false)
     expect(vm.effectiveConfig.dragThreshold).toBe(0)
-    expect(vm.effectiveConfig.resizeHandles).toEqual(['se'])
     wrapper.unmount()
   })
 
