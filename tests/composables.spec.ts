@@ -8,10 +8,7 @@ import { effectScope, nextTick, ref } from 'vue'
 import { useGridLayout } from '../src/composables/useGridLayout'
 import { useResponsiveLayout } from '../src/composables/useResponsiveLayout'
 import { horizontalCompactor, noCompactor, verticalCompactor } from '../src/core/compactors'
-import {
-  getBreakpointFromWidth,
-  getColsFromBreakpoint,
-} from '../src/helpers/responsive'
+import { getBreakpointFromWidth, getColsFromBreakpoint } from '../src/helpers/responsive'
 
 import type { Breakpoints, Layout } from '../src/helpers/types'
 
@@ -77,9 +74,7 @@ describe('useGridLayout', () => {
   })
 
   it('resizeItem 后布局正确更新并重新压缩', async () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 1, h: 1 },
-    ]
+    const layout: Layout = [{ i: '1', x: 0, y: 0, w: 1, h: 1 }]
 
     const { currentLayout, resizeItem } = withScope(() =>
       useGridLayout({ layout, cols: 12, compactor: verticalCompactor }),
@@ -93,11 +88,8 @@ describe('useGridLayout', () => {
     expect(item1.h).toBe(3)
   })
 
-
   it('addItem 后元素数量增加 1', async () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 1, h: 1 },
-    ]
+    const layout: Layout = [{ i: '1', x: 0, y: 0, w: 1, h: 1 }]
 
     const { currentLayout, addItem } = withScope(() =>
       useGridLayout({ layout, cols: 12, compactor: verticalCompactor }),
@@ -130,9 +122,7 @@ describe('useGridLayout', () => {
   })
 
   it('moveItem — id 不存在时静默忽略', async () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 1, h: 1 },
-    ]
+    const layout: Layout = [{ i: '1', x: 0, y: 0, w: 1, h: 1 }]
 
     const { currentLayout, moveItem } = withScope(() =>
       useGridLayout({ layout, cols: 12, compactor: verticalCompactor }),
@@ -146,9 +136,7 @@ describe('useGridLayout', () => {
   })
 
   it('removeItem — id 不存在时静默忽略', async () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 1, h: 1 },
-    ]
+    const layout: Layout = [{ i: '1', x: 0, y: 0, w: 1, h: 1 }]
 
     const { currentLayout, removeItem } = withScope(() =>
       useGridLayout({ layout, cols: 12, compactor: verticalCompactor }),
@@ -162,9 +150,7 @@ describe('useGridLayout', () => {
   })
 
   it('外部 layout ref 变化时自动重新压缩', async () => {
-    const layoutRef = ref<Layout>([
-      { i: '1', x: 0, y: 5, w: 1, h: 1 },
-    ])
+    const layoutRef = ref<Layout>([{ i: '1', x: 0, y: 5, w: 1, h: 1 }])
 
     const { currentLayout } = withScope(() =>
       useGridLayout({ layout: layoutRef, cols: 12, compactor: verticalCompactor }),
@@ -202,7 +188,6 @@ describe('useGridLayout', () => {
   })
 })
 
-
 // ─── useResponsiveLayout ────────────────────────────────────
 
 describe('useResponsiveLayout', () => {
@@ -221,9 +206,7 @@ describe('useResponsiveLayout', () => {
   it('不同 width 值对应正确的断点和列数', () => {
     const width = ref(1400)
     const layouts = ref({})
-    const originalLayout = ref<Layout>([
-      { i: '1', x: 0, y: 0, w: 1, h: 1 },
-    ])
+    const originalLayout = ref<Layout>([{ i: '1', x: 0, y: 0, w: 1, h: 1 }])
 
     const { currentBreakpoint, currentCols } = withScope(() =>
       useResponsiveLayout({
@@ -239,6 +222,47 @@ describe('useResponsiveLayout', () => {
     expect(currentBreakpoint.value).toBe('lg')
     expect(currentCols.value).toBe(getColsFromBreakpoint('lg', cols))
     expect(currentCols.value).toBe(12)
+  })
+
+  it('初始化响应式布局时使用指定 compactor', () => {
+    const width = ref(1400)
+    const layouts = ref({})
+    const originalLayout = ref<Layout>([{ i: '1', x: 5, y: 5, w: 1, h: 1 }])
+
+    const { currentLayout } = withScope(() =>
+      useResponsiveLayout({
+        breakpoints,
+        cols,
+        width,
+        layouts,
+        originalLayout,
+        compactor: noCompactor,
+      }),
+    )
+
+    expect(currentLayout.value[0]).toEqual(expect.objectContaining({ x: 5, y: 5 }))
+  })
+
+  it('断点切换时使用指定 compactor 生成布局', async () => {
+    const width = ref(1400)
+    const layouts = ref({})
+    const originalLayout = ref<Layout>([{ i: '1', x: 5, y: 5, w: 1, h: 1 }])
+
+    const { currentLayout } = withScope(() =>
+      useResponsiveLayout({
+        breakpoints,
+        cols,
+        width,
+        layouts,
+        originalLayout,
+        compactor: horizontalCompactor,
+      }),
+    )
+
+    width.value = 800
+    await nextTick()
+
+    expect(currentLayout.value[0]).toEqual(expect.objectContaining({ x: 0, y: 5 }))
   })
 
   it('width 变化导致断点切换时布局自动生成', async () => {
@@ -319,9 +343,7 @@ describe('useResponsiveLayout', () => {
   it('width 变化但断点不变时不触发布局更新', async () => {
     const width = ref(1400)
     const layouts = ref({})
-    const originalLayout = ref<Layout>([
-      { i: '1', x: 0, y: 0, w: 1, h: 1 },
-    ])
+    const originalLayout = ref<Layout>([{ i: '1', x: 0, y: 0, w: 1, h: 1 }])
 
     const { currentBreakpoint, currentLayout } = withScope(() =>
       useResponsiveLayout({
@@ -347,9 +369,7 @@ describe('useResponsiveLayout', () => {
   it('多次断点切换后缓存正确累积', async () => {
     const width = ref(1400)
     const layouts = ref({})
-    const originalLayout = ref<Layout>([
-      { i: '1', x: 0, y: 0, w: 1, h: 1 },
-    ])
+    const originalLayout = ref<Layout>([{ i: '1', x: 0, y: 0, w: 1, h: 1 }])
 
     const { currentBreakpoint } = withScope(() =>
       useResponsiveLayout({

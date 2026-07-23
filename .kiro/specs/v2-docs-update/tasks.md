@@ -2,7 +2,7 @@
 
 ## Overview
 
-Create 10 new demo Vue components, 20 bilingual example pages (EN + ZH), update 4 guide pages (EN + ZH), and update VitePress sidebar config to fully document grid-layout-plus v2 features.
+Create 9 new demo Vue components, 18 bilingual example pages (EN + ZH), add a bilingual v2 migration guide, update 4 guide pages (EN + ZH), and update VitePress sidebar config to fully document grid-layout-plus v2 features.
 
 ## Tasks
 
@@ -23,15 +23,11 @@ Create 10 new demo Vue components, 20 bilingual example pages (EN + ZH), update 
     - _Requirements: 3.1, 3.2_
 
 - [x] 2. Create new demo components (Phase 2: Resize, Drag, Drop)
-  - [x] 2.1 Create `docs/demos/multi-resize-handles.vue`
-    - Pass `resizeHandles` prop with multiple directions (e.g. `['se', 'sw', 'ne', 'nw']`)
-    - Add checkboxes to toggle individual handle directions
-    - _Requirements: 4.1, 4.2_
-  - [x] 2.2 Create `docs/demos/drag-threshold.vue`
+  - [x] 2.1 Create `docs/demos/drag-threshold.vue`
     - Pass `dragThreshold` prop to GridLayout
     - Add a number input or slider to adjust threshold in pixels
     - _Requirements: 5.1, 5.2_
-  - [x] 2.3 Create `docs/demos/native-drop.vue`
+  - [x] 2.2 Create `docs/demos/native-drop.vue`
     - Enable `is-droppable` and set `:drop-item="{ w: 2, h: 2 }"`
     - Add an external `draggable="true"` element outside the grid
     - Handle `@drop-drag-over`, `@drop`, `@drop-drag-leave` events
@@ -58,7 +54,7 @@ Create 10 new demo Vue components, 20 bilingual example pages (EN + ZH), update 
     - _Requirements: 10.1, 10.2_
 
 - [x] 4. Checkpoint - Verify all demos render
-  - Ensure all 10 new demo files exist in `docs/demos/` with valid Vue SFC syntax
+  - Ensure all 9 new demo files exist in `docs/demos/` with valid Vue SFC syntax
   - Ensure all demos use kebab-case filenames and produce unique `Demo{PascalName}` component names
   - _Requirements: 17.1, 17.2, 17.3_
 
@@ -72,25 +68,22 @@ Create 10 new demo Vue components, 20 bilingual example pages (EN + ZH), update 
   - [x] 5.3 Create `docs/example/allow-overlap.md`
     - Title: `Allow Overlap`, reference `<DemoAllowOverlap />`
     - _Requirements: 3.3, 16.1_
-  - [x] 5.4 Create `docs/example/multi-resize-handles.md`
-    - Title: `Multi-directional Resize Handles`, reference `<DemoMultiResizeHandles />`
-    - _Requirements: 4.3, 16.1_
-  - [x] 5.5 Create `docs/example/drag-threshold.md`
+  - [x] 5.4 Create `docs/example/drag-threshold.md`
     - Title: `Drag Threshold`, reference `<DemoDragThreshold />`
     - _Requirements: 5.3, 16.1_
-  - [x] 5.6 Create `docs/example/native-drop.md`
+  - [x] 5.5 Create `docs/example/native-drop.md`
     - Title: `Native Drag & Drop`, reference `<DemoNativeDrop />`
     - _Requirements: 6.4, 16.1_
-  - [x] 5.7 Create `docs/example/grid-background.md`
+  - [x] 5.6 Create `docs/example/grid-background.md`
     - Title: `Grid Background`, reference `<DemoGridBackground />`
     - _Requirements: 7.3, 16.1_
-  - [x] 5.8 Create `docs/example/position-strategy.md`
+  - [x] 5.7 Create `docs/example/position-strategy.md`
     - Title: `Position Strategy`, reference `<DemoPositionStrategy />`
     - _Requirements: 8.3, 16.1_
-  - [x] 5.9 Create `docs/example/config-grouping.md`
+  - [x] 5.8 Create `docs/example/config-grouping.md`
     - Title: `Config Grouping`, reference `<DemoConfigGrouping />`
     - _Requirements: 9.3, 16.1_
-  - [x] 5.10 Create `docs/example/composable-api.md`
+  - [x] 5.9 Create `docs/example/composable-api.md`
     - Title: `Composable API`, reference `<DemoComposableApi />`
     - _Requirements: 10.3, 16.1_
 
@@ -104,36 +97,31 @@ Create 10 new demo Vue components, 20 bilingual example pages (EN + ZH), update 
   - [x] 6.3 Create `docs/zh/example/allow-overlap.md`
     - Title: `允许重叠`, reference same `<DemoAllowOverlap />`
     - _Requirements: 3.3, 16.1, 16.3_
-  - [x] 6.4 Create `docs/zh/example/multi-resize-handles.md`
-    - Title: `多方向缩放手柄`, reference same `<DemoMultiResizeHandles />`
-    - _Requirements: 4.3, 16.1, 16.3_
-  - [x] 6.5 Create `docs/zh/example/drag-threshold.md`
+  - [x] 6.4 Create `docs/zh/example/drag-threshold.md`
     - Title: `拖拽阈值`, reference same `<DemoDragThreshold />`
     - _Requirements: 5.3, 16.1, 16.3_
-  - [x] 6.6 Create `docs/zh/example/native-drop.md`
+  - [x] 6.5 Create `docs/zh/example/native-drop.md`
     - Title: `原生拖放`, reference same `<DemoNativeDrop />`
     - _Requirements: 6.4, 16.1, 16.3_
-  - [x] 6.7 Create `docs/zh/example/grid-background.md`
+  - [x] 6.6 Create `docs/zh/example/grid-background.md`
     - Title: `网格背景`, reference same `<DemoGridBackground />`
     - _Requirements: 7.3, 16.1, 16.3_
-  - [x] 6.8 Create `docs/zh/example/position-strategy.md`
+  - [x] 6.7 Create `docs/zh/example/position-strategy.md`
     - Title: `定位策略`, reference same `<DemoPositionStrategy />`
     - _Requirements: 8.3, 16.1, 16.3_
-  - [x] 6.9 Create `docs/zh/example/config-grouping.md`
+  - [x] 6.8 Create `docs/zh/example/config-grouping.md`
     - Title: `配置分组`, reference same `<DemoConfigGrouping />`
     - _Requirements: 9.3, 16.1, 16.3_
-  - [x] 6.10 Create `docs/zh/example/composable-api.md`
+  - [x] 6.9 Create `docs/zh/example/composable-api.md`
     - Title: `组合式 API`, reference same `<DemoComposableApi />`
     - _Requirements: 10.3, 16.1, 16.3_
 
 - [x] 7. Update English guide pages
   - [x] 7.1 Update `docs/guide/properties.md`
-    - Add new GridLayout props section: `compactor`, `positionStrategy`, `resizeHandles`, `isDroppable`, `dropItem`, `dragThreshold`, `gridConfig`, `dragConfig`, `resizeConfig`, `dropConfig`
-    - Mark `vertical-compact` as deprecated with note to use `compactor`
-    - Mark `use-css-transforms` as deprecated with note to use `positionStrategy`
-    - Mark `transform-scale` as deprecated with note to use `scaledStrategy()`
-    - Add new GridItem props: `resizeHandles`, `dragThreshold`
-    - Add new Types section: `Compactor`, `PositionStrategy`, `ResizeHandle`, `GridConfig`, `DragConfig`, `ResizeConfig`, `DropConfig`
+    - Add new GridLayout props section: `compactor`, `positionStrategy`, `isDroppable`, `dropItem`, `dragThreshold`, `gridConfig`, `dragConfig`, `resizeConfig`, `dropConfig`
+    - Document `vertical-compact`, `use-css-transforms`, and `transform-scale` as removed v2 props in the migration guide rather than current API
+    - Add new GridItem prop: `dragThreshold`
+    - Add new Types section: `Compactor`, `PositionStrategy`, `GridConfig`, `DragConfig`, `ResizeConfig`, `DropConfig`
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6_
   - [x] 7.2 Update `docs/guide/events.md`
     - Add new GridLayout events: `drop-drag-over`, `drop`, `drop-drag-leave`
@@ -144,9 +132,12 @@ Create 10 new demo Vue components, 20 bilingual example pages (EN + ZH), update 
     - Note that `GridBackground` requires explicit import
     - _Requirements: 13.1, 13.2_
   - [x] 7.4 Update `docs/guide/usage.md`
-    - Replace deprecated `vertical-compact` and `use-css-transforms` with `compactor` and `positionStrategy` in code examples
+    - Replace removed `vertical-compact` and `use-css-transforms` with `compactor` and `positionStrategy` in code examples
     - Add brief note about new `compactor` and `positionStrategy` props
     - _Requirements: 14.1, 14.2_
+  - [x] 7.5 Create `docs/guide/migration.md`
+    - Document removed prop replacements, scaled container setup, config precedence, and fixed `se` resize handle scope
+    - _Requirements: 4.1-4.4_
 
 - [x] 8. Update Chinese guide pages
   - [x] 8.1 Update `docs/zh/guide/properties.md`
@@ -161,14 +152,17 @@ Create 10 new demo Vue components, 20 bilingual example pages (EN + ZH), update 
   - [x] 8.4 Update `docs/zh/guide/usage.md`
     - Mirror all changes from English usage.md (task 7.4) in Chinese
     - _Requirements: 14.1, 14.2, 16.2_
+  - [x] 8.5 Create `docs/zh/guide/migration.md`
+    - Mirror the English v2 migration guide in Chinese
+    - _Requirements: 4.1-4.4, 16.2_
 
 - [x] 9. Update VitePress sidebar configuration
   - [x] 9.1 Update `docs/.vitepress/config.ts` English sidebar
-    - Append 10 new example links to the English "Example" group after existing entries
-    - Links: `horizontal-compact`, `no-compact`, `allow-overlap`, `multi-resize-handles`, `drag-threshold`, `native-drop`, `grid-background`, `position-strategy`, `config-grouping`, `composable-api`
+    - Append 9 new example links to the English "Example" group after existing entries
+    - Links: `horizontal-compact`, `no-compact`, `allow-overlap`, `drag-threshold`, `native-drop`, `grid-background`, `position-strategy`, `config-grouping`, `composable-api`
     - _Requirements: 15.1_
   - [x] 9.2 Update `docs/.vitepress/config.ts` Chinese sidebar
-    - Append 10 new example links to the Chinese "示例" group after existing entries
+    - Append 9 new example links to the Chinese "示例" group after existing entries
     - Fix existing `styling-grid-lines` and `styling-placeholder` links to use `/zh/example/` prefix
     - _Requirements: 15.2, 15.3_
 

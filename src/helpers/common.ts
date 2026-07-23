@@ -1,6 +1,6 @@
 import type { InjectionKey } from 'vue'
 import type { EventEmitter } from '@vexip-ui/utils'
-import type { Layout, LayoutInstance, LayoutItem } from './types'
+import type { CompactType, Layout, LayoutInstance, LayoutItem } from './types'
 
 export const LAYOUT_KEY = Symbol('LAYOUT_KEY') as InjectionKey<LayoutInstance>
 export const EMITTER_KEY = Symbol('EMITTER_KEY') as InjectionKey<EventEmitter>
@@ -203,13 +203,17 @@ export function moveElement(
   y?: number,
   isUserAction = false,
   preventCollision = false,
+  compactType: CompactType = 'vertical',
 ): Layout {
   if (layoutItem.static) return layout
 
   const oldX = layoutItem.x
   const oldY = layoutItem.y
 
-  const movingUp = y && layoutItem.y > y
+  const movingUp =
+    compactType === 'horizontal'
+      ? typeof x === 'number' && oldX > x
+      : typeof y === 'number' && oldY > y
   // This is quite a bit faster than extending the object
   if (typeof x === 'number') layoutItem.x = x
   if (typeof y === 'number') layoutItem.y = y
@@ -219,7 +223,8 @@ export function moveElement(
   // When doing this comparison, we have to sort the items we compare with
   // to ensure, in the case of multiple collisions, that we're getting the
   // nearest collision.
-  let sorted = sortLayoutItemsByRowCol(layout)
+  let sorted =
+    compactType === 'horizontal' ? sortLayoutItemsByColRow(layout) : sortLayoutItemsByRowCol(layout)
   if (movingUp) sorted = sorted.reverse()
   const collisions = getAllCollisions(sorted, layoutItem)
 
@@ -238,13 +243,38 @@ export function moveElement(
     if (collision.moved) continue
 
     // This makes it feel a bit more precise by waiting to swap for just a bit when moving up.
-    if (layoutItem.y > collision.y && layoutItem.y - collision.y > collision.h / 4) continue
+    if (
+      compactType === 'vertical' &&
+      layoutItem.y > collision.y &&
+      layoutItem.y - collision.y > collision.h / 4
+    ) {
+      continue
+    }
+    if (
+      compactType === 'horizontal' &&
+      layoutItem.x > collision.x &&
+      layoutItem.x - collision.x > collision.w / 4
+    ) {
+      continue
+    }
 
     // Don't move static items - we have to move *this* element away
     if (collision.static) {
-      layout = moveElementAwayFromCollision(layout, collision, layoutItem, isUserAction)
+      layout = moveElementAwayFromCollision(
+        layout,
+        collision,
+        layoutItem,
+        isUserAction,
+        compactType,
+      )
     } else {
-      layout = moveElementAwayFromCollision(layout, layoutItem, collision, isUserAction)
+      layout = moveElementAwayFromCollision(
+        layout,
+        layoutItem,
+        collision,
+        isUserAction,
+        compactType,
+      )
     }
   }
 
@@ -266,6 +296,7 @@ export function moveElementAwayFromCollision(
   collidesWith: LayoutItem,
   itemToMove: LayoutItem,
   isUserAction?: boolean,
+  compactType: CompactType = 'vertical',
 ): Layout {
   const preventCollision = false // we're already colliding
   // If there is enough space above the collision to put this element, move it there.
@@ -274,21 +305,36 @@ export function moveElementAwayFromCollision(
   if (isUserAction) {
     // Make a mock item so we don't modify the item here, only modify in moveElement.
     const fakeItem: LayoutItem = {
-      x: itemToMove.x,
-      y: itemToMove.y,
+      x: compactType === 'horizontal' ? Math.max(collidesWith.x - itemToMove.w, 0) : itemToMove.x,
+      y: compactType === 'vertical' ? Math.max(collidesWith.y - itemToMove.h, 0) : itemToMove.y,
       w: itemToMove.w,
       h: itemToMove.h,
       i: '-1',
     }
-    fakeItem.y = Math.max(collidesWith.y - itemToMove.h, 0)
     if (!getFirstCollision(layout, fakeItem)) {
-      return moveElement(layout, itemToMove, undefined, fakeItem.y, preventCollision)
+      return moveElement(
+        layout,
+        itemToMove,
+        compactType === 'horizontal' ? fakeItem.x : undefined,
+        compactType === 'vertical' ? fakeItem.y : undefined,
+        false,
+        preventCollision,
+        compactType,
+      )
     }
   }
 
   // Previously this was optimized to move below the collision directly, but this can cause problems
   // with cascading moves, as an item may actually leapflog a collision and cause a reversal in order.
-  return moveElement(layout, itemToMove, undefined, itemToMove.y + 1, preventCollision)
+  return moveElement(
+    layout,
+    itemToMove,
+    compactType === 'horizontal' ? itemToMove.x + 1 : undefined,
+    compactType === 'vertical' ? itemToMove.y + 1 : undefined,
+    false,
+    preventCollision,
+    compactType,
+  )
 }
 
 /**
@@ -382,6 +428,15 @@ export function sortLayoutItemsByRowCol(layout: Layout): Layout {
       return 1
     }
 
+    return -1
+  })
+}
+
+/** 按列、行顺序排序，用于水平压缩和水平碰撞避让。 */
+export function sortLayoutItemsByColRow(layout: Layout): Layout {
+  return Array.from(layout).sort((a, b) => {
+    if (a.x === b.x && a.y === b.y) return 0
+    if (a.x > b.x || (a.x === b.x && a.y > b.y)) return 1
     return -1
   })
 }

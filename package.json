@@ -37,7 +37,7 @@
     "./core": {
       "types": "./dist/core.d.ts",
       "import": "./es/core.mjs",
-      "require": "./lib/core.js"
+      "require": "./lib/core.cjs"
     },
     "./es": {
       "types": "./dist/index.d.ts",

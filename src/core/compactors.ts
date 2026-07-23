@@ -3,27 +3,18 @@ import {
   compact,
   getFirstCollision,
   getStatics,
+  sortLayoutItemsByColRow,
   sortLayoutItemsByRowCol,
 } from '../helpers/common'
 
 import type { Compactor, Layout, LayoutItem } from '../helpers/types'
 
 /**
- * 按列优先排序（先 x 后 y），用于水平压缩。
- */
-function sortLayoutItemsByColRow(layout: Layout): Layout {
-  return Array.from(layout).sort((a, b) => {
-    if (a.x === b.x && a.y === b.y) return 0
-    if (a.x > b.x || (a.x === b.x && a.y > b.y)) return 1
-    return -1
-  })
-}
-
-/**
  * 垂直压缩器 — 委托给现有 compact() 逻辑。
  * 等价于 compact(layout, true)。
  */
 export const verticalCompactor: Compactor = {
+  type: 'vertical',
   compact(layout: Layout, _cols: number): Layout {
     return compact(cloneLayout(layout), true)
   },
@@ -35,10 +26,11 @@ export const verticalCompactor: Compactor = {
  * 算法：
  * 1. 按列优先排序（先 x 后 y）
  * 2. 静态元素加入碰撞列表
- * 3. 对每个非静态元素，保持 y 不变，将 x 向左移动至无碰撞的最小位置
- * 4. 碰撞时放置在障碍物右侧
+ * 3. 对每个非静态元素，将 x 向左移动至无碰撞的最小位置
+ * 4. 碰撞时放置在障碍物右侧，超出列边界时换到下一行
  */
 export const horizontalCompactor: Compactor = {
+  type: 'horizontal',
   compact(layout: Layout, cols: number): Layout {
     const cloned = cloneLayout(layout)
     const compareWith = getStatics(cloned)
@@ -65,11 +57,10 @@ export const horizontalCompactor: Compactor = {
  * 水平压缩单个元素：保持 y 不变，将 x 向左移动至无碰撞的最小位置。
  * 与 compactItem 的垂直逻辑对称：先尽量向左，再处理碰撞向右推移。
  */
-function compactItemHorizontally(
-  compareWith: Layout,
-  l: LayoutItem,
-  _cols: number,
-): LayoutItem {
+function compactItemHorizontally(compareWith: Layout, l: LayoutItem, cols: number): LayoutItem {
+  l.x = Math.max(l.x, 0)
+  l.y = Math.max(l.y, 0)
+
   // 向左移动至无碰撞的最小 x
   while (l.x > 0 && !getFirstCollision(compareWith, l)) {
     l.x--
@@ -79,8 +70,18 @@ function compactItemHorizontally(
   let collision: LayoutItem | undefined
   while ((collision = getFirstCollision(compareWith, l))) {
     l.x = collision.x + collision.w
+
+    if (l.x + l.w > cols) {
+      l.x = cols - l.w
+      l.y++
+
+      while (l.x > 0 && !getFirstCollision(compareWith, l)) {
+        l.x--
+      }
+    }
   }
 
+  l.x = Math.max(l.x, 0)
   return l
 }
 
@@ -99,6 +100,7 @@ export const noCompactor: Compactor = {
  */
 export function withOverlap(_compactor: Compactor): Compactor {
   return {
+    type: _compactor.type,
     compact(layout: Layout, _cols: number): Layout {
       return cloneLayout(layout)
     },
@@ -107,84 +109,87 @@ export function withOverlap(_compactor: Compactor): Compactor {
 }
 
 // ---------------------------------------------------------------------------
-// 区间树 — 用于 Fast Compactors 的 O(n log n) 碰撞检测加速
+// 增量区间 Treap — 用于 Fast Compactors 的 O(n log n) 碰撞检测加速
 // ---------------------------------------------------------------------------
 
 /** 区间树节点 */
 interface IntervalNode {
-  center: number
+  entry: IntervalEntry
+  priority: number
+  maxHi: number
   left: IntervalNode | null
   right: IntervalNode | null
-  /** 按区间起点升序排列的条目 */
-  byStart: IntervalEntry[]
-  /** 按区间终点降序排列的条目 */
-  byEnd: IntervalEntry[]
 }
 
 interface IntervalEntry {
   lo: number
   hi: number
+  order: number
   item: LayoutItem
 }
 
-/**
- * 从一组区间条目构建静态区间树。
- * 空输入返回 null。
- */
-function buildIntervalTree(entries: IntervalEntry[]): IntervalNode | null {
-  if (entries.length === 0) return null
+function intervalPriority(order: number): number {
+  let value = (order + 1) * 0x9e3779b1
+  value ^= value >>> 16
+  value = Math.imul(value, 0x85ebca6b)
+  value ^= value >>> 13
+  return value >>> 0
+}
 
-  // 选取所有端点的中位数作为分割点
-  const pts: number[] = []
-  for (let i = 0; i < entries.length; i++) {
-    pts.push(entries[i].lo, entries[i].hi)
-  }
-  pts.sort((a, b) => a - b)
-  const center = pts[pts.length >> 1]
+function updateIntervalNode(node: IntervalNode): void {
+  node.maxHi = Math.max(
+    node.entry.hi,
+    node.left?.maxHi ?? -Infinity,
+    node.right?.maxHi ?? -Infinity,
+  )
+}
 
-  const leftEntries: IntervalEntry[] = []
-  const rightEntries: IntervalEntry[] = []
-  const centerByStart: IntervalEntry[] = []
+function compareIntervalEntries(a: IntervalEntry, b: IntervalEntry): number {
+  if (a.lo !== b.lo) return a.lo - b.lo
+  if (a.hi !== b.hi) return a.hi - b.hi
+  return a.order - b.order
+}
 
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i]
-    if (e.hi <= center) {
-      leftEntries.push(e)
-    } else if (e.lo > center) {
-      rightEntries.push(e)
-    } else {
-      centerByStart.push(e)
-    }
-  }
+function rotateIntervalLeft(node: IntervalNode): IntervalNode {
+  const next = node.right!
+  node.right = next.left
+  next.left = node
+  updateIntervalNode(node)
+  updateIntervalNode(next)
+  return next
+}
 
-  // 当分割无效（所有条目都落入同一侧）时，将全部条目放在当前节点，
-  // 避免无限递归。
-  if (centerByStart.length === 0 && (leftEntries.length === entries.length || rightEntries.length === entries.length)) {
-    const all = leftEntries.length === entries.length ? leftEntries : rightEntries
-    const byStart = Array.from(all)
-    const byEnd = Array.from(all)
-    byStart.sort((a, b) => a.lo - b.lo)
-    byEnd.sort((a, b) => b.hi - a.hi)
+function rotateIntervalRight(node: IntervalNode): IntervalNode {
+  const next = node.left!
+  node.left = next.right
+  next.right = node
+  updateIntervalNode(node)
+  updateIntervalNode(next)
+  return next
+}
+
+/** 插入区间并维持按起点排序、按 priority 平衡的 Treap。 */
+function insertInterval(node: IntervalNode | null, entry: IntervalEntry): IntervalNode {
+  if (!node) {
     return {
-      center,
+      entry,
+      priority: intervalPriority(entry.order),
+      maxHi: entry.hi,
       left: null,
       right: null,
-      byStart,
-      byEnd,
     }
   }
 
-  const centerByEnd = Array.from(centerByStart)
-  centerByStart.sort((a, b) => a.lo - b.lo)
-  centerByEnd.sort((a, b) => b.hi - a.hi)
-
-  return {
-    center,
-    left: buildIntervalTree(leftEntries),
-    right: buildIntervalTree(rightEntries),
-    byStart: centerByStart,
-    byEnd: centerByEnd,
+  if (compareIntervalEntries(entry, node.entry) < 0) {
+    node.left = insertInterval(node.left, entry)
+    if (node.left.priority < node.priority) node = rotateIntervalRight(node)
+  } else {
+    node.right = insertInterval(node.right, entry)
+    if (node.right.priority < node.priority) node = rotateIntervalLeft(node)
   }
+
+  updateIntervalNode(node)
+  return node
 }
 
 /**
@@ -195,32 +200,19 @@ function queryIntervalTree(
   node: IntervalNode | null,
   qLo: number,
   qHi: number,
-  result: LayoutItem[],
+  result: IntervalEntry[],
 ): void {
   if (!node) return
 
-  if (qLo >= node.center) {
-    // 查询区间在中心右侧，检查 byEnd（降序）中 hi > qLo 的条目
-    const arr = node.byEnd
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[i].hi <= qLo) break
-      result.push(arr[i].item)
-    }
-    queryIntervalTree(node.right, qLo, qHi, result)
-  } else if (qHi <= node.center) {
-    // 查询区间在中心左侧，检查 byStart（升序）中 lo < qHi 的条目
-    const arr = node.byStart
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[i].lo >= qHi) break
-      result.push(arr[i].item)
-    }
+  if (node.left && node.left.maxHi > qLo) {
     queryIntervalTree(node.left, qLo, qHi, result)
-  } else {
-    // 查询区间跨越中心，所有 center 条目都重叠
-    for (let i = 0; i < node.byStart.length; i++) {
-      result.push(node.byStart[i].item)
-    }
-    queryIntervalTree(node.left, qLo, qHi, result)
+  }
+
+  if (node.entry.lo < qHi && node.entry.hi > qLo) {
+    result.push(node.entry)
+  }
+
+  if (node.entry.lo < qHi) {
     queryIntervalTree(node.right, qLo, qHi, result)
   }
 }
@@ -230,23 +222,27 @@ function queryIntervalTree(
  * candidates 应来自区间树查询结果（已按一个轴过滤），此处再验证另一个轴。
  */
 function firstCollisionAmong(
-  candidates: LayoutItem[],
+  candidates: IntervalEntry[],
   item: LayoutItem,
 ): LayoutItem | undefined {
+  let first: IntervalEntry | undefined
+
   for (let i = 0; i < candidates.length; i++) {
-    const c = candidates[i]
+    const candidate = candidates[i]
+    const c = candidate.item
     if (c === item) continue
     // 完整 2D 碰撞检测
     if (
-      item.x < c.x + c.w
-      && item.x + item.w > c.x
-      && item.y < c.y + c.h
-      && item.y + item.h > c.y
+      item.x < c.x + c.w &&
+      item.x + item.w > c.x &&
+      item.y < c.y + c.h &&
+      item.y + item.h > c.y
     ) {
-      return c
+      if (!first || candidate.order < first.order) first = candidate
     }
   }
-  return undefined
+
+  return first?.item
 }
 
 // ---------------------------------------------------------------------------
@@ -260,15 +256,24 @@ function firstCollisionAmong(
  * 输出与 verticalCompactor 完全一致。
  */
 export const fastVerticalCompactor: Compactor = {
+  type: 'vertical',
   compact(layout: Layout, _cols: number): Layout {
     const cloned = cloneLayout(layout)
     const sorted = sortLayoutItemsByRowCol(cloned)
+    const indexes = new Map(cloned.map((item, index) => [item.i, index]))
+    let tree: IntervalNode | null = null
+    let order = 0
 
-    // 已放置元素列表（用于增量重建区间树）
-    const placed: LayoutItem[] = []
-    // 收集静态元素
     for (let i = 0; i < cloned.length; i++) {
-      if (cloned[i].static) placed.push(cloned[i])
+      const item = cloned[i]
+      if (item.static) {
+        tree = insertInterval(tree, {
+          lo: item.x,
+          hi: item.x + item.w,
+          order: order++,
+          item,
+        })
+      }
     }
 
     const out: Layout = Array(cloned.length)
@@ -277,20 +282,16 @@ export const fastVerticalCompactor: Compactor = {
       let l = sorted[i]
 
       if (!l.static) {
-        // 重建区间树（按 x 轴区间索引已放置元素）
-        const entries: IntervalEntry[] = []
-        for (let j = 0; j < placed.length; j++) {
-          const p = placed[j]
-          entries.push({ lo: p.x, hi: p.x + p.w, item: p })
-        }
-        const tree = buildIntervalTree(entries)
-
-        // 垂直压缩：向上移动至无碰撞的最小 y
         l = fastCompactItemVertically(tree, l)
-        placed.push(l)
+        tree = insertInterval(tree, {
+          lo: l.x,
+          hi: l.x + l.w,
+          order: order++,
+          item: l,
+        })
       }
 
-      out[cloned.findIndex(item => item.i === l.i)] = l
+      out[indexes.get(l.i)!] = l
       l.moved = false
     }
 
@@ -302,12 +303,9 @@ export const fastVerticalCompactor: Compactor = {
  * 快速垂直压缩单个元素：使用区间树查询 x 轴重叠的候选元素，
  * 然后在候选集中做 y 轴碰撞检测。
  */
-function fastCompactItemVertically(
-  tree: IntervalNode | null,
-  l: LayoutItem,
-): LayoutItem {
+function fastCompactItemVertically(tree: IntervalNode | null, l: LayoutItem): LayoutItem {
   // 查询 x 轴与当前元素重叠的所有已放置元素
-  const candidates: LayoutItem[] = []
+  const candidates: IntervalEntry[] = []
   queryIntervalTree(tree, l.x, l.x + l.w, candidates)
 
   // 向上移动至无碰撞的最小 y
@@ -335,14 +333,24 @@ function fastCompactItemVertically(
  * 输出与 horizontalCompactor 完全一致。
  */
 export const fastHorizontalCompactor: Compactor = {
+  type: 'horizontal',
   compact(layout: Layout, cols: number): Layout {
     const cloned = cloneLayout(layout)
     const sorted = sortLayoutItemsByColRow(cloned)
+    const indexes = new Map(cloned.map((item, index) => [item.i, index]))
+    let tree: IntervalNode | null = null
+    let order = 0
 
-    // 已放置元素列表
-    const placed: LayoutItem[] = []
     for (let i = 0; i < cloned.length; i++) {
-      if (cloned[i].static) placed.push(cloned[i])
+      const item = cloned[i]
+      if (item.static) {
+        tree = insertInterval(tree, {
+          lo: item.y,
+          hi: item.y + item.h,
+          order: order++,
+          item,
+        })
+      }
     }
 
     const out: Layout = Array(cloned.length)
@@ -351,20 +359,16 @@ export const fastHorizontalCompactor: Compactor = {
       let l = sorted[i]
 
       if (!l.static) {
-        // 重建区间树（按 y 轴区间索引已放置元素）
-        const entries: IntervalEntry[] = []
-        for (let j = 0; j < placed.length; j++) {
-          const p = placed[j]
-          entries.push({ lo: p.y, hi: p.y + p.h, item: p })
-        }
-        const tree = buildIntervalTree(entries)
-
-        // 水平压缩：向左移动至无碰撞的最小 x
         l = fastCompactItemHorizontally(tree, l, cols)
-        placed.push(l)
+        tree = insertInterval(tree, {
+          lo: l.y,
+          hi: l.y + l.h,
+          order: order++,
+          item: l,
+        })
       }
 
-      out[cloned.findIndex(item => item.i === l.i)] = l
+      out[indexes.get(l.i)!] = l
       l.moved = false
     }
 
@@ -379,11 +383,17 @@ export const fastHorizontalCompactor: Compactor = {
 function fastCompactItemHorizontally(
   tree: IntervalNode | null,
   l: LayoutItem,
-  _cols: number,
+  cols: number,
 ): LayoutItem {
-  // 查询 y 轴与当前元素重叠的所有已放置元素
-  const candidates: LayoutItem[] = []
-  queryIntervalTree(tree, l.y, l.y + l.h, candidates)
+  l.x = Math.max(l.x, 0)
+  l.y = Math.max(l.y, 0)
+
+  let candidates: IntervalEntry[] = []
+  const refreshCandidates = () => {
+    candidates = []
+    queryIntervalTree(tree, l.y, l.y + l.h, candidates)
+  }
+  refreshCandidates()
 
   // 向左移动至无碰撞的最小 x
   while (l.x > 0 && !firstCollisionAmong(candidates, l)) {
@@ -394,7 +404,18 @@ function fastCompactItemHorizontally(
   let collision: LayoutItem | undefined
   while ((collision = firstCollisionAmong(candidates, l))) {
     l.x = collision.x + collision.w
+
+    if (l.x + l.w > cols) {
+      l.x = cols - l.w
+      l.y++
+      refreshCandidates()
+
+      while (l.x > 0 && !firstCollisionAmong(candidates, l)) {
+        l.x--
+      }
+    }
   }
 
+  l.x = Math.max(l.x, 0)
   return l
 }

@@ -11,18 +11,18 @@ import type { Ref } from 'vue'
 import type { Breakpoint, Breakpoints, Compactor, Layout, ResponsiveLayout } from '../helpers/types'
 
 export interface UseResponsiveLayoutOptions {
-  breakpoints: Breakpoints,
-  cols: Breakpoints,
-  width: Ref<number>,
-  layouts: Ref<Partial<ResponsiveLayout>>,
-  compactor?: Compactor,
-  originalLayout: Ref<Layout>,
+  breakpoints: Breakpoints
+  cols: Breakpoints
+  width: Ref<number>
+  layouts: Ref<Partial<ResponsiveLayout>>
+  compactor?: Compactor
+  originalLayout: Ref<Layout>
 }
 
 export interface UseResponsiveLayoutReturn {
-  currentBreakpoint: Ref<Breakpoint>,
-  currentCols: Ref<number>,
-  currentLayout: Ref<Layout>,
+  currentBreakpoint: Ref<Breakpoint>
+  currentCols: Ref<number>
+  currentLayout: Ref<Layout>
 }
 
 /**
@@ -32,7 +32,9 @@ export interface UseResponsiveLayoutReturn {
  * @param options 配置参数
  * @returns 响应式断点、列数和布局
  */
-export function useResponsiveLayout(options: UseResponsiveLayoutOptions): UseResponsiveLayoutReturn {
+export function useResponsiveLayout(
+  options: UseResponsiveLayoutOptions,
+): UseResponsiveLayoutReturn {
   const {
     breakpoints,
     cols,
@@ -42,13 +44,9 @@ export function useResponsiveLayout(options: UseResponsiveLayoutOptions): UseRes
     originalLayout,
   } = options
 
-  const currentBreakpoint = ref<Breakpoint>(
-    getBreakpointFromWidth(breakpoints, width.value),
-  )
+  const currentBreakpoint = ref<Breakpoint>(getBreakpointFromWidth(breakpoints, width.value))
 
-  const currentCols = computed(() =>
-    getColsFromBreakpoint(currentBreakpoint.value, cols),
-  )
+  const currentCols = computed(() => getColsFromBreakpoint(currentBreakpoint.value, cols))
 
   const currentLayout = ref<Layout>(
     findOrGenerateResponsiveLayout(
@@ -58,11 +56,11 @@ export function useResponsiveLayout(options: UseResponsiveLayoutOptions): UseRes
       currentBreakpoint.value,
       currentBreakpoint.value,
       currentCols.value,
-      true,
+      comp,
     ),
   )
 
-  watch(width, (newWidth) => {
+  watch(width, newWidth => {
     const newBp = getBreakpointFromWidth(breakpoints, newWidth)
 
     if (newBp !== currentBreakpoint.value) {
@@ -85,11 +83,10 @@ export function useResponsiveLayout(options: UseResponsiveLayoutOptions): UseRes
         newBp,
         lastBp,
         newCols,
-        true,
+        comp,
       )
 
-      // 用 compactor 重新压缩（findOrGenerateResponsiveLayout 内部使用旧的 compact）
-      currentLayout.value = comp.compact(generated, newCols)
+      currentLayout.value = generated
     }
   })
 

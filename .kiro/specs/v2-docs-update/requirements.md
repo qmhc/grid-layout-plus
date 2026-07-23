@@ -2,7 +2,7 @@
 
 ## Introduction
 
-grid-layout-plus v2.0.0 引入了多项新功能（可插拔压缩器、定位策略、多方向缩放手柄、原生拖放、GridBackground 组件、Composable API、配置分组等），需要全面更新 VitePress 文档站，包括新增 10 个 demo、更新属性/事件参考文档、更新安装/用法指南、更新侧边栏配置，并保持英文和中文双语一致。
+grid-layout-plus v2.0.0 引入了多项新功能（可插拔压缩器、定位策略、原生拖放、GridBackground 组件、Composable API、配置分组等），需要全面更新 VitePress 文档站，包括新增 9 个 demo、补充 v2 迁移指南、更新属性/事件参考文档、更新安装/用法指南、更新侧边栏配置，并保持英文和中文双语一致。
 
 ## Glossary
 
@@ -16,7 +16,6 @@ grid-layout-plus v2.0.0 引入了多项新功能（可插拔压缩器、定位�
 - **GridBackground**: SVG 网格背景组件，未全局注册，需手动 import
 - **Compactor**: 可插拔的布局压缩算法接口
 - **PositionStrategy**: 可插拔的元素定位策略接口
-- **ResizeHandle**: 缩放手柄方向类型，值为 `'s' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'`
 
 ## Requirements
 
@@ -51,15 +50,16 @@ grid-layout-plus v2.0.0 引入了多项新功能（可插拔压缩器、定位�
 2. THE Demo_Component `allow-overlap.vue` SHALL import `withOverlap` and `verticalCompactor` from `grid-layout-plus` in its `<script setup>` block
 3. THE Example_Page for allow overlap SHALL exist at `docs/example/allow-overlap.md` (English) and `docs/zh/example/allow-overlap.md` (Chinese), each referencing `<DemoAllowOverlap />`
 
-### Requirement 4: 多方向缩放手柄 Demo
+### Requirement 4: v2 迁移指南
 
-**User Story:** As a developer, I want to see a demo of multi-directional resize handles, so that I can understand how to configure `resizeHandles` on GridLayout and GridItem.
+**User Story:** As a developer upgrading from v1, I want a migration guide, so that I can replace removed props and understand intentionally unsupported experimental APIs.
 
 #### Acceptance Criteria
 
-1. WHEN the Documentation_Site builds, THE Demo_Component `multi-resize-handles.vue` SHALL render a GridLayout with `resizeHandles` prop set to multiple directions (e.g. `['se', 'sw', 'ne', 'nw']`)
-2. THE Demo_Component SHALL include interactive controls to toggle different resize handle combinations
-3. THE Example_Page for multi-resize handles SHALL exist at `docs/example/multi-resize-handles.md` (English) and `docs/zh/example/multi-resize-handles.md` (Chinese), each referencing `<DemoMultiResizeHandles />`
+1. THE Guide_Page `migration.md` SHALL exist at `docs/guide/migration.md` (English) and `docs/zh/guide/migration.md` (Chinese)
+2. THE migration guide SHALL map removed v1 props `verticalCompact`, `useCssTransforms`, and `transformScale` to their v2 replacements
+3. THE migration guide SHALL explain that `scaledStrategy(scale)` keeps layout styles unscaled and corrects pointer coordinates for an ancestor using the matching CSS `transform: scale(...)`
+4. THE migration guide SHALL state that the experimental `resizeHandles` prop and `ResizeHandle` type are not part of v2, and that GridItem only exposes the fixed `se` handle
 
 ### Requirement 5: 拖拽阈值 Demo
 
@@ -124,16 +124,16 @@ grid-layout-plus v2.0.0 引入了多项新功能（可插拔压缩器、定位�
 
 ### Requirement 11: 属性参考文档更新
 
-**User Story:** As a developer, I want the properties reference to document all v2 props, so that I can find accurate API information for both new and deprecated props.
+**User Story:** As a developer, I want the properties reference to document all v2 props, so that I can find accurate API information and migration guidance for removed props.
 
 #### Acceptance Criteria
 
-1. THE Guide_Page `properties.md` (English) and `zh/guide/properties.md` (Chinese) SHALL document the following new GridLayout props: `compactor`, `positionStrategy`, `resizeHandles`, `isDroppable`, `dropItem`, `dragThreshold`, `gridConfig`, `dragConfig`, `resizeConfig`, `dropConfig`
-2. THE Guide_Page `properties.md` SHALL mark `vertical-compact` as deprecated and reference `compactor` as its replacement
-3. THE Guide_Page `properties.md` SHALL mark `use-css-transforms` as deprecated and reference `positionStrategy` as its replacement
-4. THE Guide_Page `properties.md` SHALL mark `transform-scale` as deprecated and reference `scaledStrategy()` as its replacement
-5. THE Guide_Page `properties.md` SHALL document the following new GridItem props: `resizeHandles`, `dragThreshold`
-6. THE Guide_Page `properties.md` SHALL document the new types: `Compactor`, `PositionStrategy`, `ResizeHandle`, `GridConfig`, `DragConfig`, `ResizeConfig`, `DropConfig`
+1. THE Guide_Page `properties.md` (English) and `zh/guide/properties.md` (Chinese) SHALL document the following new GridLayout props: `compactor`, `positionStrategy`, `isDroppable`, `dropItem`, `dragThreshold`, `gridConfig`, `dragConfig`, `resizeConfig`, `dropConfig`
+2. THE Guide_Page `properties.md` SHALL state that `vertical-compact` was removed in v2 and reference `compactor` as its replacement
+3. THE Guide_Page `properties.md` SHALL state that `use-css-transforms` was removed in v2 and reference `positionStrategy` as its replacement
+4. THE Guide_Page `properties.md` SHALL state that `transform-scale` was removed in v2 and reference `scaledStrategy()` as its replacement
+5. THE Guide_Page `properties.md` SHALL document the new GridItem prop `dragThreshold`
+6. THE Guide_Page `properties.md` SHALL document the new types: `Compactor`, `PositionStrategy`, `GridConfig`, `DragConfig`, `ResizeConfig`, `DropConfig`
 
 ### Requirement 12: 事件参考文档更新
 
@@ -160,7 +160,7 @@ grid-layout-plus v2.0.0 引入了多项新功能（可插拔压缩器、定位�
 
 #### Acceptance Criteria
 
-1. THE Guide_Page `usage.md` (English) and `zh/guide/usage.md` (Chinese) SHALL replace deprecated props (`vertical-compact`, `use-css-transforms`) with their v2 equivalents (`compactor`, `positionStrategy`) in all code examples
+1. THE Guide_Page `usage.md` (English) and `zh/guide/usage.md` (Chinese) SHALL replace removed props (`vertical-compact`, `use-css-transforms`) with their v2 equivalents (`compactor`, `positionStrategy`) in all code examples
 2. THE Guide_Page `usage.md` SHALL include a brief section or note about the new `compactor` and `positionStrategy` props in the component usage examples
 
 ### Requirement 15: 侧边栏配置更新
@@ -169,8 +169,8 @@ grid-layout-plus v2.0.0 引入了多项新功能（可插拔压缩器、定位�
 
 #### Acceptance Criteria
 
-1. THE Sidebar_Config SHALL include links to all 10 new Example_Pages in the English "Example" group, appended after existing entries
-2. THE Sidebar_Config SHALL include links to all 10 new Example_Pages in the Chinese "示例" group, appended after existing entries
+1. THE Sidebar_Config SHALL include links to all 9 new Example_Pages in the English "Example" group, appended after existing entries
+2. THE Sidebar_Config SHALL include links to all 9 new Example_Pages in the Chinese "示例" group, appended after existing entries
 3. THE Sidebar_Config SHALL fix the existing Chinese sidebar links for `styling-grid-lines` and `styling-placeholder` to use the `/zh/example/` prefix instead of `/example/`
 
 ### Requirement 16: 双语一致性

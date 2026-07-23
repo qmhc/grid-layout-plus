@@ -48,6 +48,7 @@ export default defineConfig({
             items: [
               { text: 'Installation', link: '/guide/installation' },
               { text: 'Usage', link: '/guide/usage' },
+              { text: 'Migration to v2', link: '/guide/migration' },
               { text: 'Properties', link: '/guide/properties' },
               { text: 'Events', link: '/guide/events' },
               { text: 'Custom Style', link: '/guide/custom-style' },
@@ -107,6 +108,7 @@ export default defineConfig({
             items: [
               { text: '安装', link: '/zh/guide/installation' },
               { text: '用法', link: '/zh/guide/usage' },
+              { text: '迁移到 v2', link: '/zh/guide/migration' },
               { text: '属性', link: '/zh/guide/properties' },
               { text: '事件', link: '/zh/guide/events' },
               { text: '定制样式', link: '/zh/guide/custom-style' },

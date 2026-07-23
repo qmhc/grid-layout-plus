@@ -68,7 +68,7 @@ If you want a more flexible way to listen events of GridItem component, you also
 
 ## Compaction and Positioning
 
-In v2, the `vertical-compact` and `use-css-transforms` boolean props have been replaced by pluggable `compactor` and `positionStrategy` props. The defaults remain the same — vertical compaction with CSS transforms — so existing code works without changes.
+In v2, the `vertical-compact` and `use-css-transforms` boolean props have been removed in favor of pluggable `compactor` and `positionStrategy` props. The default behavior is unchanged, but code that explicitly used removed props must be updated. See the [v2 migration guide](./migration).
 
 ```vue
 <template>

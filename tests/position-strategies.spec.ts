@@ -6,15 +6,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   absoluteStrategy,
+  scaledStrategy,
   transformStrategy,
 } from '../src/core/position-strategies'
 
-import {
-  setTopLeft,
-  setTopRight,
-  setTransform,
-  setTransformRtl,
-} from '../src/helpers/common'
+import { setTopLeft, setTopRight, setTransform, setTransformRtl } from '../src/helpers/common'
 
 describe('transformStrategy', () => {
   const cases = [
@@ -70,4 +66,18 @@ describe('absoluteStrategy', () => {
   )
 })
 
+describe('scaledStrategy', () => {
+  it('保留正常定位样式，并提供交互缩放比例', () => {
+    const strategy = scaledStrategy(0.5)
 
+    expect(strategy.transformScale).toBe(0.5)
+    expect(strategy.getStyle(10, 20, 100, 50)).toEqual(transformStrategy.getStyle(10, 20, 100, 50))
+    expect(strategy.getRtlStyle(10, 20, 100, 50)).toEqual(
+      transformStrategy.getRtlStyle(10, 20, 100, 50),
+    )
+  })
+
+  it.each([0, -1, Infinity, NaN])('拒绝非法缩放比例 %s', scale => {
+    expect(() => scaledStrategy(scale)).toThrow(RangeError)
+  })
+})

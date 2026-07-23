@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import { performance } from 'node:perf_hooks'
 
 import {
   fastHorizontalCompactor,
@@ -155,12 +156,23 @@ describe('horizontalCompactor', () => {
   })
 
   it('不修改输入布局', () => {
-    const layout: Layout = [
-      { i: '1', x: 5, y: 0, w: 1, h: 1 },
-    ]
+    const layout: Layout = [{ i: '1', x: 5, y: 0, w: 1, h: 1 }]
     const original = JSON.parse(JSON.stringify(layout))
     horizontalCompactor.compact(layout, 12)
     expect(layout).toEqual(original)
+  })
+
+  it('碰撞推移超出列边界时换到下一行', () => {
+    const layout: Layout = [
+      { i: 's', x: 10, y: 0, w: 2, h: 1, static: true },
+      { i: '1', x: 10, y: 0, w: 2, h: 1 },
+    ]
+    const result = horizontalCompactor.compact(layout, 12)
+    const item = result.find(l => l.i === '1')!
+
+    expect(item.x + item.w).toBeLessThanOrEqual(12)
+    expect(item).toEqual(expect.objectContaining({ x: 0, y: 1 }))
+    expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(positions(result))
   })
 })
 
@@ -302,9 +314,7 @@ describe('边界用例', () => {
 describe('fastVerticalCompactor', () => {
   it('空布局 — 与 verticalCompactor 输出一致', () => {
     const layout: Layout = []
-    expect(fastVerticalCompactor.compact(layout, 12)).toEqual(
-      verticalCompactor.compact(layout, 12),
-    )
+    expect(fastVerticalCompactor.compact(layout, 12)).toEqual(verticalCompactor.compact(layout, 12))
   })
 
   it('单元素有空隙 — 与 verticalCompactor 输出一致', () => {
@@ -476,9 +486,7 @@ describe('fastHorizontalCompactor', () => {
   })
 
   it('不修改输入布局', () => {
-    const layout: Layout = [
-      { i: '1', x: 5, y: 0, w: 1, h: 1 },
-    ]
+    const layout: Layout = [{ i: '1', x: 5, y: 0, w: 1, h: 1 }]
     const original = JSON.parse(JSON.stringify(layout))
     fastHorizontalCompactor.compact(layout, 12)
     expect(layout).toEqual(original)
@@ -500,5 +508,81 @@ describe('fastHorizontalCompactor', () => {
     expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(
       positions(horizontalCompactor.compact(layout, 12)),
     )
+  })
+})
+
+// ─── Fast Compactor 回归属性 ───────────────────────────────
+
+describe('Fast Compactor 回归属性', () => {
+  it('确定性随机布局与标准压缩器保持等价', () => {
+    let seed = 0x12345678
+    const random = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      return seed / 0x100000000
+    }
+
+    for (let run = 0; run < 300; run++) {
+      const cols = 2 + Math.floor(random() * 11)
+      const count = 1 + Math.floor(random() * 25)
+      const layout: Layout = Array.from({ length: count }, (_, index) => {
+        const w = 1 + Math.floor(random() * Math.min(4, cols))
+        return {
+          i: String(index),
+          x: Math.floor(random() * (cols - w + 1)),
+          y: Math.floor(random() * 20),
+          w,
+          h: 1 + Math.floor(random() * 4),
+          static: random() < 0.12,
+        }
+      })
+
+      expect(positions(fastVerticalCompactor.compact(layout, cols))).toEqual(
+        positions(verticalCompactor.compact(layout, cols)),
+      )
+      expect(positions(fastHorizontalCompactor.compact(layout, cols))).toEqual(
+        positions(horizontalCompactor.compact(layout, cols)),
+      )
+    }
+  })
+
+  it('800 项稀疏布局具有稳定的相对性能优势', () => {
+    const count = 800
+    const verticalLayout: Layout = Array.from({ length: count }, (_, index) => ({
+      i: String(index),
+      x: index,
+      y: 20,
+      w: 1,
+      h: 1,
+    }))
+    const horizontalLayout: Layout = Array.from({ length: count }, (_, index) => ({
+      i: String(index),
+      x: 20,
+      y: index,
+      w: 1,
+      h: 1,
+    }))
+
+    const medianDuration = (run: () => void) => {
+      run()
+      const durations = Array.from({ length: 5 }, () => {
+        const start = performance.now()
+        run()
+        return performance.now() - start
+      })
+      durations.sort((a, b) => a - b)
+      return durations[2]
+    }
+
+    const verticalStandard = medianDuration(() => verticalCompactor.compact(verticalLayout, count))
+    const verticalFast = medianDuration(() => fastVerticalCompactor.compact(verticalLayout, count))
+    const horizontalStandard = medianDuration(() =>
+      horizontalCompactor.compact(horizontalLayout, 40),
+    )
+    const horizontalFast = medianDuration(() =>
+      fastHorizontalCompactor.compact(horizontalLayout, 40),
+    )
+
+    expect(verticalFast).toBeLessThan(verticalStandard * 0.6)
+    expect(horizontalFast).toBeLessThan(horizontalStandard * 0.6)
   })
 })

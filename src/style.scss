@@ -73,7 +73,7 @@
       border: 0 solid var(--vgl-resizer-border-color);
     }
 
-    // 东南角（默认，右下）
+    // 右下角缩放手柄
     &--se {
       right: 0;
       bottom: 0;
@@ -86,124 +86,18 @@
       }
     }
 
-    // 西南角（左下）
-    &--sw {
-      bottom: 0;
+    // RTL 模式下右下角视觉上位于左下角
+    &--rtl#{&}--se {
+      right: auto;
       left: 0;
       cursor: sw-resize;
 
       &::before {
         inset: 0 0 3px 3px;
+        border-right-width: 0;
         border-bottom-width: $border-width;
         border-left-width: $border-width;
       }
-    }
-
-    // 东北角（右上）
-    &--ne {
-      top: 0;
-      right: 0;
-      cursor: ne-resize;
-
-      &::before {
-        inset: 3px 3px 0 0;
-        border-top-width: $border-width;
-        border-right-width: $border-width;
-      }
-    }
-
-    // 西北角（左上）
-    &--nw {
-      top: 0;
-      left: 0;
-      cursor: nw-resize;
-
-      &::before {
-        inset: 3px 0 0 3px;
-        border-top-width: $border-width;
-        border-left-width: $border-width;
-      }
-    }
-
-    // 南（下边中间）
-    &--s {
-      right: 0;
-      bottom: 0;
-      left: 0;
-      width: auto;
-      cursor: s-resize;
-
-      &::before {
-        inset: auto 0 3px;
-        border-bottom-width: $border-width;
-      }
-    }
-
-    // 北（上边中间）
-    &--n {
-      top: 0;
-      right: 0;
-      left: 0;
-      width: auto;
-      cursor: n-resize;
-
-      &::before {
-        inset: 3px 0 auto;
-        border-top-width: $border-width;
-      }
-    }
-
-    // 东（右边中间）
-    &--e {
-      top: 0;
-      right: 0;
-      bottom: 0;
-      height: auto;
-      cursor: e-resize;
-
-      &::before {
-        inset: 0 3px 0 auto;
-        border-right-width: $border-width;
-      }
-    }
-
-    // 西（左边中间）
-    &--w {
-      top: 0;
-      bottom: 0;
-      left: 0;
-      height: auto;
-      cursor: w-resize;
-
-      &::before {
-        inset: 0 auto 0 3px;
-        border-left-width: $border-width;
-      }
-    }
-
-    // RTL 模式下翻转水平方向的光标
-    &--rtl#{&}--se {
-      cursor: sw-resize;
-    }
-
-    &--rtl#{&}--sw {
-      cursor: se-resize;
-    }
-
-    &--rtl#{&}--ne {
-      cursor: nw-resize;
-    }
-
-    &--rtl#{&}--nw {
-      cursor: ne-resize;
-    }
-
-    &--rtl#{&}--e {
-      cursor: w-resize;
-    }
-
-    &--rtl#{&}--w {
-      cursor: e-resize;
     }
   }
 }

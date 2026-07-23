@@ -58,4 +58,17 @@ export const absoluteStrategy: PositionStrategy = {
   },
 }
 
+/**
+ * 为位于 CSS transform 缩放容器中的网格创建定位策略。
+ * 样式保持在布局坐标系中，缩放比例仅用于修正拖拽和缩放的指针坐标。
+ */
+export function scaledStrategy(scale: number): PositionStrategy {
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new RangeError('[grid-layout-plus]: scale must be a positive finite number')
+  }
 
+  return {
+    ...transformStrategy,
+    transformScale: scale,
+  }
+}

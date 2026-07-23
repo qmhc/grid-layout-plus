@@ -2,7 +2,7 @@
 
 ## Overview
 
-grid-layout-plus v2.0.0 引入了 12 项新功能，需要全面更新文档站（VitePress）和 demo 来展示这些功能。本设计覆盖：新增 demo Vue 组件、新增/更新文档页面（英文 + 中文双语）、更新 VitePress 侧边栏配置、更新属性和事件参考文档，以及更新安装/用法指南以反映 v2 的 API 变化。
+grid-layout-plus v2.0.0 引入了多项新功能，需要全面更新文档站（VitePress）和 demo 来展示这些功能。本设计覆盖：新增 9 个 demo Vue 组件、双语示例与迁移文档、更新 VitePress 侧边栏配置、更新属性和事件参考文档，以及更新安装/用法指南以反映 v2 的 API 变化。
 
 文档站使用 VitePress，demo 组件在 `docs/demos/` 下以独立 Vue SFC 形式存在，通过 `docs/.vitepress/theme/index.ts` 中的 glob 导入自动注册为 `Demo{PascalName}` 全局组件。`GridLayout` 和 `GridItem` 已全局注册，但 `GridBackground` 需要在 demo 中手动 import。dev-server 通过 `import.meta.glob` 自动路由所有 demo 文件，无需额外配置。
 
@@ -23,20 +23,20 @@ graph TD
         D1[horizontal-compact.vue]
         D2[no-compact.vue]
         D3[allow-overlap.vue]
-        D4[multi-resize-handles.vue]
-        D5[drag-threshold.vue]
-        D6[native-drop.vue]
-        D7[grid-background.vue]
-        D8[position-strategy.vue]
-        D9[config-grouping.vue]
-        D10[composable-api.vue]
+        D4[drag-threshold.vue]
+        D5[native-drop.vue]
+        D6[grid-background.vue]
+        D7[position-strategy.vue]
+        D8[config-grouping.vue]
+        D9[composable-api.vue]
     end
 
     subgraph "更新的文件"
-        U1[guide/properties.md — 新增 v2 props，标记废弃]
+        U1[guide/properties.md — 新增 v2 props]
         U2[guide/events.md — 新增 drop 事件]
         U3[guide/installation.md — 新增导入方式]
         U4[guide/usage.md — 更新示例代码]
+        U5[guide/migration.md — v1 到 v2 迁移]
     end
 ```
 
@@ -67,7 +67,6 @@ sequenceDiagram
 | `horizontal-compact.vue` | `horizontalCompactor` 水平压缩 | `horizontalCompactor` from `grid-layout-plus` |
 | `no-compact.vue` | `noCompactor` 无压缩 + 自由定位 | `noCompactor` from `grid-layout-plus` |
 | `allow-overlap.vue` | `withOverlap()` 允许重叠 | `withOverlap`, `verticalCompactor` from `grid-layout-plus` |
-| `multi-resize-handles.vue` | `resizeHandles` 多方向缩放手柄 | 无（prop 传值即可） |
 | `drag-threshold.vue` | `dragThreshold` 拖拽阈值 | 无 |
 | `native-drop.vue` | `isDroppable` + `dropItem` 原生拖放 | 无 |
 | `grid-background.vue` | `GridBackground` SVG 网格背景 | `GridBackground` from `grid-layout-plus` |
@@ -96,8 +95,6 @@ interface GridLayoutV2Props {
   compactor?: Compactor                    // 默认: verticalCompactor
   // 可插拔定位策略（替代 useCssTransforms + transformScale）
   positionStrategy?: PositionStrategy      // 默认: transformStrategy
-  // 多方向缩放手柄
-  resizeHandles?: ResizeHandle[]           // 默认: ['se']
   // 外部拖入
   isDroppable?: boolean                    // 默认: false
   dropItem?: { w: number, h: number }      // 默认: { w: 1, h: 1 }
@@ -110,14 +107,14 @@ interface GridLayoutV2Props {
   dropConfig?: DropConfig
 }
 
-type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
-
 interface Compactor {
+  readonly type?: 'vertical' | 'horizontal'
   compact(layout: Layout, cols: number): Layout
   allowOverlap?: boolean
 }
 
 interface PositionStrategy {
+  readonly transformScale?: number
   getStyle(top: number, left: number, width: number, height: number): Record<string, string>
   getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>
 }
@@ -127,8 +124,7 @@ interface PositionStrategy {
 
 ```typescript
 interface GridItemV2Props {
-  resizeHandles?: ResizeHandle[]   // 覆盖 GridLayout 的默认值
-  dragThreshold?: number           // 覆盖 GridLayout 的默认值
+  dragThreshold?: number   // 覆盖 GridLayout 的默认值
 }
 ```
 
@@ -164,7 +160,8 @@ export function withOverlap(compactor: Compactor): Compactor  // 允许元素重
 ```typescript
 export const transformStrategy: PositionStrategy   // CSS transform translate3d（默认）
 export const absoluteStrategy: PositionStrategy     // CSS top/left 绝对定位
-export function scaledStrategy(scale: number): PositionStrategy  // 缩放定位
+// 适配具有相同 CSS transform: scale(...) 的祖先，样式仍使用布局坐标
+export function scaledStrategy(scale: number): PositionStrategy
 ```
 
 ### Composable API
@@ -225,8 +222,8 @@ function updateSidebarConfig(config: VitePressConfig): VitePressConfig
 - `docs/.vitepress/config.ts` 中已有 `Example` 和 `示例` 分组
 
 **Postconditions:**
-- 英文 sidebar 的 Example 分组中新增所有新 demo 的链接
-- 中文 sidebar 的 示例 分组中新增对应的中文链接
+- 英文 sidebar 的 Example 分组中新增全部 9 个新 demo 的链接
+- 中文 sidebar 的 示例 分组中新增对应的 9 个中文链接
 - 链接顺序：现有 demo 保持不变，新 demo 追加在末尾
 - 中文 sidebar 中已有的 `styling-grid-lines` 和 `styling-placeholder` 链接修复为 `/zh/example/` 前缀
 
@@ -350,7 +347,7 @@ function handleDrop(item: { x: number, y: number, w: number, h: number }) {
 
 ### Property 1: New props documentation completeness
 
-*For any* new v2 GridLayout prop (`compactor`, `positionStrategy`, `resizeHandles`, `isDroppable`, `dropItem`, `dragThreshold`, `gridConfig`, `dragConfig`, `resizeConfig`, `dropConfig`), the `properties.md` file SHALL contain a dedicated section documenting that prop with its type, default value, and description.
+*For any* new v2 GridLayout prop (`compactor`, `positionStrategy`, `isDroppable`, `dropItem`, `dragThreshold`, `gridConfig`, `dragConfig`, `resizeConfig`, `dropConfig`), the `properties.md` file SHALL contain a dedicated section documenting that prop with its type, default value, and description.
 
 **Validates: Requirement 11.1**
 
@@ -360,9 +357,9 @@ function handleDrop(item: { x: number, y: number, w: number, h: number }) {
 
 **Validates: Requirements 12.1, 12.2**
 
-### Property 3: Deprecated props removed from usage examples
+### Property 3: Removed props absent from usage examples
 
-*For any* code example block in `usage.md`, the block SHALL NOT contain the deprecated prop names `vertical-compact` or `use-css-transforms`, and SHALL use their v2 equivalents instead.
+*For any* code example block in `usage.md`, the block SHALL NOT contain the removed prop names `vertical-compact` or `use-css-transforms`, and SHALL use their v2 equivalents instead.
 
 **Validates: Requirement 14.1**
 

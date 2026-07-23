@@ -14,11 +14,7 @@ import {
 } from 'vue'
 
 import { isNull, nextTickOnce, throttle } from '@vexip-ui/utils'
-import {
-  EMITTER_KEY,
-  LAYOUT_KEY,
-  useNameHelper,
-} from '../helpers/common'
+import { EMITTER_KEY, LAYOUT_KEY, useNameHelper } from '../helpers/common'
 import { createCoreData, getControlPosition } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
 import { getDocumentDir } from '../helpers/dom'
@@ -103,7 +99,7 @@ let innerW = props.w
 let innerH = props.h
 
 // 拖拽阈值相关状态
-let dragStartPos: { x: number, y: number } | null = null
+let dragStartPos: { x: number; y: number } | null = null
 let dragThresholdExceeded = false
 
 const wrapper = ref<HTMLElement>()
@@ -124,6 +120,9 @@ const effectiveDragThreshold = computed<number>(() => {
 const effectivePositionStrategy = computed<PositionStrategy>(() => {
   return layout.positionStrategy
 })
+
+/** 将视口坐标还原到网格使用的未缩放坐标系 */
+const transformScale = computed(() => effectivePositionStrategy.value.transformScale ?? 1)
 
 /** 判断当前定位策略是否使用 CSS transforms */
 const useCssTransforms = computed(() => {
@@ -329,6 +328,10 @@ watch(renderRtl, () => {
   nextTickOnce(tryMakeResizable)
   nextTickOnce(createStyle)
 })
+watch(effectivePositionStrategy, () => {
+  nextTickOnce(tryMakeResizable)
+  nextTickOnce(createStyle)
+})
 watch([() => layout.margin, () => layout.margin[0], () => layout.margin[1]], () => {
   const margin = layout.margin
 
@@ -435,11 +438,11 @@ function handleResize(event: MouseEvent & { edges: any }) {
     case 'resizemove': {
       const coreEvent = createCoreData(lastW, lastH, x, y)
       if (renderRtl.value) {
-        newSize.width = state.resizing.width - coreEvent.deltaX
+        newSize.width = state.resizing.width - coreEvent.deltaX / transformScale.value
       } else {
-        newSize.width = state.resizing.width + coreEvent.deltaX
+        newSize.width = state.resizing.width + coreEvent.deltaX / transformScale.value
       }
-      newSize.height = state.resizing.height + coreEvent.deltaY
+      newSize.height = state.resizing.height + coreEvent.deltaY / transformScale.value
       state.resizing = newSize
       break
     }
@@ -515,12 +518,12 @@ function handleDrag(event: MouseEvent) {
       const parentRect = target.offsetParent.getBoundingClientRect()
       const clientRect = target.getBoundingClientRect()
 
-      const cLeft = clientRect.left
-      const pLeft = parentRect.left
-      const cRight = clientRect.right
-      const pRight = parentRect.right
-      const cTop = clientRect.top
-      const pTop = parentRect.top
+      const cLeft = clientRect.left / transformScale.value
+      const pLeft = parentRect.left / transformScale.value
+      const cRight = clientRect.right / transformScale.value
+      const pRight = parentRect.right / transformScale.value
+      const cTop = clientRect.top / transformScale.value
+      const pTop = parentRect.top / transformScale.value
 
       if (renderRtl.value) {
         newPosition.left = (cRight - pRight) * -1
@@ -535,11 +538,11 @@ function handleDrag(event: MouseEvent) {
     case 'dragmove': {
       const coreEvent = createCoreData(lastX, lastY, x, y)
       if (renderRtl.value) {
-        newPosition.left = state.dragging.left - coreEvent.deltaX
+        newPosition.left = state.dragging.left - coreEvent.deltaX / transformScale.value
       } else {
-        newPosition.left = state.dragging.left + coreEvent.deltaX
+        newPosition.left = state.dragging.left + coreEvent.deltaX / transformScale.value
       }
-      newPosition.top = state.dragging.top + coreEvent.deltaY
+      newPosition.top = state.dragging.top + coreEvent.deltaY / transformScale.value
       if (state.bounded) {
         const bottomBoundary =
           target.offsetParent.clientHeight -
@@ -558,12 +561,12 @@ function handleDrag(event: MouseEvent) {
       const parentRect = target.offsetParent.getBoundingClientRect()
       const clientRect = target.getBoundingClientRect()
 
-      const cLeft = clientRect.left
-      const pLeft = parentRect.left
-      const cRight = clientRect.right
-      const pRight = parentRect.right
-      const cTop = clientRect.top
-      const pTop = parentRect.top
+      const cLeft = clientRect.left / transformScale.value
+      const pLeft = parentRect.left / transformScale.value
+      const cRight = clientRect.right / transformScale.value
+      const pRight = parentRect.right / transformScale.value
+      const cTop = clientRect.top / transformScale.value
+      const pTop = parentRect.top / transformScale.value
 
       if (renderRtl.value) {
         newPosition.left = (cRight - pRight) * -1
@@ -601,7 +604,7 @@ function handleDrag(event: MouseEvent) {
  */
 function calcGridColLeft(col: number) {
   const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
-  return Math.round(totalSpace * col / state.cols) + state.margin[0] * (col + 1)
+  return Math.round((totalSpace * col) / state.cols) + state.margin[0] * (col + 1)
 }
 
 /**
@@ -640,7 +643,9 @@ function calcPosition(x: number, y: number, w: number, h: number) {
 function calcXY(top: number, left: number) {
   const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
 
-  let x = Math.round((left - state.margin[0]) * state.cols / (totalSpace + state.margin[0] * state.cols))
+  let x = Math.round(
+    ((left - state.margin[0]) * state.cols) / (totalSpace + state.margin[0] * state.cols),
+  )
   let y = Math.round((top - state.margin[1]) / (state.rowHeight + state.margin[1]))
 
   x = Math.max(Math.min(x, state.cols - innerW), 0)
@@ -665,7 +670,9 @@ function clamp(num: number, lowerBound: number, upperBound: number) {
 function calcWH(height: number, width: number, autoSizeFlag = false) {
   const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
 
-  let w = Math.round((width + state.margin[0]) * state.cols / (totalSpace + state.margin[0] * state.cols))
+  let w = Math.round(
+    ((width + state.margin[0]) * state.cols) / (totalSpace + state.margin[0] * state.cols),
+  )
   let h = 0
   if (!autoSizeFlag) {
     h = Math.round((height + state.margin[1]) / (state.rowHeight + state.margin[1]))
@@ -775,12 +782,12 @@ function tryMakeResizable() {
       ignoreFrom: props.resizeIgnoreFrom,
       restrictSize: {
         min: {
-          height: minimum.height,
-          width: minimum.width,
+          height: minimum.height * transformScale.value,
+          width: minimum.width * transformScale.value,
         },
         max: {
-          height: maximum.height,
-          width: maximum.width,
+          height: maximum.height * transformScale.value,
+          width: maximum.width * transformScale.value,
         },
       },
       ...props.resizeOption,
@@ -808,7 +815,7 @@ function tryMakeResizable() {
     <slot></slot>
     <span
       v-if="resizableAndNotStatic"
-      :class="[nh.be('resizer'), nh.bem('resizer', 'se'), renderRtl.value && nh.bem('resizer', 'rtl')]"
+      :class="[nh.be('resizer'), nh.bem('resizer', 'se'), renderRtl && nh.bem('resizer', 'rtl')]"
     ></span>
   </section>
 </template>

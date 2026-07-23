@@ -2,7 +2,7 @@
 
 ## 简介
 
-本文档定义 grid-layout-plus v2.0.0 补齐 react-grid-layout v2 所有缺失功能的需求。变更分为四个阶段：核心算法层、组件功能增强、Composable API（headless 模式）、Extras。本次为 Major 版本升级，允许 breaking changes：废弃的 props（`verticalCompact`、`useCssTransforms`、`transformScale`）将被移除，由新的可插拔接口替代。
+本文档定义 grid-layout-plus v2.0.0 补齐 react-grid-layout v2 所有缺失功能的需求。变更分为四个阶段：核心算法层、组件功能增强、Composable API（headless 模式）、Extras。本次为 Major 版本升级，允许 breaking changes：v1 props（`verticalCompact`、`useCssTransforms`、`transformScale`）在 v2 中已移除，由新的可插拔接口替代。
 
 ## 术语表
 
@@ -15,7 +15,7 @@
 - **HorizontalCompactor**：水平压缩器，将元素向左移动以消除水平空隙（新增）
 - **NoCompactor**：无压缩器，不执行任何压缩操作（新增）
 - **AllowOverlap**：允许重叠模式，Compactor 的属性，启用后元素可以重叠放置
-- **ResizeHandle**：缩放手柄方向，取值为 `'s' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'`
+- **缩放手柄**：GridItem 固定提供的右下角（`se`）交互控件，不作为公共方向类型导出
 - **DropZone**：拖放区域，GridLayout 作为外部拖入目标时的行为区域
 - **DragThreshold**：拖拽阈值，鼠标移动超过该像素距离后才触发拖拽
 - **Composable**：Vue 3 组合式函数（`use*`），提供可复用的响应式逻辑
@@ -33,8 +33,8 @@
 
 #### 验收标准
 
-1. WHEN GridLayout 的 `compactType` 属性设置为 `'horizontal'` 时，THE Compactor SHALL 将所有非静态 LayoutItem 向左移动至无碰撞的最小 x 坐标位置
-2. WHILE 水平压缩执行期间，THE Compactor SHALL 保持每个 LayoutItem 的 y 坐标不变
+1. WHEN GridLayout 使用 `horizontalCompactor` 时，THE Compactor SHALL 将所有非静态 LayoutItem 向左移动至无碰撞的最小 x 坐标位置
+2. WHILE 当前行仍有可用空间，THE Compactor SHALL 保持 LayoutItem 的 y 坐标不变；WHEN 碰撞推移导致 `x + w > cols` 时，THE Compactor SHALL 将元素换到下一行继续压缩
 3. WHILE 水平压缩执行期间，THE Compactor SHALL 跳过 `static` 属性为 `true` 的 LayoutItem，并将静态元素作为碰撞障碍物处理
 4. WHEN 两个非静态 LayoutItem 在水平压缩后占据重叠区域时，THE Compactor SHALL 将后处理的元素放置在先处理元素的右侧（`x = 先处理元素.x + 先处理元素.w`）
 5. THE Compactor SHALL 按列优先顺序（先 x 后 y）排序 LayoutItem 后再执行水平压缩
@@ -76,18 +76,16 @@
 5. WHEN 用户通过 `import { compact } from 'grid-layout-plus/core'` 导入时，THE 构建系统 SHALL 正确解析到 `src/core.ts` 的编译产物
 6. THE 公共入口 `src/index.ts` SHALL 重新导出 CoreAPI 的所有公共符号，以保持向后兼容
 
-### 需求 5：多方向缩放手柄
+### 需求 5：右下角缩放手柄
 
-**用户故事：** 作为开发者，我希望 GridItem 支持 8 个方向的缩放手柄，以便用户可以从任意边或角缩放元素。
+**用户故事：** 作为开发者，我希望 GridItem 提供稳定的右下角缩放手柄，以便在不引入拖动抖动和高频重排的情况下调整元素尺寸。
 
 #### 验收标准
 
-1. THE GridItem SHALL 支持 `resizeHandles` 属性，类型为 `ResizeHandle[]`，默认值为 `['se']`（保持向后兼容）
-2. WHEN `resizeHandles` 包含 `'s'`、`'w'`、`'e'`、`'n'`、`'sw'`、`'nw'`、`'se'`、`'ne'` 中的任意值时，THE GridItem SHALL 在对应方向渲染缩放手柄 DOM 元素
-3. WHEN 用户通过非默认方向（如 `'n'`、`'w'`、`'nw'`）的手柄缩放时，THE GridItem SHALL 同时更新元素的位置（x 和/或 y）和尺寸（w 和/或 h），使缩放视觉效果正确
-4. THE GridLayout SHALL 支持 `resizeHandles` 属性作为所有子项的默认值，单个 GridItem 的 `resizeHandles` 属性优先级高于 GridLayout 的设置
-5. WHEN `resizeHandles` 包含多个方向时，THE GridItem SHALL 为每个方向渲染独立的手柄元素，每个手柄具有方向特定的 CSS 类名和光标样式
-6. THE `src/style.scss` SHALL 为所有 8 个方向的缩放手柄定义正确的定位（position）、光标（cursor）和视觉样式
+1. THE GridItem SHALL 在可缩放且非静态时渲染一个右下角（`se`）缩放手柄
+2. THE GridItem SHALL NOT 暴露 `resizeHandles` 属性或 `ResizeHandle` 公共类型
+3. WHEN 页面为 RTL 布局时，THE GridItem SHALL 将手柄显示在视觉左下角并使用对应光标
+4. THE `src/style.scss` SHALL 仅保留 `se` 手柄及其 RTL 状态所需的样式
 
 ### 需求 6：从外部拖入
 
@@ -121,7 +119,7 @@
 
 1. THE GridLayout SHALL 支持 `gridConfig` 属性，包含 `colNum`、`rowHeight`、`maxRows`、`margin`、`autoSize` 等网格配置
 2. THE GridLayout SHALL 支持 `dragConfig` 属性，包含 `isDraggable`、`dragThreshold`、`restoreOnDrag` 等拖拽配置
-3. THE GridLayout SHALL 支持 `resizeConfig` 属性，包含 `isResizable`、`resizeHandles` 等缩放配置
+3. THE GridLayout SHALL 支持 `resizeConfig` 属性，包含 `isResizable` 缩放配置
 4. THE GridLayout SHALL 支持 `dropConfig` 属性，包含 `isDroppable`、`dropItem` 等拖放配置
 5. WHEN 同一配置项同时通过分组属性和扁平属性传入时，THE GridLayout SHALL 以扁平属性的值为准（扁平属性优先级更高）
 6. WHEN 仅通过扁平属性传入配置时，THE GridLayout SHALL 保持与 v1.1.1 完全一致的行为（向后兼容）
@@ -200,7 +198,7 @@
 1. THE CoreAPI SHALL 导出 `PositionStrategy` 接口，该接口定义 `getStyle(top: number, left: number, width: number, height: number): Record<string, string>` 方法签名和 `getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>` 方法签名
 2. THE CoreAPI SHALL 导出 `transformStrategy` 实现，其行为与当前 `setTransform` / `setTransformRtl` 函数一致（使用 CSS transform translate3d 定位）
 3. THE CoreAPI SHALL 导出 `absoluteStrategy` 实现，其行为与当前 `setTopLeft` / `setTopRight` 函数一致（使用 CSS top/left/right 定位）
-4. THE CoreAPI SHALL 导出 `scaledStrategy` 工厂函数，接受 `scale: number` 参数，返回一个将坐标按比例缩放后应用 transform 定位的 PositionStrategy 实例
+4. THE CoreAPI SHALL 导出 `scaledStrategy` 工厂函数，接受正有限数 `scale`，返回保持正常定位样式并通过 `transformScale` 元数据修正拖拽、缩放指针坐标的 PositionStrategy 实例
 5. WHEN GridLayout 的 `positionStrategy` 属性被设置为自定义 PositionStrategy 实例时，THE GridItem SHALL 使用该策略生成定位样式
 6. WHEN GridLayout 未设置 `positionStrategy` 属性时，THE GridItem SHALL 使用 `transformStrategy` 作为默认定位策略（旧 `useCssTransforms` 和 `transformScale` props 已移除）
 

@@ -20,7 +20,6 @@ import {
   LAYOUT_KEY,
   bottom,
   cloneLayout,
-  compact,
   getAllCollisions,
   getLayoutItem,
   moveElement,
@@ -34,7 +33,13 @@ import {
 import { verticalCompactor } from '../core/compactors'
 import { transformStrategy } from '../core/position-strategies'
 
-import type { Breakpoint, Compactor, Layout, LayoutInstance, PositionStrategy } from '../helpers/types'
+import type {
+  Breakpoint,
+  Compactor,
+  Layout,
+  LayoutInstance,
+  PositionStrategy,
+} from '../helpers/types'
 import type { GridLayoutProps } from './types'
 
 const props = withDefaults(defineProps<GridLayoutProps>(), {
@@ -83,15 +88,27 @@ const effectiveAutoSize = computed(() => props.autoSize ?? props.gridConfig?.aut
 const effectiveColNum = computed(() => props.colNum ?? props.gridConfig?.colNum ?? 12)
 const effectiveRowHeight = computed(() => props.rowHeight ?? props.gridConfig?.rowHeight ?? 150)
 const effectiveMaxRows = computed(() => props.maxRows ?? props.gridConfig?.maxRows ?? Infinity)
-const effectiveMargin = computed<[number, number]>(() =>
-  (props.margin ?? props.gridConfig?.margin ?? [10, 10]) as [number, number],
+const effectiveMargin = computed<[number, number]>(
+  () => (props.margin ?? props.gridConfig?.margin ?? [10, 10]) as [number, number],
 )
-const effectiveIsDraggable = computed(() => props.isDraggable ?? props.dragConfig?.isDraggable ?? true)
-const effectiveDragThreshold = computed(() => props.dragThreshold ?? props.dragConfig?.dragThreshold ?? 0)
-const effectiveRestoreOnDrag = computed(() => props.restoreOnDrag ?? props.dragConfig?.restoreOnDrag ?? false)
-const effectiveIsResizable = computed(() => props.isResizable ?? props.resizeConfig?.isResizable ?? true)
-const effectiveIsDroppable = computed(() => props.isDroppable ?? props.dropConfig?.isDroppable ?? false)
-const effectiveDropItem = computed(() => props.dropItem ?? props.dropConfig?.dropItem ?? { w: 1, h: 1 })
+const effectiveIsDraggable = computed(
+  () => props.isDraggable ?? props.dragConfig?.isDraggable ?? true,
+)
+const effectiveDragThreshold = computed(
+  () => props.dragThreshold ?? props.dragConfig?.dragThreshold ?? 0,
+)
+const effectiveRestoreOnDrag = computed(
+  () => props.restoreOnDrag ?? props.dragConfig?.restoreOnDrag ?? false,
+)
+const effectiveIsResizable = computed(
+  () => props.isResizable ?? props.resizeConfig?.isResizable ?? true,
+)
+const effectiveIsDroppable = computed(
+  () => props.isDroppable ?? props.dropConfig?.isDroppable ?? false,
+)
+const effectiveDropItem = computed(
+  () => props.dropItem ?? props.dropConfig?.dropItem ?? { w: 1, h: 1 },
+)
 
 const effectiveConfig = computed(() => ({
   autoSize: effectiveAutoSize.value,
@@ -123,7 +140,7 @@ const state = reactive({
   lastBreakpoint: null as Breakpoint | null,
   originalLayout: null! as Layout,
   // 外部拖入占位符状态
-  dropPlaceholder: null as { x: number, y: number, w: number, h: number } | null,
+  dropPlaceholder: null as { x: number; y: number; w: number; h: number } | null,
 })
 
 const itemInstances = new Map<number | string, any>()
@@ -191,23 +208,19 @@ function dragEventHandler(
  * 使用可插拔 compactor 执行布局压缩。
  * 替代原来直接调用 compact(layout, verticalCompact) 的方式。
  */
-function compactLayout(positionsBeforeDrag?: Record<string, { x: number, y: number }>) {
-  if (positionsBeforeDrag) {
-    // restoreOnDrag 模式：使用旧的 compact 函数以支持 minPositions
-    compact(currentLayout.value, true, positionsBeforeDrag)
-  } else {
-    // 使用可插拔 compactor
-    const result = props.compactor.compact(currentLayout.value, effectiveColNum.value)
-    // 将结果同步回 currentLayout（保持引用稳定）
-    for (let i = 0; i < currentLayout.value.length; i++) {
-      const src = result.find(r => r.i === currentLayout.value[i].i)
-      if (src) {
-        currentLayout.value[i].x = src.x
-        currentLayout.value[i].y = src.y
-        currentLayout.value[i].w = src.w
-        currentLayout.value[i].h = src.h
-        currentLayout.value[i].moved = src.moved
-      }
+function compactLayout() {
+  const result = props.compactor.compact(currentLayout.value, effectiveColNum.value)
+  const resultById = new Map(result.map(item => [item.i, item]))
+
+  // 将结果同步回 currentLayout（保持引用稳定）
+  for (let i = 0; i < currentLayout.value.length; i++) {
+    const src = resultById.get(currentLayout.value[i].i)
+    if (src) {
+      currentLayout.value[i].x = src.x
+      currentLayout.value[i].y = src.y
+      currentLayout.value[i].w = src.w
+      currentLayout.value[i].h = src.h
+      currentLayout.value[i].moved = src.moved
     }
   }
 }
@@ -233,30 +246,18 @@ watch(
     layoutUpdate()
   },
 )
-watch(
-  effectiveColNum,
-  val => {
-    emitter.emit('setColNum', val)
-  },
-)
-watch(
-  effectiveRowHeight,
-  value => {
-    emitter.emit('setRowHeight', value)
-  },
-)
-watch(
-  effectiveIsDraggable,
-  value => {
-    emitter.emit('setDraggable', value)
-  },
-)
-watch(
-  effectiveIsResizable,
-  value => {
-    emitter.emit('setResizable', value)
-  },
-)
+watch(effectiveColNum, val => {
+  emitter.emit('setColNum', val)
+})
+watch(effectiveRowHeight, value => {
+  emitter.emit('setRowHeight', value)
+})
+watch(effectiveIsDraggable, value => {
+  emitter.emit('setDraggable', value)
+})
+watch(effectiveIsResizable, value => {
+  emitter.emit('setResizable', value)
+})
 watch(
   () => props.isBounded,
   value => {
@@ -273,12 +274,9 @@ watch(
     onWindowResize()
   },
 )
-watch(
-  effectiveMaxRows,
-  value => {
-    emitter.emit('setMaxRows', value)
-  },
-)
+watch(effectiveMaxRows, value => {
+  emitter.emit('setMaxRows', value)
+})
 watch(
   () => props.compactor,
   () => {
@@ -370,11 +368,10 @@ function containerHeight() {
   if (!effectiveAutoSize.value) return
 
   const marginY = parseFloat(effectiveMargin.value[1] as any)
-  const containerHeight = bottom(currentLayout.value) * (effectiveRowHeight.value + marginY) + marginY + 'px'
+  const containerHeight =
+    bottom(currentLayout.value) * (effectiveRowHeight.value + marginY) + marginY + 'px'
   return containerHeight
 }
-
-let positionsBeforeDrag: Record<string, { x: number, y: number }> | undefined
 
 function dragEvent(
   eventName: string,
@@ -388,18 +385,6 @@ function dragEvent(
 
   if (isNull(l)) {
     l = { h: 0, w: 0, x: 0, y: 0, i: '' }
-  }
-
-  if (eventName === 'dragstart' && props.compactor.allowOverlap) {
-    // allowOverlap 模式下不需要记录位置
-  } else if (eventName === 'dragstart') {
-    positionsBeforeDrag = currentLayout.value.reduce(
-      (result, { i, x, y }) => ({
-        ...result,
-        [i]: { x, y },
-      }),
-      {},
-    )
   }
 
   if (eventName === 'dragmove' || eventName === 'dragstart') {
@@ -426,12 +411,20 @@ function dragEvent(
     l.y = y
     l.moved = true
   } else {
-    currentLayout.value = moveElement(currentLayout.value, l, x, y, true, props.preventCollision)
+    currentLayout.value = moveElement(
+      currentLayout.value,
+      l,
+      x,
+      y,
+      true,
+      props.preventCollision,
+      props.compactor.type ?? 'vertical',
+    )
   }
 
   if (effectiveRestoreOnDrag.value && !props.compactor.allowOverlap) {
     l.static = true
-    compactLayout(positionsBeforeDrag)
+    compactLayout()
     l.static = false
   } else if (!props.compactor.allowOverlap) {
     compactLayout()
@@ -440,7 +433,6 @@ function dragEvent(
   emitter.emit('compact')
   updateHeight()
   if (eventName === 'dragend') {
-    positionsBeforeDrag = undefined
     emit('layout-updated', currentLayout.value)
   }
 }
@@ -530,7 +522,7 @@ function responsiveGridLayout() {
     newBreakpoint,
     state.lastBreakpoint!,
     newCols,
-    true,
+    props.compactor,
   )
 
   state.layouts[newBreakpoint] = layout

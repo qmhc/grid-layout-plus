@@ -1,6 +1,6 @@
-import { cloneLayout, compact, correctBounds } from './common'
+import { cloneLayout, correctBounds } from './common'
 
-import type { Breakpoint, Breakpoints, Layout, ResponsiveLayout } from './types'
+import type { Breakpoint, Breakpoints, Compactor, Layout, ResponsiveLayout } from './types'
 
 /**
  * Given a width, find the highest breakpoint that matches is valid for it (width > breakpoint).
@@ -45,8 +45,7 @@ export function getColsFromBreakpoint(breakpoint: Breakpoint, cols: Breakpoints)
  * @param  breakpoint New breakpoint.
  * @param  breakpoint Last breakpoint (for fallback).
  * @param  cols       Column count at new breakpoint.
- * @param  verticalCompact Whether or not to compact the layout
- *   vertically.
+ * @param  compactor Compactor used to normalize the generated layout.
  * @return              New layout.
  */
 export function findOrGenerateResponsiveLayout(
@@ -56,10 +55,12 @@ export function findOrGenerateResponsiveLayout(
   breakpoint: Breakpoint,
   lastBreakpoint: Breakpoint,
   cols: number,
-  verticalCompact: boolean,
+  compactor: Compactor,
 ): Layout {
   // If it already exists, just return it.
-  if (layouts[breakpoint]) return cloneLayout(layouts[breakpoint])
+  if (layouts[breakpoint]) {
+    return compactor.compact(correctBounds(cloneLayout(layouts[breakpoint]), { cols }), cols)
+  }
   // Find or generate the next layout
   let layout = orgLayout
 
@@ -73,7 +74,7 @@ export function findOrGenerateResponsiveLayout(
     }
   }
   layout = cloneLayout(layout || []) // clone layout so we don't modify existing items
-  return compact(correctBounds(layout, { cols }), verticalCompact)
+  return compactor.compact(correctBounds(layout, { cols }), cols)
 }
 
 export function generateResponsiveLayout(
@@ -82,7 +83,7 @@ export function generateResponsiveLayout(
   breakpoint: Breakpoint,
   lastBreakpoint: Breakpoint,
   cols: number,
-  verticalCompact: boolean,
+  compactor: Compactor,
 ): Layout {
   // If it already exists, just return it.
   /* if (layouts[breakpoint]) return cloneLayout(layouts[breakpoint]);
@@ -96,9 +97,9 @@ for (let i = 0, len = breakpointsAbove.length; i < len; i++) {
     layout = layouts[b];
     break;
   }
-} */
+  } */
   layout = cloneLayout(layout || []) // clone layout so we don't modify existing items
-  return compact(correctBounds(layout, { cols }), verticalCompact)
+  return compactor.compact(correctBounds(layout, { cols }), cols)
 }
 
 /**

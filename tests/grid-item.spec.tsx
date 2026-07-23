@@ -1,10 +1,50 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, shallowMount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
 import { GridLayout } from '../src'
+import { scaledStrategy } from '../src/core/position-strategies'
 
 import type { Layout } from '../src/helpers/types'
+
+const interactMock = vi.hoisted(() => {
+  const interactables = new Map<Element, any>()
+  const interact = vi.fn((element: Element) => {
+    const listeners = new Map<string, (event: any) => void>()
+    const instance: Record<string, any> = { listeners }
+
+    instance.draggable = vi.fn(() => instance)
+    instance.resizable = vi.fn(() => instance)
+    instance.styleCursor = vi.fn(() => instance)
+    instance.unset = vi.fn(() => instance)
+    instance.on = vi.fn((types: string, listener: (event: any) => void) => {
+      for (const type of types.split(' ')) listeners.set(type, listener)
+      return instance
+    })
+
+    interactables.set(element, instance)
+    return instance
+  })
+
+  Object.assign(interact, {
+    modifiers: {
+      aspectRatio: vi.fn(() => ({})),
+    },
+  })
+
+  return { interact, interactables }
+})
+
+vi.mock('interactjs', () => ({ default: interactMock.interact }))
+
+beforeEach(() => {
+  interactMock.interact.mockClear()
+  interactMock.interactables.clear()
+})
+
+afterEach(() => {
+  document.documentElement.removeAttribute('dir')
+})
 
 describe('GridLayout test', () => {
   let layout: Layout
@@ -38,6 +78,144 @@ describe('GridLayout test', () => {
 
       expect(grid.exists()).toBe(true)
     })
+  })
+})
+
+describe('GridItem interaction', () => {
+  function createRect(left: number, top: number, right: number, bottom: number): DOMRect {
+    return {
+      bottom,
+      height: bottom - top,
+      left,
+      right,
+      top,
+      width: right - left,
+      x: left,
+      y: top,
+      toJSON: () => ({}),
+    }
+  }
+
+  async function mountItem(
+    props: Partial<InstanceType<typeof GridLayout>['$props']> = {},
+    scale = 1,
+  ) {
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: [{ x: 0, y: 0, w: 1, h: 1, i: 'item' }],
+        colNum: 12,
+        rowHeight: 30,
+        margin: [10, 10],
+        isResizable: false,
+        ...props,
+      },
+      attachTo: document.body,
+    })
+
+    const vm = wrapper.vm as any
+    const parent = wrapper.find<HTMLElement>('.vgl-layout')
+    Object.defineProperty(parent.element, 'offsetWidth', {
+      configurable: true,
+      value: 1200,
+    })
+    vm.state.width = 1200
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    const item = wrapper
+      .findAll<HTMLElement>('.vgl-item')
+      .find(element => !element.classes().includes('vgl-item--placeholder'))!
+
+    Object.defineProperty(item.element, 'offsetParent', {
+      configurable: true,
+      value: parent.element,
+    })
+    Object.defineProperty(parent.element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => createRect(50, 100, 50 + 1200 * scale, 100 + 600 * scale),
+    })
+    Object.defineProperty(item.element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => createRect(50 + 10 * scale, 100 + 10 * scale, 150, 150),
+    })
+
+    const interactable = interactMock.interactables.get(item.element)
+    expect(interactable).toBeDefined()
+
+    return { wrapper, item, interactable }
+  }
+
+  function dragEvent(type: string, target: HTMLElement, clientX: number, clientY: number) {
+    return { type, target, clientX, clientY } as MouseEvent
+  }
+
+  it('仅为可缩放项渲染一个 se 手柄', async () => {
+    const { wrapper, item } = await mountItem({ isResizable: true })
+
+    expect(item.findAll('.vgl-item__resizer')).toHaveLength(1)
+    expect(item.find('.vgl-item__resizer--se').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('RTL 模式下为 se 手柄启用镜像样式类', async () => {
+    document.documentElement.dir = 'rtl'
+    const { wrapper, item } = await mountItem({ isResizable: true })
+
+    expect(item.find('.vgl-item__resizer--se').classes()).toContain('vgl-item__resizer--rtl')
+
+    wrapper.unmount()
+  })
+
+  it('未达到拖拽阈值时不开始拖拽，达到阈值时开始', async () => {
+    const { wrapper, item, interactable } = await mountItem({ dragThreshold: 10 })
+    const listener = interactable.listeners.get('dragstart')!
+
+    listener(dragEvent('dragstart', item.element, 100, 100))
+    listener(dragEvent('dragmove', item.element, 105, 108))
+    await nextTick()
+    expect(item.classes()).not.toContain('vgl-item--dragging')
+
+    listener(dragEvent('dragmove', item.element, 106, 108))
+    await nextTick()
+    expect(item.classes()).toContain('vgl-item--dragging')
+
+    listener(dragEvent('dragend', item.element, 106, 108))
+    await nextTick()
+    expect(item.classes()).not.toContain('vgl-item--dragging')
+
+    wrapper.unmount()
+  })
+
+  it('dragThreshold 为 0 时在 dragstart 立即开始拖拽', async () => {
+    const { wrapper, item, interactable } = await mountItem({ dragThreshold: 0 })
+    const listener = interactable.listeners.get('dragstart')!
+
+    listener(dragEvent('dragstart', item.element, 100, 100))
+    await nextTick()
+
+    expect(item.classes()).toContain('vgl-item--dragging')
+    wrapper.unmount()
+  })
+
+  it('scaledStrategy 将视觉指针位移还原到布局坐标', async () => {
+    const { wrapper, item, interactable } = await mountItem(
+      { positionStrategy: scaledStrategy(0.5) },
+      0.5,
+    )
+    const listener = interactable.listeners.get('dragstart')!
+
+    listener(dragEvent('dragstart', item.element, 55, 105))
+    await nextTick()
+    expect(item.attributes('style')).toContain('translate3d(10px,10px, 0)')
+
+    listener(dragEvent('dragmove', item.element, 65, 115))
+    await vi.waitFor(() => {
+      expect(item.attributes('style')).toContain('translate3d(30px,30px, 0)')
+    })
+
+    wrapper.unmount()
   })
 })
 
@@ -94,7 +272,6 @@ describe('Column width rounding (Issue #58)', () => {
           margin,
           isDraggable: false,
           isResizable: false,
-          useCssTransforms: false,
         },
         attachTo: document.body,
       })
@@ -116,9 +293,9 @@ describe('Column width rounding (Issue #58)', () => {
 
       expect(visibleItems.length).toBeGreaterThanOrEqual(colNum)
 
-      const parsed = visibleItems.slice(0, colNum).map(item =>
-        parseItemStyle(item.attributes('style') || ''),
-      )
+      const parsed = visibleItems
+        .slice(0, colNum)
+        .map(item => parseItemStyle(item.attributes('style') || ''))
 
       // 所有 item 都应有有效的 left 和 width
       for (let i = 0; i < colNum; i++) {

@@ -7,19 +7,19 @@ import type { Ref } from 'vue'
 import type { Compactor, Layout, LayoutItem } from '../helpers/types'
 
 export interface UseGridLayoutOptions {
-  layout: Ref<Layout> | Layout,
-  cols?: number,
-  rowHeight?: number,
-  compactor?: Compactor,
-  preventCollision?: boolean,
+  layout: Ref<Layout> | Layout
+  cols?: number
+  rowHeight?: number
+  compactor?: Compactor
+  preventCollision?: boolean
 }
 
 export interface UseGridLayoutReturn {
-  currentLayout: Ref<Layout>,
-  moveItem: (i: number | string, x: number, y: number) => void,
-  resizeItem: (i: number | string, w: number, h: number) => void,
-  addItem: (item: LayoutItem) => void,
-  removeItem: (i: number | string) => void,
+  currentLayout: Ref<Layout>
+  moveItem: (i: number | string, x: number, y: number) => void
+  resizeItem: (i: number | string, w: number, h: number) => void
+  addItem: (item: LayoutItem) => void
+  removeItem: (i: number | string) => void
 }
 
 /**
@@ -30,11 +30,7 @@ export interface UseGridLayoutReturn {
  * @returns 响应式布局状态和操作方法
  */
 export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutReturn {
-  const {
-    cols = 12,
-    compactor: comp = verticalCompactor,
-    preventCollision = false,
-  } = options
+  const { cols = 12, compactor: comp = verticalCompactor, preventCollision = false } = options
 
   const layoutSource = isRef(options.layout) ? options.layout : ref(options.layout)
 
@@ -47,7 +43,7 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
   })
 
   // 当外部 layout 引用变化时，同步更新内部布局
-  watch(layoutSource, (newLayout) => {
+  watch(layoutSource, newLayout => {
     rawLayout.value = cloneLayout(newLayout)
   })
 
@@ -55,7 +51,7 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
     const layout = cloneLayout(rawLayout.value)
     const item = getLayoutItem(layout, i)
     if (!item) return
-    moveElement(layout, item, x, y, true, preventCollision)
+    moveElement(layout, item, x, y, true, preventCollision, comp.type ?? 'vertical')
     rawLayout.value = layout
   }
 

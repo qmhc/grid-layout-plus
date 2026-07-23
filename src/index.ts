@@ -37,6 +37,7 @@ export {
   verticalCompactor,
   withOverlap,
   absoluteStrategy,
+  scaledStrategy,
   transformStrategy,
   calcGridCellDimensions,
 } from './core'

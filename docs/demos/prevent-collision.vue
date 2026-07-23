@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 
+import { noCompactor } from 'grid-layout-plus'
+
 const layout = reactive([
   { x: 0, y: 0, w: 2, h: 2, i: '0', static: false },
   { x: 2, y: 0, w: 2, h: 4, i: '1', static: true },
@@ -30,7 +32,7 @@ const layout = reactive([
     v-model:layout="layout"
     :row-height="30"
     :responsive="false"
-    :vertical-compact="false"
+    :compactor="noCompactor"
     prevent-collision
   >
     <template #item="{ item }">

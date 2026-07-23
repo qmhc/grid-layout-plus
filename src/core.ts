@@ -28,10 +28,7 @@ export {
 } from './core/compactors'
 
 // 导出 PositionStrategy 相关
-export {
-  absoluteStrategy,
-  transformStrategy,
-} from './core/position-strategies'
+export { absoluteStrategy, scaledStrategy, transformStrategy } from './core/position-strategies'
 
 // 导出工具函数
 export { calcGridCellDimensions } from './core/utils'
@@ -40,6 +37,7 @@ export { calcGridCellDimensions } from './core/utils'
 export type {
   Breakpoint,
   Breakpoints,
+  CompactType,
   Compactor,
   GridCellDimensions,
   Layout,

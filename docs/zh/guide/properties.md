@@ -59,6 +59,7 @@ type ResponsiveLayout = Record<Breakpoint, Layout>
 
 ```ts
 interface Compactor {
+  readonly type?: 'vertical' | 'horizontal'
   compact(layout: Layout, cols: number): Layout
   allowOverlap?: boolean
 }
@@ -66,14 +67,14 @@ interface Compactor {
 
 内置压缩器：
 
-| 压缩器 | 说明 |
-| --- | --- |
-| `verticalCompactor` | 向上压缩元素（默认，等价于 v1 的 `verticalCompact: true`） |
-| `horizontalCompactor` | 向左压缩元素 |
-| `noCompactor` | 无压缩，自由定位 |
-| `fastVerticalCompactor` | 区间树加速的垂直压缩，O(n log n) |
-| `fastHorizontalCompactor` | 区间树加速的水平压缩，O(n log n) |
-| `withOverlap(compactor)` | 包装任意压缩器以允许元素重叠 |
+| 压缩器                    | 说明                                                       |
+| ------------------------- | ---------------------------------------------------------- |
+| `verticalCompactor`       | 向上压缩元素（默认，等价于 v1 的 `verticalCompact: true`） |
+| `horizontalCompactor`     | 向左压缩元素，行空间不足时换到下一行                       |
+| `noCompactor`             | 无压缩，自由定位                                           |
+| `fastVerticalCompactor`   | 增量区间索引加速的垂直压缩，O(n log n)                     |
+| `fastHorizontalCompactor` | 增量区间索引加速的水平压缩，O(n log n)                     |
+| `withOverlap(compactor)`  | 包装任意压缩器以允许元素重叠                               |
 
 ### PositionStrategy
 
@@ -81,6 +82,7 @@ interface Compactor {
 
 ```ts
 interface PositionStrategy {
+  readonly transformScale?: number
   getStyle(top: number, left: number, width: number, height: number): Record<string, string>
   getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>
 }
@@ -88,11 +90,11 @@ interface PositionStrategy {
 
 内置策略：
 
-| 策略 | 说明 |
-| --- | --- |
-| `transformStrategy` | 使用 CSS `translate3d` 定位（默认） |
-| `absoluteStrategy` | 使用 CSS `top`/`left` 定位 |
-| `scaledStrategy(scale)` | 对位置和尺寸应用缩放因子 |
+| 策略                    | 说明                                        |
+| ----------------------- | ------------------------------------------- |
+| `transformStrategy`     | 使用 CSS `translate3d` 定位（默认）         |
+| `absoluteStrategy`      | 使用 CSS `top`/`left` 定位                  |
+| `scaledStrategy(scale)` | 修正父容器 CSS `transform` 缩放后的指针坐标 |
 
 ### GridConfig
 
@@ -222,15 +224,6 @@ interface DropConfig {
 
 表示容器的高度是否自适应。
 
-### vertical-compact
-
-> ⚠️ **已废弃** — 请使用 [`compactor`](#compactor) 代替。传入 `verticalCompactor`（默认）或 `noCompactor` 来控制压缩行为。
-
-- 类型：`boolean`
-- 默认值：`true`
-
-表示布局是否应该纵向压缩。
-
 ### restore-on-drag
 
 - 类型：`boolean`
@@ -244,15 +237,6 @@ interface DropConfig {
 - 默认值：`false`
 
 表示是否防止元素碰撞，值为 `true` 时，元素只能拖放至空白处。
-
-### use-css-transforms
-
-> ⚠️ **已废弃** — 请使用 [`positionStrategy`](#position-strategy) 代替。传入 `transformStrategy`（默认）或 `absoluteStrategy`。
-
-- 类型：`boolean`
-- 默认值：`true`
-
-表示是否使用 `transition-property: transform;` 的 CSS 属性。
 
 ### responsive
 
@@ -288,15 +272,6 @@ interface DropConfig {
 
 **该属性不是响应式的。**
 
-### transform-scale
-
-> ⚠️ **已废弃** — 请使用 [`positionStrategy`](#position-strategy) 配合 `scaledStrategy(scale)` 代替。
-
-- 类型：`number`
-- 默认值：`1`
-
-为栅格元素的大小设置缩放比例，`1` 表示 100%。
-
 ### compactor
 
 - 类型：`Compactor`
@@ -321,7 +296,7 @@ import { horizontalCompactor, noCompactor, verticalCompactor, withOverlap } from
 import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout-plus'
 ```
 
-当栅格在缩放容器中渲染时，使用 `scaledStrategy(scale)`。
+当祖先元素使用相同的 CSS `transform: scale(...)` 渲染栅格时，使用 `scaledStrategy(scale)`。该策略不改变布局样式，而是把拖拽和缩放的指针坐标还原到未缩放的栅格坐标系。
 
 ### is-droppable
 
@@ -349,7 +324,7 @@ import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout
 - 类型：`GridConfig`
 - 默认值：`undefined`
 
-栅格相关属性的分组配置对象。提供时，其值会覆盖对应的独立属性（`col-num`、`row-height`、`max-rows`、`margin`、`auto-size`）。
+栅格相关属性的分组配置对象。显式传入的独立属性优先；未传入独立属性时才使用分组值。
 
 ```ts
 interface GridConfig {
@@ -366,7 +341,7 @@ interface GridConfig {
 - 类型：`DragConfig`
 - 默认值：`undefined`
 
-拖拽相关属性的分组配置对象。提供时，其值会覆盖对应的独立属性（`is-draggable`、`drag-threshold`、`restore-on-drag`）。
+拖拽相关属性的分组配置对象。显式传入的独立属性优先；未传入独立属性时才使用分组值。
 
 ```ts
 interface DragConfig {
@@ -381,12 +356,11 @@ interface DragConfig {
 - 类型：`ResizeConfig`
 - 默认值：`undefined`
 
-缩放相关属性的分组配置对象。提供时，其值会覆盖对应的独立属性（`is-resizable`、`resize-handles`）。
+缩放相关属性的分组配置对象。显式传入的 `is-resizable` 优先；未传入时才使用分组值。
 
 ```ts
 interface ResizeConfig {
   isResizable?: boolean
-  resizeHandles?: ResizeHandle[]
 }
 ```
 
@@ -395,7 +369,7 @@ interface ResizeConfig {
 - 类型：`DropConfig`
 - 默认值：`undefined`
 
-拖放相关属性的分组配置对象。提供时，其值会覆盖对应的独立属性（`is-droppable`、`drop-item`）。
+拖放相关属性的分组配置对象。显式传入的独立属性优先；未传入独立属性时才使用分组值。
 
 ```ts
 interface DropConfig {

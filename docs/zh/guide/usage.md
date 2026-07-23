@@ -68,7 +68,7 @@ const layout = reactive([
 
 ## 压缩与定位
 
-在 v2 中，`vertical-compact` 和 `use-css-transforms` 布尔属性已被可插拔的 `compactor` 和 `positionStrategy` 属性替代。默认行为保持不变——垂直压缩配合 CSS transforms——因此现有代码无需修改即可正常工作。
+在 v2 中，`vertical-compact` 和 `use-css-transforms` 布尔属性已被移除，改用可插拔的 `compactor` 和 `positionStrategy`。默认行为仍是垂直压缩配合 CSS transforms，但显式使用旧属性的代码必须迁移。参见 [v2 迁移指南](./migration)。
 
 ```vue
 <template>

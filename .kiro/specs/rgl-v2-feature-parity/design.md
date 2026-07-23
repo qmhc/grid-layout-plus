@@ -5,11 +5,11 @@
 本设计文档描述 grid-layout-plus 补齐 react-grid-layout v2 缺失功能的技术方案。变更覆盖四个层面：
 
 1. **核心算法层**（需求 1-4, 13-15）：水平压缩、可插拔 Compactor/PositionStrategy 接口、允许重叠、核心独立导出、快速压缩器、单元格尺寸计算
-2. **组件功能增强**（需求 5-7）：多方向缩放手柄、外部拖入、拖拽阈值
+2. **组件功能增强**（需求 5-7）：稳定的右下角缩放手柄、外部拖入、拖拽阈值
 3. **Composable API**（需求 9-11）：useContainerWidth、useGridLayout、useResponsiveLayout
 4. **Extras**（需求 8, 12）：Composable Config 分组接口、GridBackground 组件
 
-本次为 Major 版本升级（v2.0.0），允许 breaking changes。废弃的 props 将被移除，新 API 采用更干净的设计。
+本次为 Major 版本升级（v2.0.0），允许 breaking changes。旧 props 在 v2 中直接移除，新 API 采用更干净的设计。
 
 ## 架构
 
@@ -66,7 +66,7 @@ graph TD
 
 - **核心无依赖**：`src/core.ts` 及其子模块不导入 `vue`、不使用 DOM API，可在 Node.js 中直接使用
 - **接口优先**：Compactor 和 PositionStrategy 通过 TypeScript 接口定义，内置实现和用户自定义实现地位平等
-- **干净 API**：Major 版本升级，移除废弃 props（`verticalCompact`、`useCssTransforms`、`transformScale`），统一使用 `compactor` 和 `positionStrategy` 替代
+- **干净 API**：Major 版本升级，移除 v1 props（`verticalCompact`、`useCssTransforms`、`transformScale`），统一使用 `compactor` 和 `positionStrategy` 替代
 - **渐进采用**：Composable API 独立于组件，用户可按需使用
 
 ## 组件与接口
@@ -78,6 +78,8 @@ graph TD
 
 /** 压缩器接口 */
 export interface Compactor {
+  /** 碰撞避让方向；未声明时保持垂直避让的兼容行为 */
+  readonly type?: 'vertical' | 'horizontal'
   /** 对布局执行压缩，返回新布局（不修改输入） */
   compact(layout: Layout, cols: number): Layout
   /** 是否允许元素重叠 */
@@ -109,12 +111,13 @@ export function withOverlap(compactor: Compactor): Compactor
 **水平压缩算法**：
 1. 按列优先排序（先 x 后 y）
 2. 静态元素加入碰撞列表
-3. 对每个非静态元素，保持 y 不变，将 x 向左移动至无碰撞的最小位置
-4. 碰撞时放置在障碍物右侧
+3. 对每个非静态元素，将 x 向左移动至当前行无碰撞的最小位置
+4. 碰撞时放置在障碍物右侧；若 `x + w > cols`，则移动到下一行并重新向左压缩
 
 **快速压缩器算法**：
-- 使用区间树（interval tree）加速碰撞检测，将 O(n) 碰撞查询降为 O(log n)
-- 整体复杂度从 O(n²) 降为 O(n log n)
+- 使用增量区间 Treap 索引已放置元素，将碰撞候选查询降为期望 O(log n)
+- 使用 id 到原始下标的 Map 恢复输出顺序，避免输出阶段的 O(n²) 查找
+- 候选碰撞按插入顺序选择，确保快速版与标准版语义一致
 
 ### 2. PositionStrategy 接口（需求 14）
 
@@ -123,6 +126,8 @@ export function withOverlap(compactor: Compactor): Compactor
 
 /** 定位策略接口 */
 export interface PositionStrategy {
+  /** 父容器 CSS transform 的缩放比例，用于还原指针坐标 */
+  readonly transformScale?: number
   getStyle(top: number, left: number, width: number, height: number): Record<string, string>
   getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>
 }
@@ -133,7 +138,7 @@ export const transformStrategy: PositionStrategy
 /** CSS top/left/right 绝对定位 */
 export const absoluteStrategy: PositionStrategy
 
-/** 缩放定位工厂函数 */
+/** CSS 缩放容器适配策略工厂函数 */
 export function scaledStrategy(scale: number): PositionStrategy
 ```
 
@@ -185,8 +190,6 @@ export interface GridLayoutProps {
   compactor?: Compactor
   /** 可插拔定位策略（默认 transformStrategy） */
   positionStrategy?: PositionStrategy
-  /** 所有子项的默认缩放手柄方向 */
-  resizeHandles?: ResizeHandle[]
   /** 是否允许外部拖入 */
   isDroppable?: boolean
   /** 外部拖入元素的默认尺寸 */
@@ -200,8 +203,6 @@ export interface GridLayoutProps {
   resizeConfig?: ResizeConfig
   dropConfig?: DropConfig
 }
-
-export type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
 
 export interface GridConfig {
   colNum?: number
@@ -219,7 +220,6 @@ export interface DragConfig {
 
 export interface ResizeConfig {
   isResizable?: boolean
-  resizeHandles?: ResizeHandle[]
 }
 
 export interface DropConfig {
@@ -241,8 +241,6 @@ export interface DropConfig {
 export interface GridItemProps {
   // ... 现有 props 保持不变 ...
 
-  /** 缩放手柄方向（覆盖 GridLayout 的默认值） */
-  resizeHandles?: ResizeHandle[]
   /** 拖拽阈值（覆盖 GridLayout 的默认值） */
   dragThreshold?: number
 }
@@ -341,7 +339,10 @@ export {
 export { calcGridCellDimensions, type GridCellDimensions } from './core/utils'
 
 // 导出类型
-export type { Layout, LayoutItem, Breakpoint, Breakpoints, ResponsiveLayout } from './helpers/types'
+export type {
+  Layout, LayoutItem, Breakpoint, Breakpoints, CompactType,
+  Compactor, PositionStrategy, ResponsiveLayout
+} from './helpers/types'
 ```
 
 构建配置需在 `vite.config.ts` 的 `rollupOptions.input` 中添加 `src/core.ts` 入口，并在 `package.json` 的 `exports` 中添加 `./core` 路径映射。
@@ -353,21 +354,18 @@ export type { Layout, LayoutItem, Breakpoint, Breakpoints, ResponsiveLayout } fr
 ```typescript
 // src/helpers/types.ts — 新增/修改类型
 
-export type ResizeHandle = 's' | 'w' | 'e' | 'n' | 'sw' | 'nw' | 'se' | 'ne'
-
-export interface LayoutItem extends LayoutItemRequired {
-  // ... 现有字段保持不变 ...
-  resizeHandles?: ResizeHandle[]  // 新增：单项缩放手柄方向
-}
+export type CompactType = 'vertical' | 'horizontal'
 
 /** Compactor 接口 */
 export interface Compactor {
+  readonly type?: CompactType
   compact(layout: Layout, cols: number): Layout
   allowOverlap?: boolean
 }
 
 /** PositionStrategy 接口 */
 export interface PositionStrategy {
+  readonly transformScale?: number
   getStyle(top: number, left: number, width: number, height: number): Record<string, string>
   getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>
 }
@@ -385,7 +383,6 @@ export interface LayoutInstance {
   // ... 现有字段保持不变 ...
   compactor: Compactor
   positionStrategy: PositionStrategy
-  resizeHandles: ResizeHandle[]
   isDroppable: boolean
   dropItem: { w: number, h: number }
   dragThreshold: number
@@ -399,8 +396,9 @@ export interface LayoutInstance {
 | `verticalCompact` | `compactor` | `verticalCompact: true` → `compactor={verticalCompactor}`（默认值），`false` → `compactor={noCompactor}` |
 | `useCssTransforms` | `positionStrategy` | `useCssTransforms: true` → `positionStrategy={transformStrategy}`（默认值），`false` → `positionStrategy={absoluteStrategy}` |
 | `transformScale` | `positionStrategy` | `transformScale: 0.5` → `positionStrategy={scaledStrategy(0.5)}` |
-| 扁平 props（可选保留） | 分组 config | 扁平 props 和分组 config 均可使用，扁平 props 优先级更高 |
-| 单个 `resizer` span | `resizeHandles` | 默认 `['se']`，渲染单个手柄，与现有行为一致 |
+| 扁平 props（继续保留） | 分组 config | 扁平 props 和分组 config 均可使用，扁平 props 优先级更高 |
+
+缩放手柄不属于迁移项：v2 继续只提供右下角（`se`）手柄，不公开实验性的 `resizeHandles` 属性或 `ResizeHandle` 类型。
 
 ### 文件变更清单
 
@@ -414,13 +412,13 @@ export interface LayoutInstance {
 | `src/composables/useGridLayout.ts` | 新增 | 布局状态管理 composable |
 | `src/composables/useResponsiveLayout.ts` | 新增 | 响应式断点 composable |
 | `src/components/grid-background.vue` | 新增 | SVG 网格背景组件 |
-| `src/helpers/types.ts` | 修改 | 新增 ResizeHandle、Compactor、PositionStrategy 等类型 |
+| `src/helpers/types.ts` | 修改 | 新增 CompactType、Compactor、PositionStrategy 等类型 |
 | `src/helpers/common.ts` | 修改 | 重构 compact() 以委托给 Compactor；提取 setTransform 等到 PositionStrategy |
 | `src/components/types.ts` | 修改 | GridLayoutProps/GridItemProps 新增 props |
 | `src/components/grid-layout.vue` | 修改 | 集成 Compactor、PositionStrategy、外部拖入、拖拽阈值、Config 分组 |
-| `src/components/grid-item.vue` | 修改 | 多方向缩放手柄、PositionStrategy 集成、拖拽阈值 |
+| `src/components/grid-item.vue` | 修改 | 固定 `se` 缩放手柄、PositionStrategy 集成、拖拽阈值 |
 | `src/index.ts` | 修改 | 重新导出 core、composables、GridBackground |
-| `src/style.scss` | 修改 | 8 方向缩放手柄样式 + GridBackground 样式 |
+| `src/style.scss` | 修改 | `se` 缩放手柄 RTL 样式 + GridBackground 样式 |
 | `vite.config.ts` | 修改 | 添加 core.ts 入口 |
 | `package.json` | 修改 | exports 添加 ./core 路径 |
 | `tests/compactors.spec.ts` | 新增 | Compactor 单元测试 + 属性测试 |
@@ -438,7 +436,8 @@ export interface LayoutInstance {
 
 *对于任意* 有效的 Layout 和列数 cols，执行水平压缩后：
 - 每个非静态元素的 x 坐标应为无碰撞的最小值（不能再向左移动）
-- 每个元素的 y 坐标应与压缩前相同
+- 未发生行边界溢出的元素应保持原 y 坐标；发生溢出的元素应换到后续行
+- 每个元素都应满足 `0 <= x` 且 `x + w <= cols`
 - 静态元素的 x、y 坐标应与压缩前相同
 - 压缩后的布局中不存在任何两个元素的矩形区域重叠
 
@@ -468,11 +467,11 @@ export interface LayoutInstance {
 
 **Validates: Requirements 3.3**
 
-### Property 6: 缩放手柄渲染数量与方向
+### Property 6: 缩放手柄固定方向
 
-*对于任意* ResizeHandle 数组子集（从 `['s','w','e','n','sw','nw','se','ne']` 中选取），当 GridItem 的 `resizeHandles` 设置为该子集时，渲染的手柄 DOM 元素数量应等于数组长度，且每个手柄元素具有对应方向的 CSS 类名。
+*对于任意* 可缩放且非静态的 GridItem，组件应只渲染一个 `se` 缩放手柄；在 RTL 模式下，该手柄应显示在视觉左下角。不可缩放或静态 GridItem 不应渲染手柄。
 
-**Validates: Requirements 5.2, 5.5**
+**Validates: Requirements 5.1, 5.3, 5.4**
 
 ### Property 7: 拖拽阈值行为
 
@@ -548,7 +547,7 @@ export interface LayoutInstance {
 
 ### Property 19: scaledStrategy 缩放正确性
 
-*对于任意* 正数 scale 和任意 top、left、width、height，`scaledStrategy(scale).getStyle(top, left, width, height)` 生成的 transform 中的坐标值应等于 `top * scale` 和 `left * scale`，尺寸值应等于 `width * scale` 和 `height * scale`。
+*对于任意* 正有限数 scale 和任意 top、left、width、height，`scaledStrategy(scale)` 生成的样式应与 `transformStrategy` 完全一致，并将 `transformScale` 暴露为 scale。GridItem 应使用该值将拖拽、缩放的指针位移以及 DOM 测量结果除以 scale，还原到布局坐标系。
 
 **Validates: Requirements 14.4**
 
@@ -565,7 +564,7 @@ export interface LayoutInstance {
 | 场景 | 处理方式 |
 |---|---|
 | `compactor` 属性不符合 Compactor 接口 | TypeScript 编译期报错；运行时不做额外检查（信任类型系统） |
-| `resizeHandles` 包含无效方向字符串 | TypeScript 编译期报错；运行时忽略无效值 |
+| `scaledStrategy` 的 scale 非正数或非有限数 | 抛出 RangeError |
 | `calcGridCellDimensions` 的 cols ≤ 0 | 返回 `cellWidth: 0`，不抛异常 |
 | `calcGridCellDimensions` 的 containerWidth 不足 | 返回计算值（可能为负数），由调用方判断 |
 | `useContainerWidth` 传入 null 元素 | 返回 `width: -1`，不抛异常 |
@@ -613,7 +612,7 @@ export interface LayoutInstance {
 | `tests/position-strategies.spec.ts` | PositionStrategy 接口实现测试 |
 | `tests/core-utils.spec.ts` | calcGridCellDimensions 和 bottom 测试 |
 | `tests/composables.spec.ts` | useGridLayout / useResponsiveLayout 测试 |
-| `tests/grid-item-handles.spec.tsx` | 多方向缩放手柄渲染测试 |
+| `tests/grid-item.spec.tsx` | 固定 `se` 缩放手柄及 RTL 行为测试 |
 | `tests/drag-threshold.spec.tsx` | 拖拽阈值行为测试 |
 | `tests/config-merge.spec.tsx` | Config 分组合并优先级测试 |
 | `tests/grid-background.spec.tsx` | GridBackground 组件渲染测试 |

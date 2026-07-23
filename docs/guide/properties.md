@@ -59,6 +59,7 @@ The pluggable compaction algorithm interface. A compactor receives a layout and 
 
 ```ts
 interface Compactor {
+  readonly type?: 'vertical' | 'horizontal'
   compact(layout: Layout, cols: number): Layout
   allowOverlap?: boolean
 }
@@ -66,14 +67,14 @@ interface Compactor {
 
 Built-in compactors:
 
-| Compactor | Description |
-| --- | --- |
-| `verticalCompactor` | Compacts items upward (default, equivalent to v1 `verticalCompact: true`) |
-| `horizontalCompactor` | Compacts items to the left |
-| `noCompactor` | No compaction, free-form positioning |
-| `fastVerticalCompactor` | Interval-tree accelerated vertical compaction, O(n log n) |
-| `fastHorizontalCompactor` | Interval-tree accelerated horizontal compaction, O(n log n) |
-| `withOverlap(compactor)` | Wraps any compactor to allow items to overlap |
+| Compactor                 | Description                                                               |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `verticalCompactor`       | Compacts items upward (default, equivalent to v1 `verticalCompact: true`) |
+| `horizontalCompactor`     | Compacts items to the left and wraps when a row is full                   |
+| `noCompactor`             | No compaction, free-form positioning                                      |
+| `fastVerticalCompactor`   | Incremental interval-indexed vertical compaction, O(n log n)              |
+| `fastHorizontalCompactor` | Incremental interval-indexed horizontal compaction, O(n log n)            |
+| `withOverlap(compactor)`  | Wraps any compactor to allow items to overlap                             |
 
 ### PositionStrategy
 
@@ -81,6 +82,7 @@ The pluggable positioning strategy interface. Controls how grid items are positi
 
 ```ts
 interface PositionStrategy {
+  readonly transformScale?: number
   getStyle(top: number, left: number, width: number, height: number): Record<string, string>
   getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string>
 }
@@ -88,11 +90,11 @@ interface PositionStrategy {
 
 Built-in strategies:
 
-| Strategy | Description |
-| --- | --- |
-| `transformStrategy` | Uses CSS `translate3d` for positioning (default) |
-| `absoluteStrategy` | Uses CSS `top`/`left` for positioning |
-| `scaledStrategy(scale)` | Applies a scaling factor to positions and sizes |
+| Strategy                | Description                                                           |
+| ----------------------- | --------------------------------------------------------------------- |
+| `transformStrategy`     | Uses CSS `translate3d` for positioning (default)                      |
+| `absoluteStrategy`      | Uses CSS `top`/`left` for positioning                                 |
+| `scaledStrategy(scale)` | Corrects pointer coordinates for a parent scaled with CSS `transform` |
 
 ### GridConfig
 
@@ -162,7 +164,7 @@ See also [responsive](#responsive), [breakpoints](#breakpoints) and [cols](#cols
 - type: `number`
 - default: `12`
 
-Says how many columns the grid has. The value should be a *natural number*.
+Says how many columns the grid has. The value should be a _natural number_.
 
 ### row-height
 
@@ -222,15 +224,6 @@ Says if the grid items are bounded to the container when dragging.
 
 Says if the container height should swells and contracts to fit contents.
 
-### vertical-compact
-
-> ⚠️ **Deprecated** — Use [`compactor`](#compactor) instead. Pass `verticalCompactor` (default) or `noCompactor` to control compaction behavior.
-
-- type: `boolean`
-- default: `true`
-
-Says if the layout should be compact vertically.
-
 ### restore-on-drag
 
 - type: `boolean`
@@ -244,15 +237,6 @@ Says if the moved grid items should be restored after an item has been dragged o
 - default: `false`
 
 Says whether to prevent items collision. When `true`, the items can only be dropped to the blank space.
-
-### use-css-transforms
-
-> ⚠️ **Deprecated** — Use [`positionStrategy`](#position-strategy) instead. Pass `transformStrategy` (default) or `absoluteStrategy`.
-
-- type: `boolean`
-- default: `true`
-
-Says if the CSS `transition-property: transform;` should be used.
 
 ### responsive
 
@@ -288,15 +272,6 @@ Says if set the cursor style dynamically. When dragging freezes, setting this va
 
 **This property is not reactive.**
 
-### transform-scale
-
-> ⚠️ **Deprecated** — Use [`positionStrategy`](#position-strategy) with `scaledStrategy(scale)` instead.
-
-- type: `number`
-- default: `1`
-
-Sets a scaling factor to the size of the grid items, `1` means 100%.
-
 ### compactor
 
 - type: `Compactor`
@@ -321,7 +296,7 @@ Sets the positioning strategy for grid items. Import a built-in strategy from `g
 import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout-plus'
 ```
 
-Use `scaledStrategy(scale)` when the grid is rendered inside a scaled container.
+Use `scaledStrategy(scale)` when an ancestor is rendered with the same CSS `transform: scale(...)`. The strategy keeps layout styles unchanged and converts drag/resize pointer coordinates back to the unscaled grid coordinate system.
 
 ### is-droppable
 
@@ -349,7 +324,7 @@ Sets the minimum distance in pixels that the pointer must move before a drag ope
 - type: `GridConfig`
 - default: `undefined`
 
-A grouped configuration object for grid-related props. When provided, its values override the corresponding individual props (`col-num`, `row-height`, `max-rows`, `margin`, `auto-size`).
+A grouped configuration object for grid-related props. An explicitly provided individual prop takes precedence; otherwise the grouped value is used.
 
 ```ts
 interface GridConfig {
@@ -366,7 +341,7 @@ interface GridConfig {
 - type: `DragConfig`
 - default: `undefined`
 
-A grouped configuration object for drag-related props. When provided, its values override the corresponding individual props (`is-draggable`, `drag-threshold`, `restore-on-drag`).
+A grouped configuration object for drag-related props. An explicitly provided individual prop takes precedence; otherwise the grouped value is used.
 
 ```ts
 interface DragConfig {
@@ -381,12 +356,11 @@ interface DragConfig {
 - type: `ResizeConfig`
 - default: `undefined`
 
-A grouped configuration object for resize-related props. When provided, its values override the corresponding individual props (`is-resizable`, `resize-handles`).
+A grouped configuration object for resize-related props. An explicitly provided `is-resizable` prop takes precedence; otherwise the grouped value is used.
 
 ```ts
 interface ResizeConfig {
   isResizable?: boolean
-  resizeHandles?: ResizeHandle[]
 }
 ```
 
@@ -395,7 +369,7 @@ interface ResizeConfig {
 - type: `DropConfig`
 - default: `undefined`
 
-A grouped configuration object for drop-related props. When provided, its values override the corresponding individual props (`is-droppable`, `drop-item`).
+A grouped configuration object for drop-related props. An explicitly provided individual prop takes precedence; otherwise the grouped value is used.
 
 ```ts
 interface DropConfig {
@@ -418,28 +392,28 @@ This is the unique identifier of the item.
 - type: `number`
 - required
 
-Says what is a initial horizontal position of the item (in which column it should be placed). The value must be a *whole number*.
+Says what is a initial horizontal position of the item (in which column it should be placed). The value must be a _whole number_.
 
 ### y
 
 - type: `number`
 - required
 
-Says what is a initial vertical position of the item (in which row it should be placed). The value must be a *whole number*.
+Says what is a initial vertical position of the item (in which row it should be placed). The value must be a _whole number_.
 
 ### w
 
 - type: `number`
 - required
 
-Says what is a initial width of the item (how many columns should span). The value must be a *whole number*.
+Says what is a initial width of the item (how many columns should span). The value must be a _whole number_.
 
 ### h
 
 - type: `number`
 - required
 
-Says what is a initial height of the item (how many rows should span). The value must be a *whole number*.
+Says what is a initial height of the item (how many rows should span). The value must be a _whole number_.
 
 ### min-w
 
@@ -488,7 +462,7 @@ Says if item is resizable. If `null` then it's inherited from parent.
 - type: `boolean`
 - default: `null`
 
-Says if the item is bounded to the container when dragging. If  `null` then it's inherited from parent.
+Says if the item is bounded to the container when dragging. If `null` then it's inherited from parent.
 
 ### static
 
@@ -546,8 +520,6 @@ Passthrough object for the grid item [interact.js draggable configuration](https
 - default: `{}`
 
 Passthrough object for the grid item [interact.js resizable configuration](https://interactjs.io/docs/resizable/).
-
-
 
 ### drag-threshold
 

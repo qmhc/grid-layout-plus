@@ -1,15 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 
 import { GridLayout } from '../src'
-import { noCompactor, verticalCompactor } from '../src/core/compactors'
+import { horizontalCompactor, noCompactor, verticalCompactor } from '../src/core/compactors'
 import { absoluteStrategy, transformStrategy } from '../src/core/position-strategies'
 
 import type { Layout } from '../src/helpers/types'
 
-const baseLayout: Layout = [
-  { x: 0, y: 0, w: 2, h: 2, i: '0' },
-]
+const baseLayout: Layout = [{ x: 0, y: 0, w: 2, h: 2, i: '0' }]
 
 describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
   it('扁平 props 优先级高于分组 gridConfig', () => {
@@ -142,6 +141,54 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     wrapper.unmount()
   })
 
+  it('GridLayout 使用 compactor 的方向处理拖拽碰撞', async () => {
+    const layout: Layout = [
+      { x: 0, y: 0, w: 1, h: 1, i: '1' },
+      { x: 1, y: 0, w: 1, h: 1, i: '2' },
+    ]
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout,
+        compactor: horizontalCompactor,
+        isDraggable: false,
+      },
+    })
+
+    await nextTick()
+    await nextTick()
+    const vm = wrapper.vm as any
+    vm.dragEvent('dragstart', '1', 1, 0, 1, 1)
+
+    expect(layout.find(item => item.i === '1')).toEqual(expect.objectContaining({ x: 1, y: 0 }))
+    expect(layout.find(item => item.i === '2')).toEqual(expect.objectContaining({ x: 0, y: 0 }))
+    wrapper.unmount()
+  })
+
+  it('restoreOnDrag 仍通过自定义 compactor', async () => {
+    const compact = vi.fn((layout: Layout) => layout.map(item => ({ ...item })))
+    const layout: Layout = [
+      { x: 0, y: 0, w: 1, h: 1, i: '1' },
+      { x: 1, y: 0, w: 1, h: 1, i: '2' },
+    ]
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout,
+        compactor: { compact },
+        restoreOnDrag: true,
+        isDraggable: false,
+      },
+    })
+
+    await nextTick()
+    await nextTick()
+    const callCount = compact.mock.calls.length
+    const vm = wrapper.vm as any
+    vm.dragEvent('dragstart', '1', 1, 0, 1, 1)
+
+    expect(compact.mock.calls.length).toBeGreaterThan(callCount)
+    wrapper.unmount()
+  })
+
   it('可以传入自定义 positionStrategy', () => {
     const wrapper = mount(GridLayout, {
       props: {
@@ -159,6 +206,32 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     expect(style.top).toBe('10px')
     expect(style.left).toBe('20px')
     expect(style.transform).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('运行时切换 positionStrategy 会立即重算 GridItem 样式', async () => {
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: baseLayout,
+        positionStrategy: transformStrategy,
+      },
+      attachTo: document.body,
+    })
+
+    const vm = wrapper.vm as any
+    vm.state.width = 1200
+    await nextTick()
+    await nextTick()
+
+    const item = wrapper.find('.vgl-item:not(.vgl-item--placeholder)')
+    expect(item.attributes('style')).toContain('transform:')
+
+    await wrapper.setProps({ positionStrategy: absoluteStrategy })
+    await nextTick()
+    await nextTick()
+
+    expect(item.attributes('style')).not.toContain('transform:')
+    expect(item.attributes('style')).toContain('left:')
     wrapper.unmount()
   })
 })

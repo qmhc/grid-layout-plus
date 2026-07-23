@@ -13,10 +13,9 @@
     - _需求: 4.1, 4.2_
 
   - [x] 1.2 扩展类型定义
-    - 在 `src/helpers/types.ts` 中新增 `ResizeHandle`、`Compactor`、`PositionStrategy`、`GridCellDimensions` 类型
-    - 更新 `LayoutItem` 接口添加 `resizeHandles?: ResizeHandle[]` 字段
-    - 更新 `LayoutInstance` 接口添加 `compactor`、`positionStrategy`、`resizeHandles`、`isDroppable`、`dropItem`、`dragThreshold` 字段
-    - _需求: 2.1, 5.1, 14.1_
+    - 在 `src/helpers/types.ts` 中新增 `CompactType`、`Compactor`、`PositionStrategy`、`GridCellDimensions` 类型
+    - 更新 `LayoutInstance` 接口添加 `compactor`、`positionStrategy`、`isDroppable`、`dropItem`、`dragThreshold` 字段
+    - _需求: 2.1, 14.1_
 
   - [x] 1.3 实现 PositionStrategy 接口及内置策略
     - 创建 `src/core/position-strategies.ts`
@@ -29,7 +28,7 @@
     - 创建 `tests/position-strategies.spec.ts`
     - 测试 `transformStrategy` 输出与现有 `setTransform`/`setTransformRtl` 一致
     - 测试 `absoluteStrategy` 输出与现有 `setTopLeft`/`setTopRight` 一致
-    - 测试 `scaledStrategy` 坐标和尺寸按比例缩放
+    - 测试 `scaledStrategy` 保持布局样式不变并暴露指针坐标换算比例
     - _验证: 需求 14.2, 14.3, 14.4_
 
   - [x] 1.5 实现 Compactor 接口及内置压缩器
@@ -80,6 +79,7 @@
   - [x] 1.12 配置构建系统支持 core 入口
     - 在 `vite.config.ts` 的 `rollupOptions.input` 中添加 `src/core.ts` 入口
     - 在 `package.json` 的 `exports` 中添加 `./core` 路径映射
+    - 在构建末尾烟测根入口与 `core` 子路径的 ESM/CJS 加载和关键导出
     - _需求: 4.5_
 
 - [x] 2. 阶段 1 检查点
@@ -87,8 +87,8 @@
 
 - [x] 3. 阶段 2：组件功能增强
   - [x] 3.1 更新组件类型定义
-    - 更新 `src/components/types.ts` 中的 `GridLayoutProps`：移除 `verticalCompact`、`useCssTransforms`、`transformScale`，新增 `compactor`、`positionStrategy`、`resizeHandles`、`isDroppable`、`dropItem`、`dragThreshold`、`gridConfig`、`dragConfig`、`resizeConfig`、`dropConfig`
-    - 更新 `GridItemProps`：新增 `resizeHandles`、`dragThreshold`
+    - 更新 `src/components/types.ts` 中的 `GridLayoutProps`：移除 `verticalCompact`、`useCssTransforms`、`transformScale`，新增 `compactor`、`positionStrategy`、`isDroppable`、`dropItem`、`dragThreshold`、`gridConfig`、`dragConfig`、`resizeConfig`、`dropConfig`
+    - 更新 `GridItemProps`：新增 `dragThreshold`
     - 新增 `GridConfig`、`DragConfig`、`ResizeConfig`、`DropConfig` 接口
     - _需求: 2.5, 2.6, 5.1, 5.4, 6.5, 6.6, 7.1, 7.4, 8.1-8.4, 14.5, 14.6_
 
@@ -98,7 +98,7 @@
       - 新增 `compactor`（默认 `verticalCompactor`）、`positionStrategy`（默认 `transformStrategy`）props
       - 实现 Config 分组合并逻辑（扁平 props 优先）
       - 将 `compact()` 调用替换为 `compactor.compact()` 委托
-      - 通过 provide 向子组件传递 `positionStrategy`、`resizeHandles`、`dragThreshold`
+      - 通过 provide 向子组件传递 `positionStrategy`、`dragThreshold`
     - _需求: 2.5, 2.6, 8.1-8.6, 14.5, 14.6_
 
   - [x] 3.3 编写 Config 合并单元测试
@@ -108,21 +108,18 @@
     - 测试两者都不传时使用默认值
     - _验证: 需求 8.5, 8.6_
 
-  - [x] 3.4 实现多方向缩放手柄
+  - [x] 3.4 收口缩放手柄范围
     - 修改 `src/components/grid-item.vue`：
-      - 新增 `resizeHandles` prop（默认从 GridLayout inject，回退 `['se']`）
-      - 为每个方向渲染独立的手柄 `<span>` 元素，带方向特定 CSS 类名
-      - 更新 `tryMakeResizable` 以根据手柄方向配置 interactjs 的 `edges`
-      - 处理 n/w/nw 等方向缩放时同时更新位置和尺寸
-    - 在 `src/style.scss` 中添加 8 个方向缩放手柄的定位、光标和视觉样式
-    - _需求: 5.1-5.6_
+      - 撤销实验性的 `resizeHandles` prop 和公共类型
+      - 仅渲染固定的右下角 `se` 手柄
+      - 保留 RTL 下视觉左下角的既有行为
+    - 在 `src/style.scss` 中仅保留 `se` 及 RTL 所需样式
+    - _需求: 5.1-5.4_
 
   - [x] 3.5 编写缩放手柄渲染测试
-    - 创建 `tests/grid-item-handles.spec.tsx`
-    - 测试不同 `resizeHandles` 配置下渲染的手柄 DOM 数量和 CSS 类名
-    - 测试默认 `['se']` 只渲染一个手柄
-    - 测试空数组不渲染手柄
-    - _验证: 需求 5.2, 5.5_
+    - 在 `tests/grid-item.spec.tsx` 中测试默认只渲染一个 `se` 手柄
+    - 测试 RTL 下手柄位置与光标行为
+    - _验证: 需求 5.1, 5.3, 5.4_
 
   - [x] 3.6 集成 PositionStrategy 到 GridItem
     - 修改 `src/components/grid-item.vue`：
@@ -139,7 +136,7 @@
     - _需求: 7.1-7.4_
 
   - [x] 3.8 编写拖拽阈值测试
-    - 创建 `tests/drag-threshold.spec.tsx`
+    - 使用 interactjs mock 在 `tests/grid-item.spec.tsx` 中覆盖真实监听器行为
     - 测试阈值为 0 时立即触发拖拽
     - 测试阈值大于 0 时，移动距离不足不触发拖拽
     - 测试超过阈值后正常触发拖拽

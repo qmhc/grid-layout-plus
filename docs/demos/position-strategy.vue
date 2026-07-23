@@ -1,18 +1,29 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 
-import { absoluteStrategy, transformStrategy } from 'grid-layout-plus'
+import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout-plus'
 
 import type { PositionStrategy } from 'grid-layout-plus'
 
-const strategyName = ref<'transform' | 'absolute'>('transform')
+const strategyName = ref<'transform' | 'absolute' | 'scaled'>('transform')
+const scale = 0.75
 
 const strategies: Record<string, () => PositionStrategy> = {
   transform: () => transformStrategy,
   absolute: () => absoluteStrategy,
+  scaled: () => scaledStrategy(scale),
 }
 
 const currentStrategy = computed(() => strategies[strategyName.value]())
+const scaledContainerStyle = computed(() => {
+  if (strategyName.value !== 'scaled') return
+
+  return {
+    width: `${100 / scale}%`,
+    transform: `scale(${scale})`,
+    transformOrigin: 'top left',
+  }
+})
 
 const layout = reactive([
   { x: 0, y: 0, w: 2, h: 2, i: '0' },
@@ -31,18 +42,17 @@ const layout = reactive([
       <select v-model="strategyName">
         <option value="transform">Transform (translate3d)</option>
         <option value="absolute">Absolute (top/left)</option>
+        <option value="scaled">Scaled container (75%)</option>
       </select>
     </label>
   </div>
-  <GridLayout
-    v-model:layout="layout"
-    :position-strategy="currentStrategy"
-    :row-height="30"
-  >
-    <template #item="{ item }">
-      <span class="text">{{ item.i }}</span>
-    </template>
-  </GridLayout>
+  <div :style="scaledContainerStyle">
+    <GridLayout v-model:layout="layout" :position-strategy="currentStrategy" :row-height="30">
+      <template #item="{ item }">
+        <span class="text">{{ item.i }}</span>
+      </template>
+    </GridLayout>
+  </div>
 </template>
 
 <style scoped>

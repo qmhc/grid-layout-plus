@@ -127,6 +127,18 @@ describe('moveElement', () => {
     ])
   })
 
+  it('Moves collisions horizontally when horizontal compaction is active', () => {
+    const layout = [
+      { i: '1', x: 0, y: 0, w: 1, h: 1, moved: false },
+      { i: '2', x: 1, y: 0, w: 1, h: 1, moved: false },
+    ]
+
+    expect(moveElement(layout, layout[0], 1, 0, true, false, 'horizontal')).toEqual([
+      { i: '1', x: 1, y: 0, w: 1, h: 1, moved: true },
+      { i: '2', x: 0, y: 0, w: 1, h: 1, moved: true },
+    ])
+  })
+
   it('Moves elements out of the way without causing panel jumps when compaction is vertical', () => {
     const layout = [
       { x: 0, y: 0, w: 1, h: 10, i: 'A' },

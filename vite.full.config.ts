@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import dts from 'vite-plugin-dts'
 import cssInject from 'vite-plugin-css-injected-by-js'
 import autoprefixer from 'autoprefixer'
+import { DiagnosticCategory } from 'typescript'
 
 export default defineConfig({
   publicDir: false,
@@ -45,6 +46,11 @@ export default defineConfig({
     cssInject(),
     dts({
       exclude: ['node_modules', 'dev-server', 'scripts'],
+      afterDiagnostic(diagnostics) {
+        if (diagnostics.some(diagnostic => diagnostic.category === DiagnosticCategory.Error)) {
+          throw new Error('Declaration generation failed due to TypeScript errors')
+        }
+      },
     }),
   ],
 })
