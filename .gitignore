@@ -25,6 +25,7 @@ pnpm-debug.log*
 
 # Editor directories and files
 .idea
+/.kiro/
 *.suo
 *.ntvs*
 *.njsproj
