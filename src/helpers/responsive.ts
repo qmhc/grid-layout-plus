@@ -46,6 +46,7 @@ export function getColsFromBreakpoint(breakpoint: Breakpoint, cols: Breakpoints)
  * @param  breakpoint Last breakpoint (for fallback).
  * @param  cols       Column count at new breakpoint.
  * @param  compactor Compactor used to normalize the generated layout.
+ * @param allowOverlap Whether to preserve overlaps and skip compaction.
  * @return              New layout.
  */
 export function findOrGenerateResponsiveLayout(
@@ -56,10 +57,12 @@ export function findOrGenerateResponsiveLayout(
   lastBreakpoint: Breakpoint,
   cols: number,
   compactor: Compactor,
+  allowOverlap = false,
 ): Layout {
   // If it already exists, just return it.
   if (layouts[breakpoint]) {
-    return compactor.compact(correctBounds(cloneLayout(layouts[breakpoint]), { cols }), cols)
+    const layout = correctBounds(cloneLayout(layouts[breakpoint]), { cols }, allowOverlap)
+    return allowOverlap ? layout : compactor.compact(layout, cols)
   }
   // Find or generate the next layout
   let layout = orgLayout
@@ -74,7 +77,8 @@ export function findOrGenerateResponsiveLayout(
     }
   }
   layout = cloneLayout(layout || []) // clone layout so we don't modify existing items
-  return compactor.compact(correctBounds(layout, { cols }), cols)
+  layout = correctBounds(layout, { cols }, allowOverlap)
+  return allowOverlap ? layout : compactor.compact(layout, cols)
 }
 
 export function generateResponsiveLayout(
@@ -84,6 +88,7 @@ export function generateResponsiveLayout(
   lastBreakpoint: Breakpoint,
   cols: number,
   compactor: Compactor,
+  allowOverlap = false,
 ): Layout {
   // If it already exists, just return it.
   /* if (layouts[breakpoint]) return cloneLayout(layouts[breakpoint]);
@@ -99,7 +104,8 @@ for (let i = 0, len = breakpointsAbove.length; i < len; i++) {
   }
   } */
   layout = cloneLayout(layout || []) // clone layout so we don't modify existing items
-  return compactor.compact(correctBounds(layout, { cols }), cols)
+  layout = correctBounds(layout, { cols }, allowOverlap)
+  return allowOverlap ? layout : compactor.compact(layout, cols)
 }
 
 /**

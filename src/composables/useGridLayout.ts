@@ -1,16 +1,24 @@
 import { computed, isRef, ref, watch } from 'vue'
 
-import { cloneLayout, correctBounds, getLayoutItem, moveElement } from '../helpers/common'
+import {
+  cloneLayout,
+  correctBounds,
+  getAllCollisions,
+  getLayoutItem,
+  moveElement,
+} from '../helpers/common'
 import { verticalCompactor } from '../core/compactors'
 
 import type { Ref } from 'vue'
-import type { Compactor, Layout, LayoutItem } from '../helpers/types'
+import type { CollisionMode, Compactor, Layout, LayoutItem } from '../helpers/types'
 
 export interface UseGridLayoutOptions {
   layout: Ref<Layout> | Layout
   cols?: number
   rowHeight?: number
   compactor?: Compactor
+  collisionMode?: CollisionMode
+  /** @deprecated 请改用 collisionMode="prevent" */
   preventCollision?: boolean
 }
 
@@ -31,6 +39,8 @@ export interface UseGridLayoutReturn {
  */
 export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutReturn {
   const { cols = 12, compactor: comp = verticalCompactor, preventCollision = false } = options
+  const collisionMode =
+    options.collisionMode ?? (comp.allowOverlap ? 'overlap' : preventCollision ? 'prevent' : 'push')
 
   const layoutSource = isRef(options.layout) ? options.layout : ref(options.layout)
 
@@ -39,7 +49,12 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
 
   /** 经过压缩后的当前布局 */
   const currentLayout = computed(() => {
-    return comp.compact(correctBounds(cloneLayout(rawLayout.value), { cols }), cols)
+    const layout = correctBounds(
+      cloneLayout(rawLayout.value),
+      { cols },
+      collisionMode === 'overlap',
+    )
+    return collisionMode === 'overlap' ? layout : comp.compact(layout, cols)
   })
 
   // 当外部 layout 引用变化时，同步更新内部布局
@@ -51,7 +66,12 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
     const layout = cloneLayout(rawLayout.value)
     const item = getLayoutItem(layout, i)
     if (!item) return
-    moveElement(layout, item, x, y, true, preventCollision, comp.type ?? 'vertical')
+    if (collisionMode === 'overlap') {
+      item.x = x
+      item.y = y
+    } else {
+      moveElement(layout, item, x, y, true, collisionMode === 'prevent', comp.type ?? 'vertical')
+    }
     rawLayout.value = layout
   }
 
@@ -59,6 +79,12 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
     const layout = cloneLayout(rawLayout.value)
     const item = getLayoutItem(layout, i)
     if (!item) return
+    if (
+      collisionMode === 'prevent' &&
+      getAllCollisions(layout, { ...item, w, h }).some(other => other.i !== item.i)
+    ) {
+      return
+    }
     item.w = w
     item.h = h
     rawLayout.value = layout

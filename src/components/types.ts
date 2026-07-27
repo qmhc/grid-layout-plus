@@ -1,5 +1,6 @@
 import type {
   Breakpoints,
+  CollisionMode,
   Compactor,
   Layout,
   PositionStrategy,
@@ -45,7 +46,12 @@ export interface GridLayoutProps {
   responsiveLayouts?: Partial<ResponsiveLayout>,
   breakpoints?: Breakpoints,
   cols?: Breakpoints,
+  /** 元素发生碰撞时的布局策略 */
+  collisionMode?: CollisionMode,
+  /** @deprecated 请改用 collisionMode="prevent" */
   preventCollision?: boolean,
+  /** 重叠模式下交互开始时是否将当前元素置顶 */
+  bringToFrontOnInteract?: boolean,
   useStyleCursor?: boolean,
 
   /** 可插拔压缩器（默认 verticalCompactor） */
@@ -80,6 +86,8 @@ export interface GridItemProps {
   w: number,
   h: number,
   i: number | string,
+  /** 元素层级；数值越大越靠前 */
+  zIndex?: number,
   dragIgnoreFrom?: string,
   dragAllowFrom?: string,
   resizeIgnoreFrom?: string,

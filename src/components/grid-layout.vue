@@ -35,6 +35,7 @@ import { transformStrategy } from '../core/position-strategies'
 
 import type {
   Breakpoint,
+  CollisionMode,
   Compactor,
   Layout,
   LayoutInstance,
@@ -57,7 +58,9 @@ const props = withDefaults(defineProps<GridLayoutProps>(), {
   responsiveLayouts: () => ({}),
   breakpoints: () => ({ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }),
   cols: () => ({ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }),
+  collisionMode: undefined,
   preventCollision: false,
+  bringToFrontOnInteract: true,
   useStyleCursor: true,
   compactor: () => verticalCompactor,
   positionStrategy: () => transformStrategy,
@@ -109,6 +112,12 @@ const effectiveIsDroppable = computed(
 const effectiveDropItem = computed(
   () => props.dropItem ?? props.dropConfig?.dropItem ?? { w: 1, h: 1 },
 )
+const effectiveCollisionMode = computed<CollisionMode>(() => {
+  return (
+    props.collisionMode ??
+    (props.compactor.allowOverlap ? 'overlap' : props.preventCollision ? 'prevent' : 'push')
+  )
+})
 
 const effectiveConfig = computed(() => ({
   autoSize: effectiveAutoSize.value,
@@ -122,6 +131,8 @@ const effectiveConfig = computed(() => ({
   dropItem: effectiveDropItem.value,
   dragThreshold: effectiveDragThreshold.value,
   restoreOnDrag: effectiveRestoreOnDrag.value,
+  collisionMode: effectiveCollisionMode.value,
+  bringToFrontOnInteract: props.bringToFrontOnInteract,
 }))
 
 const state = reactive({
@@ -209,6 +220,8 @@ function dragEventHandler(
  * 替代原来直接调用 compact(layout, verticalCompact) 的方式。
  */
 function compactLayout() {
+  if (effectiveCollisionMode.value === 'overlap') return
+
   const result = props.compactor.compact(currentLayout.value, effectiveColNum.value)
   const resultById = new Map(result.map(item => [item.i, item]))
 
@@ -277,15 +290,12 @@ watch(
 watch(effectiveMaxRows, value => {
   emitter.emit('setMaxRows', value)
 })
-watch(
-  () => props.compactor,
-  () => {
-    compactLayout()
-    emitter.emit('updateWidth', state.width)
-    updateHeight()
-    emit('layout-updated', currentLayout.value)
-  },
-)
+watch([() => props.compactor, effectiveCollisionMode], () => {
+  compactLayout()
+  emitter.emit('updateWidth', state.width)
+  updateHeight()
+  emit('layout-updated', currentLayout.value)
+})
 watch(effectiveMargin, updateHeight, { deep: true })
 
 provide(
@@ -306,11 +316,21 @@ provide(
     restoreOnDrag: effectiveRestoreOnDrag,
     increaseItem,
     decreaseItem,
+    getItemZIndex,
   }) as unknown as LayoutInstance,
 )
 provide(EMITTER_KEY, emitter)
 
-defineExpose({ state, getItem, resizeEvent, dragEvent, layoutUpdate, effectiveConfig })
+defineExpose({
+  state,
+  getItem,
+  resizeEvent,
+  dragEvent,
+  layoutUpdate,
+  effectiveConfig,
+  bringToFront,
+  sendToBack,
+})
 
 function increaseItem(item: any) {
   itemInstances.set(item.i, item)
@@ -322,6 +342,51 @@ function decreaseItem(item: any) {
 
 function getItem(id: number | string) {
   return itemInstances.get(id)
+}
+
+function getItemZIndex(id: number | string) {
+  return getLayoutItem(currentLayout.value, id)?.zIndex
+}
+
+function updateItemLayer(id: number | string, placement: 'front' | 'back', emitUpdate: boolean) {
+  const ordered = currentLayout.value
+    .map((item, index) => ({ item, index, zIndex: item.zIndex ?? index }))
+    .sort((a, b) => a.zIndex - b.zIndex || a.index - b.index)
+  const targetIndex = ordered.findIndex(entry => entry.item.i === id)
+
+  if (targetIndex < 0) return false
+  if (
+    (placement === 'front' && targetIndex === ordered.length - 1) ||
+    (placement === 'back' && targetIndex === 0)
+  ) {
+    return false
+  }
+
+  const [target] = ordered.splice(targetIndex, 1)
+  placement === 'front' ? ordered.push(target) : ordered.unshift(target)
+  ordered.forEach((entry, zIndex) => {
+    entry.item.zIndex = zIndex
+  })
+
+  emitter.emit('compact')
+  if (emitUpdate) emit('layout-updated', currentLayout.value)
+  return true
+}
+
+/** 将指定元素移到最前，并归一化所有元素层级。 */
+function bringToFront(id: number | string) {
+  return updateItemLayer(id, 'front', true)
+}
+
+/** 将指定元素移到最后，并归一化所有元素层级。 */
+function sendToBack(id: number | string) {
+  return updateItemLayer(id, 'back', true)
+}
+
+function bringToFrontForInteraction(id: number | string) {
+  if (effectiveCollisionMode.value === 'overlap' && props.bringToFrontOnInteract) {
+    updateItemLayer(id, 'front', false)
+  }
 }
 
 function layoutUpdate() {
@@ -373,6 +438,54 @@ function containerHeight() {
   return containerHeight
 }
 
+function applyItemChange(
+  type: 'move' | 'resize',
+  item: Layout[number],
+  next: { x: number; y: number; w: number; h: number },
+) {
+  const collisionMode = effectiveCollisionMode.value
+
+  if (type === 'move' && collisionMode !== 'overlap') {
+    currentLayout.value = moveElement(
+      currentLayout.value,
+      item,
+      next.x,
+      next.y,
+      true,
+      collisionMode === 'prevent',
+      props.compactor.type ?? 'vertical',
+    )
+    return
+  }
+
+  if (type === 'resize' && collisionMode === 'prevent') {
+    const collisions = getAllCollisions(currentLayout.value, { ...item, ...next }).filter(
+      layoutItem => layoutItem.i !== item.i,
+    )
+
+    if (collisions.length) {
+      let leastX = Infinity
+      let leastY = Infinity
+      collisions.forEach(layoutItem => {
+        if (layoutItem.x > item.x) leastX = Math.min(leastX, layoutItem.x)
+        if (layoutItem.y > item.y) leastY = Math.min(leastY, layoutItem.y)
+      })
+
+      if (Number.isFinite(leastX)) item.w = leastX - item.x
+      if (Number.isFinite(leastY)) item.h = leastY - item.y
+      return
+    }
+  }
+
+  item.x = next.x
+  item.y = next.y
+  if (type === 'resize') {
+    item.w = next.w
+    item.h = next.h
+  }
+  if (collisionMode === 'overlap') item.moved = true
+}
+
 function dragEvent(
   eventName: string,
   id: number | string,
@@ -381,11 +494,11 @@ function dragEvent(
   h: number,
   w: number,
 ) {
-  let l = getLayoutItem(currentLayout.value, id)!
+  const l = getLayoutItem(currentLayout.value, id)
 
-  if (isNull(l)) {
-    l = { h: 0, w: 0, x: 0, y: 0, i: '' }
-  }
+  if (!l) return
+  if (eventName === 'dragstart') bringToFrontForInteraction(id)
+  applyItemChange('move', l, { x, y, w, h })
 
   if (eventName === 'dragmove' || eventName === 'dragstart') {
     state.placeholder.i = id
@@ -405,34 +518,18 @@ function dragEvent(
     })
   }
 
-  if (props.compactor.allowOverlap) {
-    // allowOverlap 模式：直接更新位置，不做碰撞检测和推开
-    l.x = x
-    l.y = y
-    l.moved = true
-  } else {
-    currentLayout.value = moveElement(
-      currentLayout.value,
-      l,
-      x,
-      y,
-      true,
-      props.preventCollision,
-      props.compactor.type ?? 'vertical',
-    )
-  }
-
-  if (effectiveRestoreOnDrag.value && !props.compactor.allowOverlap) {
+  if (effectiveRestoreOnDrag.value && effectiveCollisionMode.value !== 'overlap') {
     l.static = true
     compactLayout()
     l.static = false
-  } else if (!props.compactor.allowOverlap) {
+  } else {
     compactLayout()
   }
 
   emitter.emit('compact')
   updateHeight()
   if (eventName === 'dragend') {
+    l.moved = false
     emit('layout-updated', currentLayout.value)
   }
 }
@@ -445,37 +542,11 @@ function resizeEvent(
   h: number,
   w: number,
 ) {
-  let l = getLayoutItem(currentLayout.value, id)!
-  if (isNull(l)) {
-    l = { h: 0, w: 0, x: 0, y: 0, i: '' }
-  }
+  const l = getLayoutItem(currentLayout.value, id)
 
-  let hasCollisions
-  if (props.preventCollision) {
-    const collisions = getAllCollisions(currentLayout.value, { ...l, w, h }).filter(
-      layoutItem => layoutItem.i !== l.i,
-    )
-    hasCollisions = collisions.length > 0
-
-    if (hasCollisions) {
-      let leastX = Infinity
-      let leastY = Infinity
-      collisions.forEach(layoutItem => {
-        if (layoutItem.x > l.x) leastX = Math.min(leastX, layoutItem.x)
-        if (layoutItem.y > l.y) leastY = Math.min(leastY, layoutItem.y)
-      })
-
-      if (Number.isFinite(leastX)) l.w = leastX - l.x
-      if (Number.isFinite(leastY)) l.h = leastY - l.y
-    }
-  }
-
-  if (!hasCollisions) {
-    l.w = w
-    l.h = h
-    l.x = x
-    l.y = y
-  }
+  if (!l) return
+  if (eventName === 'resizestart') bringToFrontForInteraction(id)
+  applyItemChange('resize', l, { x, y, w, h })
 
   if (eventName === 'resizestart' || eventName === 'resizemove') {
     state.placeholder.i = id
@@ -499,7 +570,10 @@ function resizeEvent(
   emitter.emit('compact')
   updateHeight()
 
-  if (eventName === 'resizeend') emit('layout-updated', currentLayout.value)
+  if (eventName === 'resizeend') {
+    l.moved = false
+    emit('layout-updated', currentLayout.value)
+  }
 }
 
 function responsiveGridLayout() {
@@ -523,6 +597,7 @@ function responsiveGridLayout() {
     state.lastBreakpoint!,
     newCols,
     props.compactor,
+    effectiveCollisionMode.value === 'overlap',
   )
 
   state.layouts[newBreakpoint] = layout

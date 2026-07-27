@@ -71,6 +71,11 @@ describe('validateLayout', () => {
       validateLayout([{ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 1, y: 2, w: 1 } as any])
     }).toThrowError(/layout\[1\]\.h must be a number!/i)
   })
+  it('Throws errors when zIndex is not an integer', () => {
+    expect(() => {
+      validateLayout([{ i: '1', x: 0, y: 0, w: 1, h: 1, zIndex: Number.NaN }])
+    }).toThrowError(/layout\[0\]\.zIndex must be an integer!/i)
+  })
 })
 
 describe('moveElement', () => {

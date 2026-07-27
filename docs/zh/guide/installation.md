@@ -69,7 +69,6 @@ import {
   verticalCompactor,
   horizontalCompactor,
   noCompactor,
-  withOverlap,
 
   // 定位策略
   transformStrategy,

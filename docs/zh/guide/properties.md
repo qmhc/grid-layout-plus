@@ -25,7 +25,8 @@ interface LayoutItem extends LayoutItemRequired {
   moved?: boolean,
   static?: boolean,
   isDraggable?: boolean,
-  isResizable?: boolean
+  isResizable?: boolean,
+  zIndex?: number
 }
 ```
 
@@ -53,6 +54,12 @@ type Breakpoints = Record<Breakpoint, number>
 type ResponsiveLayout = Record<Breakpoint, Layout>
 ```
 
+### CollisionMode
+
+```ts
+type CollisionMode = 'push' | 'prevent' | 'overlap'
+```
+
 ### Compactor
 
 可插拔的布局压缩算法接口。压缩器接收布局和列数，返回压缩后的新布局。
@@ -61,6 +68,7 @@ type ResponsiveLayout = Record<Breakpoint, Layout>
 interface Compactor {
   readonly type?: 'vertical' | 'horizontal'
   compact(layout: Layout, cols: number): Layout
+  /** @deprecated 请改用 GridLayout 的 collisionMode="overlap" */
   allowOverlap?: boolean
 }
 ```
@@ -74,7 +82,7 @@ interface Compactor {
 | `noCompactor`             | 无压缩，自由定位                                           |
 | `fastVerticalCompactor`   | 增量区间索引加速的垂直压缩，O(n log n)                     |
 | `fastHorizontalCompactor` | 增量区间索引加速的水平压缩，O(n log n)                     |
-| `withOverlap(compactor)`  | 包装任意压缩器以允许元素重叠                               |
+| `withOverlap(compactor)`  | 旧版重叠 API 的废弃兼容包装器                              |
 
 ### PositionStrategy
 
@@ -236,7 +244,27 @@ interface DropConfig {
 - 类型：`boolean`
 - 默认值：`false`
 
-表示是否防止元素碰撞，值为 `true` 时，元素只能拖放至空白处。
+已废弃，请改用 [`collision-mode="prevent"`](#collision-mode)。
+
+### collision-mode
+
+- 类型：`'push' | 'prevent' | 'overlap'`
+- 默认值：`'push'`
+
+控制拖动和缩放时的碰撞行为：
+
+- `push`：推开碰撞元素，并执行配置的 compactor。
+- `prevent`：保持其他元素不动，阻止当前元素占用已有空间。
+- `overlap`：允许自由重叠，不移动其他元素，并暂停自动压缩。
+
+显式传入的 `collision-mode` 优先于已废弃的 `prevent-collision` 和 `withOverlap()` API。从 `overlap` 切换到其他模式时，会执行一次当前 compactor 来消除重叠。
+
+### bring-to-front-on-interact
+
+- 类型：`boolean`
+- 默认值：`true`
+
+当 `collision-mode="overlap"` 时，在元素开始拖动或缩放时将其置顶。如果层级完全由外部管理，可以将其设为 `false`。
 
 ### responsive
 
@@ -280,10 +308,10 @@ interface DropConfig {
 设置布局的压缩算法。从 `grid-layout-plus` 导入内置压缩器：
 
 ```ts
-import { horizontalCompactor, noCompactor, verticalCompactor, withOverlap } from 'grid-layout-plus'
+import { horizontalCompactor, noCompactor, verticalCompactor } from 'grid-layout-plus'
 ```
 
-使用 `withOverlap(compactor)` 可以在应用压缩的同时允许元素重叠。
+`collision-mode="overlap"` 生效时会暂停 compactor。`withOverlap(compactor)` 为兼容旧代码而保留，但已废弃。
 
 ### position-strategy
 
@@ -378,6 +406,10 @@ interface DropConfig {
 }
 ```
 
+### 层级方法
+
+`GridLayout` 暴露 `bringToFront(id)` 和 `sendToBack(id)`。两个方法都会更新并归一化 `LayoutItem.zIndex`，在层级发生变化时触发 `layout-updated`，并返回是否修改了元素。
+
 ## GridItem
 
 ### i
@@ -470,6 +502,13 @@ interface DropConfig {
 - 默认值：`false`
 
 表示栅格元素是否为静态的（无法拖拽、调整大小或被其他元素移动）。
+
+### z-index
+
+- 类型：`number`
+- 默认值：`undefined`
+
+以整数设置元素层级，数值越大越靠前。调用层级方法时可能会归一化这些数值，但会保持相对顺序。
 
 ### drag-ignore-from
 

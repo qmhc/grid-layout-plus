@@ -25,7 +25,8 @@ interface LayoutItem extends LayoutItemRequired {
   moved?: boolean,
   static?: boolean,
   isDraggable?: boolean,
-  isResizable?: boolean
+  isResizable?: boolean,
+  zIndex?: number
 }
 ```
 
@@ -53,6 +54,12 @@ type Breakpoints = Record<Breakpoint, number>
 type ResponsiveLayout = Record<Breakpoint, Layout>
 ```
 
+### CollisionMode
+
+```ts
+type CollisionMode = 'push' | 'prevent' | 'overlap'
+```
+
 ### Compactor
 
 The pluggable compaction algorithm interface. A compactor receives a layout and column count, and returns a new compacted layout.
@@ -61,6 +68,7 @@ The pluggable compaction algorithm interface. A compactor receives a layout and 
 interface Compactor {
   readonly type?: 'vertical' | 'horizontal'
   compact(layout: Layout, cols: number): Layout
+  /** @deprecated Use GridLayout collisionMode="overlap" */
   allowOverlap?: boolean
 }
 ```
@@ -74,7 +82,7 @@ Built-in compactors:
 | `noCompactor`             | No compaction, free-form positioning                                      |
 | `fastVerticalCompactor`   | Incremental interval-indexed vertical compaction, O(n log n)              |
 | `fastHorizontalCompactor` | Incremental interval-indexed horizontal compaction, O(n log n)            |
-| `withOverlap(compactor)`  | Wraps any compactor to allow items to overlap                             |
+| `withOverlap(compactor)`  | Deprecated compatibility wrapper for the old overlap API                  |
 
 ### PositionStrategy
 
@@ -236,7 +244,27 @@ Says if the moved grid items should be restored after an item has been dragged o
 - type: `boolean`
 - default: `false`
 
-Says whether to prevent items collision. When `true`, the items can only be dropped to the blank space.
+Deprecated. Use [`collision-mode="prevent"`](#collision-mode) instead.
+
+### collision-mode
+
+- type: `'push' | 'prevent' | 'overlap'`
+- default: `'push'`
+
+Controls how drag and resize operations handle collisions:
+
+- `push`: moves colliding items away and applies the configured compactor.
+- `prevent`: keeps other items fixed and prevents the active item from occupying their space.
+- `overlap`: allows free placement without moving other items and pauses automatic compaction.
+
+An explicitly provided `collision-mode` takes precedence over the deprecated `prevent-collision` and `withOverlap()` APIs. Switching from `overlap` to another mode applies the configured compactor once to resolve overlaps.
+
+### bring-to-front-on-interact
+
+- type: `boolean`
+- default: `true`
+
+When `collision-mode="overlap"`, moves an item to the front when dragging or resizing starts. Set it to `false` when layer order is managed externally.
 
 ### responsive
 
@@ -280,10 +308,10 @@ Says if set the cursor style dynamically. When dragging freezes, setting this va
 Sets the compaction algorithm for the layout. Import a built-in compactor from `grid-layout-plus`:
 
 ```ts
-import { horizontalCompactor, noCompactor, verticalCompactor, withOverlap } from 'grid-layout-plus'
+import { horizontalCompactor, noCompactor, verticalCompactor } from 'grid-layout-plus'
 ```
 
-Use `withOverlap(compactor)` to allow items to overlap while still applying compaction.
+Compactors are paused while `collision-mode="overlap"` is active. `withOverlap(compactor)` remains available for compatibility but is deprecated.
 
 ### position-strategy
 
@@ -378,6 +406,10 @@ interface DropConfig {
 }
 ```
 
+### Layer methods
+
+`GridLayout` exposes `bringToFront(id)` and `sendToBack(id)`. Both methods update and normalize `LayoutItem.zIndex`, emit `layout-updated` when the order changes, and return whether an item was changed.
+
 ## GridItem
 
 ### i
@@ -470,6 +502,13 @@ Says if the item is bounded to the container when dragging. If `null` then it's 
 - default: `false`
 
 Says if item is static (won't be draggable, resizable or moved by other items).
+
+### z-index
+
+- type: `number`
+- default: `undefined`
+
+Sets the item layer order as an integer. Higher values render in front. Layer methods may normalize these values while preserving their relative order.
 
 ### drag-ignore-from
 

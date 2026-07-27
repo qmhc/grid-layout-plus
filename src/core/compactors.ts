@@ -97,6 +97,8 @@ export const noCompactor: Compactor = {
 /**
  * 创建带 allowOverlap 选项的压缩器包装。
  * 当 allowOverlap=true 时跳过碰撞推移，仅返回浅拷贝。
+ *
+ * @deprecated 请改用 GridLayout 的 collisionMode="overlap"。
  */
 export function withOverlap(_compactor: Compactor): Compactor {
   return {

@@ -1,12 +1,15 @@
 export type CompactType = 'vertical' | 'horizontal'
 
+/** 元素发生碰撞时的布局策略 */
+export type CollisionMode = 'push' | 'prevent' | 'overlap'
+
 /** 压缩器接口 */
 export interface Compactor {
   /** 碰撞避让方向；自定义压缩器不声明时保持垂直避让的兼容行为 */
   readonly type?: CompactType
   /** 对布局执行压缩，返回新布局（不修改输入） */
   compact(layout: Layout, cols: number): Layout
-  /** 是否允许元素重叠 */
+  /** @deprecated 请改用 GridLayout 的 collisionMode="overlap" */
   allowOverlap?: boolean
 }
 
@@ -43,6 +46,8 @@ export interface LayoutItem extends LayoutItemRequired {
   static?: boolean
   isDraggable?: boolean
   isResizable?: boolean
+  /** 元素层级；数值越大越靠前 */
+  zIndex?: number
 }
 
 export type Layout = Array<LayoutItem>
@@ -73,4 +78,5 @@ export interface LayoutInstance {
   dragThreshold: number
   increaseItem: (item: any) => void
   decreaseItem: (item: any) => void
+  getItemZIndex: (id: number | string) => number | undefined
 }

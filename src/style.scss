@@ -19,6 +19,7 @@
 
 .vgl-item {
   position: absolute;
+  z-index: var(--vgl-item-z-index, auto);
   box-sizing: border-box;
   transition: 200ms ease;
   transition-property: left, top, right;
@@ -47,13 +48,13 @@
   }
 
   &--resizing {
-    z-index: var(--vgl-item-resizing-z-index, 3);
+    z-index: max(var(--vgl-item-z-index, 0), var(--vgl-item-resizing-z-index, 3));
     user-select: none;
     opacity: var(--vgl-item-resizing-opacity, 60%);
   }
 
   &--dragging {
-    z-index: var(--vgl-item-dragging-z-index, 3);
+    z-index: max(var(--vgl-item-z-index, 0), var(--vgl-item-dragging-z-index, 3));
     user-select: none;
     opacity: var(--vgl-item-dragging-opacity, 100%);
     transition: none;

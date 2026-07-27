@@ -33,7 +33,7 @@ const layout = reactive([
     :row-height="30"
     :responsive="false"
     :compactor="noCompactor"
-    prevent-collision
+    collision-mode="prevent"
   >
     <template #item="{ item }">
       <span class="text">{{ item.i }}</span>

@@ -121,6 +121,11 @@ const effectivePositionStrategy = computed<PositionStrategy>(() => {
   return layout.positionStrategy
 })
 
+/** 显式传入的层级优先，否则读取 GridLayout 中对应布局项的层级。 */
+const effectiveZIndex = computed(() => {
+  return props.zIndex ?? layout.getItemZIndex(props.i)
+})
+
 /** 将视口坐标还原到网格使用的未缩放坐标系 */
 const transformScale = computed(() => effectivePositionStrategy.value.transformScale ?? 1)
 
@@ -332,6 +337,9 @@ watch(effectivePositionStrategy, () => {
   nextTickOnce(tryMakeResizable)
   nextTickOnce(createStyle)
 })
+watch(effectiveZIndex, () => {
+  nextTickOnce(createStyle)
+})
 watch([() => layout.margin, () => layout.margin[0], () => layout.margin[1]], () => {
   const margin = layout.margin
 
@@ -388,6 +396,12 @@ function createStyle() {
     style = strategy.getRtlStyle(pos.top, pos.right!, pos.width, pos.height)
   } else {
     style = strategy.getStyle(pos.top, pos.left!, pos.width, pos.height)
+  }
+  if (effectiveZIndex.value !== undefined) {
+    style = {
+      ...style,
+      '--vgl-item-z-index': String(effectiveZIndex.value),
+    }
   }
 
   state.style = style

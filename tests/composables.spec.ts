@@ -186,6 +186,52 @@ describe('useGridLayout', () => {
     expect(currentLayout.value.find(l => l.i === '1')!.x).toBe(0)
     expect(currentLayout.value.find(l => l.i === '2')!.x).toBe(0)
   })
+
+  it('overlap 模式保留重叠位置并跳过压缩', () => {
+    const layout: Layout = [
+      { i: '1', x: 0, y: 5, w: 2, h: 2 },
+      { i: '2', x: 0, y: 5, w: 2, h: 2 },
+    ]
+
+    const { currentLayout, moveItem } = withScope(() =>
+      useGridLayout({
+        layout,
+        cols: 12,
+        compactor: verticalCompactor,
+        collisionMode: 'overlap',
+      }),
+    )
+
+    expect(currentLayout.value.map(item => item.y)).toEqual([5, 5])
+    moveItem('1', 3, 4)
+    expect(currentLayout.value.find(item => item.i === '1')).toEqual(
+      expect.objectContaining({ x: 3, y: 4 }),
+    )
+    expect(currentLayout.value.find(item => item.i === '2')).toEqual(
+      expect.objectContaining({ x: 0, y: 5 }),
+    )
+  })
+
+  it('prevent 模式拒绝导致碰撞的缩放', () => {
+    const layout: Layout = [
+      { i: '1', x: 0, y: 0, w: 1, h: 1 },
+      { i: '2', x: 1, y: 0, w: 1, h: 1 },
+    ]
+
+    const { currentLayout, resizeItem } = withScope(() =>
+      useGridLayout({
+        layout,
+        cols: 12,
+        compactor: noCompactor,
+        collisionMode: 'prevent',
+      }),
+    )
+
+    resizeItem('1', 2, 1)
+    expect(currentLayout.value.find(item => item.i === '1')).toEqual(
+      expect.objectContaining({ w: 1, h: 1 }),
+    )
+  })
 })
 
 // ─── useResponsiveLayout ────────────────────────────────────
@@ -396,5 +442,31 @@ describe('useResponsiveLayout', () => {
     // 应同时有 lg 和 sm 的缓存
     expect(layouts.value).toHaveProperty('lg')
     expect(layouts.value).toHaveProperty('sm')
+  })
+
+  it('overlap 模式切换断点时保留重叠位置', async () => {
+    const width = ref(1400)
+    const layouts = ref({})
+    const originalLayout = ref<Layout>([
+      { i: '1', x: 0, y: 4, w: 1, h: 1 },
+      { i: '2', x: 0, y: 4, w: 1, h: 1 },
+    ])
+
+    const { currentLayout } = withScope(() =>
+      useResponsiveLayout({
+        breakpoints,
+        cols,
+        width,
+        layouts,
+        originalLayout,
+        compactor: verticalCompactor,
+        collisionMode: 'overlap',
+      }),
+    )
+
+    expect(currentLayout.value.map(item => item.y)).toEqual([4, 4])
+    width.value = 800
+    await nextTick()
+    expect(currentLayout.value.map(item => item.y)).toEqual([4, 4])
   })
 })

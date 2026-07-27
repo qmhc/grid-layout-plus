@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 
-import { verticalCompactor, withOverlap } from 'grid-layout-plus'
+import type { CollisionMode } from 'grid-layout-plus'
 
 const allowOverlap = ref(true)
 
-const compactor = computed(() => {
-  return allowOverlap.value ? withOverlap(verticalCompactor) : verticalCompactor
+const collisionMode = computed<CollisionMode>(() => {
+  return allowOverlap.value ? 'overlap' : 'push'
 })
 
 const layout = reactive([
@@ -26,11 +26,7 @@ const layout = reactive([
       Allow Overlap
     </label>
   </div>
-  <GridLayout
-    v-model:layout="layout"
-    :compactor="compactor"
-    :row-height="30"
-  >
+  <GridLayout v-model:layout="layout" :collision-mode="collisionMode" :row-height="30">
     <template #item="{ item }">
       <span class="text">{{ item.i }}</span>
     </template>

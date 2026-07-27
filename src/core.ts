@@ -37,6 +37,7 @@ export { calcGridCellDimensions } from './core/utils'
 export type {
   Breakpoint,
   Breakpoints,
+  CollisionMode,
   CompactType,
   Compactor,
   GridCellDimensions,

@@ -123,7 +123,11 @@ export function compactItem(
  * @param  layout Layout array.
  * @param  bounds Number of columns.
  */
-export function correctBounds(layout: Layout, bounds: { cols: number }): Layout {
+export function correctBounds(
+  layout: Layout,
+  bounds: { cols: number },
+  allowOverlap = false,
+): Layout {
   const collidesWith = getStatics(layout)
   for (let i = 0, len = layout.length; i < len; i++) {
     const l = layout[i]
@@ -135,7 +139,7 @@ export function correctBounds(layout: Layout, bounds: { cols: number }): Layout 
       l.w = bounds.cols
     }
     if (!l.static) collidesWith.push(l)
-    else {
+    else if (!allowOverlap) {
       // If this is static and collides with other statics, we must move it down.
       // We have to do something nicer than just letting them overlap.
       while (getFirstCollision(collidesWith, l)) {
@@ -478,6 +482,10 @@ export function validateLayout(layout: Layout, contextName?: string): void {
 
     if (item.static !== undefined && typeof item.static !== 'boolean') {
       throw new Error('VueGridLayout: ' + contextName + '[' + i + '].static must be a boolean!')
+    }
+
+    if (item.zIndex !== undefined && !Number.isInteger(item.zIndex)) {
+      throw new Error('VueGridLayout: ' + contextName + '[' + i + '].zIndex must be an integer!')
     }
   }
 }

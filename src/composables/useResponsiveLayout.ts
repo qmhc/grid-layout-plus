@@ -8,7 +8,14 @@ import {
 } from '../helpers/responsive'
 
 import type { Ref } from 'vue'
-import type { Breakpoint, Breakpoints, Compactor, Layout, ResponsiveLayout } from '../helpers/types'
+import type {
+  Breakpoint,
+  Breakpoints,
+  CollisionMode,
+  Compactor,
+  Layout,
+  ResponsiveLayout,
+} from '../helpers/types'
 
 export interface UseResponsiveLayoutOptions {
   breakpoints: Breakpoints
@@ -16,6 +23,7 @@ export interface UseResponsiveLayoutOptions {
   width: Ref<number>
   layouts: Ref<Partial<ResponsiveLayout>>
   compactor?: Compactor
+  collisionMode?: CollisionMode
   originalLayout: Ref<Layout>
 }
 
@@ -41,8 +49,10 @@ export function useResponsiveLayout(
     width,
     layouts,
     compactor: comp = verticalCompactor,
+    collisionMode,
     originalLayout,
   } = options
+  const allowOverlap = collisionMode === 'overlap' || (!collisionMode && comp.allowOverlap === true)
 
   const currentBreakpoint = ref<Breakpoint>(getBreakpointFromWidth(breakpoints, width.value))
 
@@ -57,6 +67,7 @@ export function useResponsiveLayout(
       currentBreakpoint.value,
       currentCols.value,
       comp,
+      allowOverlap,
     ),
   )
 
@@ -84,6 +95,7 @@ export function useResponsiveLayout(
         lastBp,
         newCols,
         comp,
+        allowOverlap,
       )
 
       currentLayout.value = generated
