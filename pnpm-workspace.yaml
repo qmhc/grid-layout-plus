@@ -1,3 +1,8 @@
 packages:
   - dev-server
   - docs
+
+catalog:
+  '@vexip-ui/utils': ^2.16.4
+  vexip-ui: ^2.3.40
+  vue: ^3.5.40

@@ -5,30 +5,45 @@ import {
   onBeforeMount,
   onBeforeUnmount,
   onMounted,
+  onUpdated,
   reactive,
   ref,
   shallowRef,
+  toRaw,
   toRef,
   watch,
   watchEffect,
 } from 'vue'
 
-import { isNull, nextTickOnce, throttle } from '@vexip-ui/utils'
+import { isNull, nextTickOnce } from '@vexip-ui/utils'
 import { EMITTER_KEY, LAYOUT_KEY, useNameHelper } from '../helpers/common'
+import { GridLayoutValidationError } from '../core/errors'
+import {
+  createAbsoluteStyle,
+  createTransformStyle,
+  validatePositionGeometry,
+  validateTransientPositionGeometry,
+} from '../core/position-style'
 import { createCoreData, getControlPosition } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
 import { getDocumentDir } from '../helpers/dom'
+import { snapshotInteractOption, snapshotInteractSelector } from '../helpers/interact-options'
+import { gridToPixelRect, pixelSizeToGridSize, pointerToGridPosition } from '../core/utils'
 
 import interact from 'interactjs'
 
-import type { PositionStrategy } from '../helpers/types'
-import type { GridItemProps } from './types'
+import type { LayoutItem, PositionStrategy } from '../helpers/types'
+import type { GridItemEmits, GridItemProps } from './types'
 
 const props = withDefaults(defineProps<GridItemProps>(), {
   isDraggable: undefined,
   isResizable: undefined,
   isBounded: undefined,
   static: false,
+  x: 0,
+  y: 0,
+  w: 1,
+  h: 1,
   minH: 1,
   minW: 1,
   maxH: Infinity,
@@ -40,16 +55,30 @@ const props = withDefaults(defineProps<GridItemProps>(), {
   dragOption: () => ({}),
   resizeOption: () => ({}),
   dragThreshold: undefined,
+  internal: false,
+  decorative: false,
 })
 
-const emit = defineEmits(['container-resized', 'resize', 'resized', 'move', 'moved'])
+const emit = defineEmits<GridItemEmits>()
 
-const layout = inject(LAYOUT_KEY)
-const emitter = inject(EMITTER_KEY)!
+const injectedLayout = inject(LAYOUT_KEY)
+const injectedEmitter = inject(EMITTER_KEY)
 
-if (!layout) {
-  throw new Error('[grid-layout-plus]: missing layout store, GridItem must under a GridLayout.')
+if (!injectedLayout || !injectedEmitter) {
+  throw new GridLayoutValidationError('GridItem must be mounted under GridLayout', {
+    code: 'invalid-config',
+    path: 'gridItem.parent',
+  })
 }
+
+const layout = injectedLayout
+const emitter = injectedEmitter
+const emptyInteractOption = Object.freeze(Object.create(null)) as Readonly<Record<string, unknown>>
+const dragOptionSnapshot = shallowRef(emptyInteractOption)
+const resizeOptionSnapshot = shallowRef(emptyInteractOption)
+const dragIgnoreSelector = shallowRef<string>()
+const dragAllowSelector = shallowRef<string>()
+const resizeIgnoreSelector = shallowRef<string>()
 
 const interactObj = shallowRef<InstanceType<
   typeof import('@interactjs/types').Interactable
@@ -60,11 +89,13 @@ const state = reactive({
   containerWidth: 100,
   rowHeight: 30,
   margin: [10, 10],
+  containerPadding: [10, 10] as readonly [number, number],
   maxRows: Infinity,
   draggable: undefined as boolean | undefined,
   resizable: undefined as boolean | undefined,
   bounded: undefined as boolean | undefined,
   useStyleCursor: true,
+  registered: props.internal,
 
   isDragging: false,
   dragging: {
@@ -93,23 +124,77 @@ let previousH = -1
 let previousX = -1
 let previousY = -1
 
-let innerX = props.x
-let innerY = props.y
-let innerW = props.w
-let innerH = props.h
+let innerX = 0
+let innerY = 0
+let innerW = 1
+let innerH = 1
+let boundedSnapshot: { maxLeft: number; maxTop: number } | null = null
+let dragTerminalSnapshot: {
+  initialX: number
+  initialY: number
+} | null = null
+let resizeAspectSnapshot: {
+  enabled: boolean
+  ratio: number
+  initialWidth: number
+  initialHeight: number
+  rawWidth: number
+  rawHeight: number
+} | null = null
+let resizeTerminalSnapshot: {
+  initialW: number
+  initialH: number
+  candidateW: number
+  candidateH: number
+  pixelWidth: number
+  pixelHeight: number
+} | null = null
+let dragTargetAllowed = false
+let resizeTargetAllowed = false
 
 // 拖拽阈值相关状态
 let dragStartPos: { x: number; y: number } | null = null
 let dragThresholdExceeded = false
 
 const wrapper = ref<HTMLElement>()
+const effectiveItem = computed(() => layout.getLayoutItem(props.i))
+const effectiveX = computed(() => effectiveItem.value?.x ?? props.x)
+const effectiveY = computed(() => effectiveItem.value?.y ?? props.y)
+const effectiveW = computed(() => effectiveItem.value?.w ?? props.w)
+const effectiveH = computed(() => effectiveItem.value?.h ?? props.h)
+const effectiveStatic = computed(() => effectiveItem.value?.static ?? false)
+const effectiveMinW = computed(() => effectiveItem.value?.minW ?? 1)
+const effectiveMinH = computed(() => effectiveItem.value?.minH ?? 1)
+const effectiveMaxW = computed(() => effectiveItem.value?.maxW ?? Infinity)
+const effectiveMaxH = computed(() => effectiveItem.value?.maxH ?? Infinity)
 
 const instance = reactive({
   i: toRef(props, 'i'),
   state,
   wrapper,
   calcXY,
+  props,
+  internal: props.internal,
+  resetInteractionState,
+  finishDragInteraction,
+  finishResizeInteraction,
+  refreshPositionStyle: createStyle,
+  disableInteractionBinding,
 })
+
+try {
+  dragOptionSnapshot.value = snapshotInteractOption(toRaw(props.dragOption), 'dragOption')
+  resizeOptionSnapshot.value = snapshotInteractOption(toRaw(props.resizeOption), 'resizeOption')
+  dragIgnoreSelector.value = snapshotInteractSelector(props.dragIgnoreFrom, 'dragIgnoreFrom')
+  dragAllowSelector.value = snapshotInteractSelector(props.dragAllowFrom, 'dragAllowFrom')
+  resizeIgnoreSelector.value = snapshotInteractSelector(props.resizeIgnoreFrom, 'resizeIgnoreFrom')
+} catch (error) {
+  if (error instanceof GridLayoutValidationError) {
+    const type = error.path.includes('resize') ? 'resize' : 'drag'
+    layout.handleItemConfigChange(instance, type, error)
+  }
+  throw error
+}
 
 /** 获取当前生效的拖拽阈值 */
 const effectiveDragThreshold = computed<number>(() => {
@@ -121,9 +206,9 @@ const effectivePositionStrategy = computed<PositionStrategy>(() => {
   return layout.positionStrategy
 })
 
-/** 显式传入的层级优先，否则读取 GridLayout 中对应布局项的层级。 */
+/** CSS 层级使用父布局按稳定顺序生成的有限 rank。 */
 const effectiveZIndex = computed(() => {
-  return props.zIndex ?? layout.getItemZIndex(props.i)
+  return layout.getItemZIndex(props.i)
 })
 
 /** 将视口坐标还原到网格使用的未缩放坐标系 */
@@ -131,12 +216,10 @@ const transformScale = computed(() => effectivePositionStrategy.value.transformS
 
 /** 判断当前定位策略是否使用 CSS transforms */
 const useCssTransforms = computed(() => {
-  // 通过检查 getStyle 输出是否包含 transform 属性来判断
-  const testStyle = effectivePositionStrategy.value.getStyle(0, 0, 100, 100)
-  return 'transform' in testStyle
+  return effectivePositionStrategy.value.usesCssTransforms
 })
 
-function updateWidthHandler(width: number) {
+function updateWidthHandler(width: number | null) {
   updateWidth(width)
 }
 
@@ -145,15 +228,11 @@ function compactHandler() {
 }
 
 function setDraggableHandler(isDraggable: boolean) {
-  if (isNull(props.isDraggable)) {
-    state.draggable = isDraggable
-  }
+  state.draggable = effectiveItem.value?.isDraggable ?? isDraggable
 }
 
 function setResizableHandler(isResizable: boolean) {
-  if (isNull(props.isResizable)) {
-    state.resizable = isResizable
-  }
+  state.resizable = effectiveItem.value?.isResizable ?? isResizable
 }
 
 function setBoundedHandler(isBounded: boolean) {
@@ -179,13 +258,12 @@ function setColNum(colNum: number) {
   state.cols = Math.floor(colNum)
 }
 
-layout.increaseItem(instance)
-
 onBeforeMount(() => {
   state.rtl = getDocumentDir() === 'rtl'
 })
 
 onMounted(() => {
+  if (!props.decorative) layout.increaseItem(instance)
   if (layout.responsive && layout.lastBreakpoint) {
     state.cols = getColsFromBreakpoint(layout.lastBreakpoint, layout.cols)
   } else {
@@ -194,30 +272,26 @@ onMounted(() => {
   state.rowHeight = layout.rowHeight
   state.containerWidth = layout.width !== null ? layout.width : 100
   state.margin = layout.margin !== undefined ? layout.margin.map(Number) : [10, 10]
+  state.containerPadding = layout.containerPadding
   state.maxRows = layout.maxRows
 
-  if (isNull(props.isDraggable)) {
-    state.draggable = layout.isDraggable
-  } else {
-    state.draggable = props.isDraggable
-  }
-  if (isNull(props.isResizable)) {
-    state.resizable = layout.isResizable
-  } else {
-    state.resizable = props.isResizable
-  }
+  state.draggable = effectiveItem.value?.isDraggable ?? layout.isDraggable
+  state.resizable = effectiveItem.value?.isResizable ?? layout.isResizable
   if (isNull(props.isBounded)) {
     state.bounded = layout.isBounded
   } else {
     state.bounded = props.isBounded
   }
   state.useStyleCursor = layout.useStyleCursor
+  nextTickOnce(createStyle)
 
   watchEffect(() => {
-    innerX = props.x
-    innerY = props.y
-    innerH = props.h
-    innerW = props.w
+    innerX = effectiveX.value
+    innerY = effectiveY.value
+    innerH = effectiveH.value
+    innerW = effectiveW.value
+    state.draggable = effectiveItem.value?.isDraggable ?? layout.isDraggable
+    state.resizable = effectiveItem.value?.isResizable ?? layout.isResizable
     nextTickOnce(createStyle)
   })
 
@@ -230,6 +304,10 @@ onMounted(() => {
   emitter.on('setMaxRows', setMaxRowsHandler)
   emitter.on('directionchange', directionchangeHandler)
   emitter.on('setColNum', setColNum)
+})
+
+onUpdated(() => {
+  if (!props.decorative) layout.updateItem(instance, props.i)
 })
 
 onBeforeUnmount(() => {
@@ -248,7 +326,7 @@ onBeforeUnmount(() => {
     interactObj.value = null
   }
 
-  layout.decreaseItem(instance)
+  if (!props.decorative) layout.decreaseItem(instance)
 })
 
 defineExpose({ state, wrapper })
@@ -256,10 +334,17 @@ defineExpose({ state, wrapper })
 const isAndroid =
   typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase().includes('android') : false
 
-const resizableAndNotStatic = computed(() => state.resizable && !props.static)
+const resizableAndNotStatic = computed(
+  () => !props.decorative && state.registered && state.resizable && !effectiveStatic.value,
+)
 const renderRtl = computed(() => (layout.isMirrored ? !state.rtl : state.rtl))
 const draggableOrResizableAndNotStatic = computed(() => {
-  return (state.draggable || state.resizable) && !props.static
+  return (
+    !props.decorative &&
+    state.registered &&
+    (state.draggable || state.resizable) &&
+    !effectiveStatic.value
+  )
 })
 
 const nh = useNameHelper('item')
@@ -268,7 +353,7 @@ const className = computed(() => {
   return {
     [nh.b()]: true,
     [nh.bm('resizable')]: resizableAndNotStatic.value,
-    [nh.bm('static')]: props.static,
+    [nh.bm('static')]: effectiveStatic.value,
     [nh.bm('resizing')]: state.isResizing,
     [nh.bm('dragging')]: state.isDragging,
     [nh.bm('transform')]: useCssTransforms.value,
@@ -278,18 +363,31 @@ const className = computed(() => {
 })
 
 watch(
-  () => props.isDraggable,
-  value => {
-    state.draggable = value
-  },
-)
-watch(
-  () => props.static,
-  () => {
+  () => state.registered,
+  registered => {
+    nextTickOnce(createStyle)
+    if (registered) nextTickOnce(emitContainerResized)
     nextTickOnce(tryMakeDraggable)
     nextTickOnce(tryMakeResizable)
   },
 )
+watch(
+  () => props.i,
+  (_, previousId) => {
+    if (props.decorative) {
+      state.registered = props.internal
+      nextTickOnce(createStyle)
+      return
+    }
+    state.registered = false
+    state.style = {}
+    layout.updateItem(instance, previousId)
+  },
+)
+watch(effectiveStatic, () => {
+  nextTickOnce(tryMakeDraggable)
+  nextTickOnce(tryMakeResizable)
+})
 watch(
   () => state.draggable,
   () => {
@@ -297,15 +395,12 @@ watch(
   },
 )
 watch(
-  () => props.isResizable,
-  value => {
-    state.resizable = value
-  },
-)
-watch(
   () => props.isBounded,
   value => {
-    state.bounded = value
+    const bounded = value ?? layout.isBounded
+    if (Object.is(state.bounded, bounded)) return
+    state.bounded = bounded
+    layout.handleItemConfigChange(instance, 'drag')
   },
 )
 watch(
@@ -326,9 +421,16 @@ watch([() => state.cols, () => state.containerWidth], () => {
   nextTickOnce(createStyle)
   nextTickOnce(emitContainerResized)
 })
-watch([() => props.minH, () => props.maxH, () => props.minW, () => props.maxW], () => {
+watch([effectiveMinH, effectiveMaxH, effectiveMinW, effectiveMaxW], () => {
   nextTickOnce(tryMakeResizable)
 })
+watch(
+  () => props.preserveAspectRatio,
+  () => {
+    layout.handleItemConfigChange(instance, 'resize')
+    nextTickOnce(tryMakeResizable)
+  },
+)
 watch(renderRtl, () => {
   nextTickOnce(tryMakeResizable)
   nextTickOnce(createStyle)
@@ -337,9 +439,102 @@ watch(effectivePositionStrategy, () => {
   nextTickOnce(tryMakeResizable)
   nextTickOnce(createStyle)
 })
+watch(
+  () => [layout.positionStyleRevision, layout.positionStyleReady] as const,
+  () => {
+    createStyle()
+    nextTickOnce(tryMakeDraggable)
+    nextTickOnce(tryMakeResizable)
+  },
+)
 watch(effectiveZIndex, () => {
   nextTickOnce(createStyle)
 })
+watch(
+  () => props.dragOption,
+  value => {
+    try {
+      const snapshot = snapshotInteractOption(toRaw(value), 'dragOption')
+      layout.handleItemConfigChange(instance, 'drag')
+      dragOptionSnapshot.value = snapshot
+      nextTickOnce(tryMakeDraggable)
+    } catch (error) {
+      if (error instanceof GridLayoutValidationError) {
+        layout.handleItemConfigChange(instance, 'drag', error)
+        return
+      }
+      throw error
+    }
+  },
+)
+watch(
+  () => props.resizeOption,
+  value => {
+    try {
+      const snapshot = snapshotInteractOption(toRaw(value), 'resizeOption')
+      layout.handleItemConfigChange(instance, 'resize')
+      resizeOptionSnapshot.value = snapshot
+      nextTickOnce(tryMakeResizable)
+    } catch (error) {
+      if (error instanceof GridLayoutValidationError) {
+        layout.handleItemConfigChange(instance, 'resize', error)
+        return
+      }
+      throw error
+    }
+  },
+)
+watch(
+  () => props.dragIgnoreFrom,
+  value => {
+    try {
+      const snapshot = snapshotInteractSelector(value, 'dragIgnoreFrom')
+      layout.handleItemConfigChange(instance, 'drag')
+      dragIgnoreSelector.value = snapshot
+      nextTickOnce(tryMakeDraggable)
+    } catch (error) {
+      if (error instanceof GridLayoutValidationError) {
+        layout.handleItemConfigChange(instance, 'drag', error)
+        return
+      }
+      throw error
+    }
+  },
+)
+watch(
+  () => props.dragAllowFrom,
+  value => {
+    try {
+      const snapshot = snapshotInteractSelector(value, 'dragAllowFrom')
+      layout.handleItemConfigChange(instance, 'drag')
+      dragAllowSelector.value = snapshot
+      nextTickOnce(tryMakeDraggable)
+    } catch (error) {
+      if (error instanceof GridLayoutValidationError) {
+        layout.handleItemConfigChange(instance, 'drag', error)
+        return
+      }
+      throw error
+    }
+  },
+)
+watch(
+  () => props.resizeIgnoreFrom,
+  value => {
+    try {
+      const snapshot = snapshotInteractSelector(value, 'resizeIgnoreFrom')
+      layout.handleItemConfigChange(instance, 'resize')
+      resizeIgnoreSelector.value = snapshot
+      nextTickOnce(tryMakeResizable)
+    } catch (error) {
+      if (error instanceof GridLayoutValidationError) {
+        layout.handleItemConfigChange(instance, 'resize', error)
+        return
+      }
+      throw error
+    }
+  },
+)
 watch([() => layout.margin, () => layout.margin[0], () => layout.margin[1]], () => {
   const margin = layout.margin
 
@@ -351,8 +546,49 @@ watch([() => layout.margin, () => layout.margin[0], () => layout.margin[1]], () 
   nextTickOnce(createStyle)
   nextTickOnce(emitContainerResized)
 })
+watch(
+  [
+    () => layout.containerPadding,
+    () => layout.containerPadding[0],
+    () => layout.containerPadding[1],
+  ],
+  () => {
+    const padding = layout.containerPadding
+    if (padding[0] === state.containerPadding[0] && padding[1] === state.containerPadding[1]) {
+      return
+    }
+    state.containerPadding = [padding[0], padding[1]]
+    nextTickOnce(createStyle)
+    nextTickOnce(emitContainerResized)
+  },
+)
 
 function createStyle() {
+  if (!state.registered) {
+    state.style = {}
+    return
+  }
+
+  if (!props.decorative && !state.isDragging && !state.isResizing) {
+    state.style = { ...layout.getPositionStyle(props.i) }
+    return
+  }
+  const renderedWidth = resolvedContainerWidth()
+  if (
+    renderedWidth <= 0 ||
+    (props.decorative &&
+      (!layout.positionStyleReady ||
+        layout.width === null ||
+        layout.width <= 0 ||
+        !Number.isSafeInteger(effectiveW.value) ||
+        effectiveW.value <= 0 ||
+        !Number.isSafeInteger(effectiveH.value) ||
+        effectiveH.value <= 0))
+  ) {
+    state.style = {}
+    return
+  }
+
   let x: number, y: number, w: number, h: number
   if (state.isResizing) {
     x = innerX
@@ -360,15 +596,15 @@ function createStyle() {
     w = innerW
     h = innerH
   } else {
-    if (props.x + props.w > state.cols) {
+    if (effectiveX.value + effectiveW.value > state.cols) {
       x = 0
-      w = props.w > state.cols ? state.cols : props.w
+      w = effectiveW.value > state.cols ? state.cols : effectiveW.value
     } else {
-      x = props.x
-      w = props.w
+      x = effectiveX.value
+      w = effectiveW.value
     }
-    y = props.y
-    h = props.h
+    y = effectiveY.value
+    h = effectiveH.value
     innerX = x
     innerY = y
     innerW = w
@@ -390,13 +626,43 @@ function createStyle() {
     pos.height = state.resizing.height
   }
 
-  let style: Record<string, string>
-  const strategy = effectivePositionStrategy.value
-  if (renderRtl.value) {
-    style = strategy.getRtlStyle(pos.top, pos.right!, pos.width, pos.height)
-  } else {
-    style = strategy.getStyle(pos.top, pos.left!, pos.width, pos.height)
+  const transientGeometry = {
+    top: pos.top,
+    inlineStart: renderRtl.value ? pos.right : pos.left,
+    width: pos.width,
+    height: pos.height,
   }
+  if (
+    !Object.values(transientGeometry).every(
+      value => typeof value === 'number' && Number.isFinite(value),
+    )
+  ) {
+    state.style = props.decorative ? {} : { ...layout.getPositionStyle(props.i) }
+    return
+  }
+  const direction = renderRtl.value ? 'rtl' : 'ltr'
+  const width = Math.max(0, transientGeometry.width)
+  const height = Math.max(0, transientGeometry.height)
+  const geometry =
+    state.isDragging && boundedSnapshot === null
+      ? validateTransientPositionGeometry(
+          transientGeometry.top,
+          transientGeometry.inlineStart!,
+          width,
+          height,
+          direction,
+        )
+      : validatePositionGeometry(
+          Math.max(0, transientGeometry.top),
+          Math.max(0, transientGeometry.inlineStart!),
+          width,
+          height,
+          direction,
+        )
+  const positionedStyle = useCssTransforms.value
+    ? createTransformStyle(geometry, direction)
+    : createAbsoluteStyle(geometry, direction)
+  let style: Record<string, string> = { ...positionedStyle }
   if (effectiveZIndex.value !== undefined) {
     style = {
       ...style,
@@ -407,21 +673,118 @@ function createStyle() {
   state.style = style
 }
 
+function resetInteractionState(type?: 'drag' | 'resize'): void {
+  let shouldRefreshStyle = false
+  if (!type || type === 'drag') {
+    if (state.isDragging || state.dragging.top !== -1 || state.dragging.left !== -1) {
+      state.isDragging = false
+      state.dragging = { top: -1, left: -1 }
+      shouldRefreshStyle = true
+    }
+    lastX = NaN
+    lastY = NaN
+    dragStartPos = null
+    dragThresholdExceeded = false
+    dragTargetAllowed = false
+    boundedSnapshot = null
+    dragTerminalSnapshot = null
+  }
+  if (!type || type === 'resize') {
+    if (state.isResizing || state.resizing.width !== -1 || state.resizing.height !== -1) {
+      state.isResizing = false
+      state.resizing = { width: -1, height: -1 }
+      shouldRefreshStyle = true
+    }
+    lastW = NaN
+    lastH = NaN
+    resizeTargetAllowed = false
+    resizeAspectSnapshot = null
+    resizeTerminalSnapshot = null
+  }
+  if (shouldRefreshStyle) createStyle()
+}
+
+function disableInteractionBinding(type?: 'drag' | 'resize'): void {
+  if (!type || type === 'drag') {
+    interactObj.value?.draggable({ enabled: false })
+  }
+  if (!type || type === 'resize') {
+    interactObj.value?.resizable({ enabled: false })
+  }
+}
+
+createStyle()
+
 function emitContainerResized() {
   const styleProps: Record<string, string> = {}
   for (const prop of ['width', 'height']) {
     const val = state.style[prop]
-    const matches = val.match(/^(\d+)px$/)
+    if (typeof val !== 'string') return
+    const matches = val.match(/^(\d+(?:\.\d+)?)px$/)
     if (!matches) {
       return
     }
-    styleProps[prop] = matches[1]
+    styleProps[prop] = String(Math.round(Number(matches[1])))
   }
-  emit('container-resized', props.i, props.h, props.w, styleProps.height, styleProps.width)
+  emit(
+    'container-resized',
+    props.i,
+    effectiveH.value,
+    effectiveW.value,
+    styleProps.height,
+    styleProps.width,
+  )
+}
+
+function nextResizePixelSize(x: number, y: number): { width: number; height: number } {
+  const coreEvent = createCoreData(lastW, lastH, x, y)
+  const snapshot = resizeAspectSnapshot
+  const rawWidth =
+    (snapshot?.rawWidth ?? state.resizing.width) +
+    (renderRtl.value ? -coreEvent.deltaX : coreEvent.deltaX) / transformScale.value
+  const rawHeight =
+    (snapshot?.rawHeight ?? state.resizing.height) + coreEvent.deltaY / transformScale.value
+
+  if (!snapshot) return { width: rawWidth, height: rawHeight }
+  snapshot.rawWidth = rawWidth
+  snapshot.rawHeight = rawHeight
+  if (!snapshot.enabled) return { width: rawWidth, height: rawHeight }
+
+  const widthDelta = Math.abs(rawWidth - snapshot.initialWidth)
+  const heightDelta = Math.abs(rawHeight - snapshot.initialHeight)
+  return widthDelta >= heightDelta
+    ? { width: rawWidth, height: rawWidth / snapshot.ratio }
+    : { width: rawHeight * snapshot.ratio, height: rawHeight }
+}
+
+function finishResizeInteraction(item: Pick<LayoutItem, 'x' | 'y' | 'w' | 'h'> | null): void {
+  const terminal = resizeTerminalSnapshot
+  resizeTerminalSnapshot = null
+  if (!terminal || !item || (terminal.initialW === item.w && terminal.initialH === item.h)) {
+    return
+  }
+
+  let pixelWidth = terminal.pixelWidth
+  let pixelHeight = terminal.pixelHeight
+  if (terminal.candidateW !== item.w || terminal.candidateH !== item.h) {
+    const position = calcPosition(item.x, item.y, item.w, item.h)
+    pixelWidth = position.width
+    pixelHeight = position.height
+  }
+  emit('resized', props.i, item.h, item.w, pixelHeight, pixelWidth)
+}
+
+function finishDragInteraction(item: Pick<LayoutItem, 'x' | 'y'> | null): void {
+  const terminal = dragTerminalSnapshot
+  dragTerminalSnapshot = null
+  if (!terminal || !item || (terminal.initialX === item.x && terminal.initialY === item.y)) {
+    return
+  }
+  emit('moved', props.i, item.x, item.y)
 }
 
 function handleResize(event: MouseEvent & { edges: any }) {
-  if (props.static) return
+  if (effectiveStatic.value) return
 
   const type = event.type
   if (
@@ -442,7 +805,31 @@ function handleResize(event: MouseEvent & { edges: any }) {
       tryMakeResizable()
       previousW = innerW
       previousH = innerH
+      resizeTerminalSnapshot = null
       pos = calcPosition(innerX, innerY, innerW, innerH)
+      if (
+        props.preserveAspectRatio &&
+        (!Number.isFinite(pos.width) ||
+          !Number.isFinite(pos.height) ||
+          pos.width <= 0 ||
+          pos.height <= 0)
+      ) {
+        const error = new GridLayoutValidationError('Invalid resize aspect ratio geometry', {
+          code: 'invalid-config',
+          path: 'gridItem.preserveAspectRatio',
+          cause: { width: pos.width, height: pos.height },
+        })
+        layout.rejectItemInteraction('resize', props.i, 'invalid-input', event, error)
+        return
+      }
+      resizeAspectSnapshot = {
+        enabled: props.preserveAspectRatio,
+        ratio: pos.width / pos.height,
+        initialWidth: pos.width,
+        initialHeight: pos.height,
+        rawWidth: pos.width,
+        rawHeight: pos.height,
+      }
       newSize.width = pos.width
       newSize.height = pos.height
       state.resizing = newSize
@@ -450,20 +837,12 @@ function handleResize(event: MouseEvent & { edges: any }) {
       break
     }
     case 'resizemove': {
-      const coreEvent = createCoreData(lastW, lastH, x, y)
-      if (renderRtl.value) {
-        newSize.width = state.resizing.width - coreEvent.deltaX / transformScale.value
-      } else {
-        newSize.width = state.resizing.width + coreEvent.deltaX / transformScale.value
-      }
-      newSize.height = state.resizing.height + coreEvent.deltaY / transformScale.value
+      Object.assign(newSize, nextResizePixelSize(x, y))
       state.resizing = newSize
       break
     }
     case 'resizeend': {
-      pos = calcPosition(innerX, innerY, innerW, innerH)
-      newSize.width = pos.width
-      newSize.height = pos.height
+      Object.assign(newSize, nextResizePixelSize(x, y))
       state.resizing = { width: -1, height: -1 }
       state.isResizing = false
       break
@@ -471,18 +850,32 @@ function handleResize(event: MouseEvent & { edges: any }) {
   }
 
   // Get new WH
-  pos = calcWH(newSize.height, newSize.width)
-  if (pos.w < props.minW) {
-    pos.w = props.minW
+  pos = resizeAspectSnapshot?.enabled
+    ? selectAspectGridSize(newSize.width, newSize.height, resizeAspectSnapshot.ratio)
+    : calcWH(newSize.height, newSize.width)
+  if (!pos) {
+    const maximumHeight = Math.min(effectiveMaxH.value, state.maxRows - innerY)
+    layout.rejectItemInteraction(
+      'resize',
+      props.i,
+      maximumHeight < effectiveMinH.value ? 'max-rows' : 'out-of-bounds',
+      event,
+    )
+    const current = calcPosition(innerX, innerY, innerW, innerH)
+    state.resizing = { width: current.width, height: current.height }
+    return
   }
-  if (pos.w > props.maxW) {
-    pos.w = props.maxW
+  if (pos.w < effectiveMinW.value) {
+    pos.w = effectiveMinW.value
   }
-  if (pos.h < props.minH) {
-    pos.h = props.minH
+  if (pos.w > effectiveMaxW.value) {
+    pos.w = effectiveMaxW.value
   }
-  if (pos.h > props.maxH) {
-    pos.h = props.maxH
+  if (pos.h < effectiveMinH.value) {
+    pos.h = effectiveMinH.value
+  }
+  if (pos.h > effectiveMaxH.value) {
+    pos.h = effectiveMaxH.value
   }
 
   if (pos.h < 1) {
@@ -502,16 +895,24 @@ function handleResize(event: MouseEvent & { edges: any }) {
   if (innerW !== pos.w || innerH !== pos.h) {
     emit('resize', props.i, pos.h, pos.w, newSize.height, newSize.width)
   }
-  if (event.type === 'resizeend' && (previousW !== innerW || previousH !== innerH)) {
-    emit('resized', props.i, pos.h, pos.w, newSize.height, newSize.width)
+  if (event.type === 'resizeend') {
+    resizeTerminalSnapshot = {
+      initialW: previousW,
+      initialH: previousH,
+      candidateW: pos.w,
+      candidateH: pos.h,
+      pixelWidth: newSize.width,
+      pixelHeight: newSize.height,
+    }
   }
-  emitter.emit('resizeEvent', event.type, props.i, innerX, innerY, pos.h, pos.w)
+  emitter.emit('resizeEvent', type, props.i, innerX, innerY, pos.h, pos.w, event)
+  if (type === 'resizeend') resizeAspectSnapshot = null
 }
 
-function handleDrag(event: MouseEvent) {
-  if (props.static || state.isResizing) return
+function handleDrag(event: MouseEvent, phase = event.type) {
+  if (effectiveStatic.value || state.isResizing) return
 
-  const type = event.type
+  const type = phase
   if ((type === 'dragstart' && state.isDragging) || (type !== 'dragstart' && !state.isDragging)) {
     return
   }
@@ -528,6 +929,7 @@ function handleDrag(event: MouseEvent) {
     case 'dragstart': {
       previousX = innerX
       previousY = innerY
+      dragTerminalSnapshot = null
 
       const parentRect = target.offsetParent.getBoundingClientRect()
       const clientRect = target.getBoundingClientRect()
@@ -538,6 +940,31 @@ function handleDrag(event: MouseEvent) {
       const pRight = parentRect.right / transformScale.value
       const cTop = clientRect.top / transformScale.value
       const pTop = parentRect.top / transformScale.value
+      if (state.bounded) {
+        const itemWidth = clientRect.width / transformScale.value
+        const itemHeight = clientRect.height / transformScale.value
+        const rootWidth = target.offsetParent.clientWidth
+        const rootHeight = target.offsetParent.clientHeight
+        if (![itemWidth, itemHeight, rootWidth, rootHeight].every(Number.isFinite)) {
+          const error = new GridLayoutValidationError('Invalid bounded drag geometry', {
+            code: 'invalid-config',
+            path: 'gridItem.isBounded',
+            cause: { itemWidth, itemHeight, rootWidth, rootHeight },
+          })
+          layout.rejectItemInteraction('drag', props.i, 'invalid-input', event, error)
+          return
+        }
+        if (itemWidth > rootWidth || itemHeight > rootHeight) {
+          layout.rejectItemInteraction('drag', props.i, 'out-of-bounds', event)
+          return
+        }
+        boundedSnapshot = {
+          maxLeft: rootWidth - itemWidth,
+          maxTop: rootHeight - itemHeight,
+        }
+      } else {
+        boundedSnapshot = null
+      }
 
       if (renderRtl.value) {
         newPosition.left = (cRight - pRight) * -1
@@ -557,15 +984,9 @@ function handleDrag(event: MouseEvent) {
         newPosition.left = state.dragging.left + coreEvent.deltaX / transformScale.value
       }
       newPosition.top = state.dragging.top + coreEvent.deltaY / transformScale.value
-      if (state.bounded) {
-        const bottomBoundary =
-          target.offsetParent.clientHeight -
-          calcGridItemWHPx(props.h, state.rowHeight, state.margin[1])
-        newPosition.top = clamp(newPosition.top, 0, bottomBoundary)
-        const colWidth = calcColWidth()
-        const rightBoundary =
-          state.containerWidth - calcGridItemWHPx(props.w, colWidth, state.margin[0])
-        newPosition.left = clamp(newPosition.left, 0, rightBoundary)
+      if (boundedSnapshot) {
+        newPosition.top = clamp(newPosition.top, 0, boundedSnapshot.maxTop)
+        newPosition.left = clamp(newPosition.left, 0, boundedSnapshot.maxLeft)
       }
 
       state.dragging = newPosition
@@ -590,117 +1011,164 @@ function handleDrag(event: MouseEvent) {
       newPosition.top = cTop - pTop
       state.dragging = { top: -1, left: -1 }
       state.isDragging = false
+      boundedSnapshot = null
       break
     }
   }
 
-  let pos
-  if (renderRtl.value) {
-    pos = calcXY(newPosition.top, newPosition.left)
-  } else {
-    pos = calcXY(newPosition.top, newPosition.left)
-  }
+  const parentWidth = target.offsetParent.getBoundingClientRect().width / transformScale.value
+  const pos = calcXY(newPosition.top, newPosition.left, parentWidth)
 
   lastX = x
   lastY = y
 
+  if (state.isDragging) {
+    createStyle()
+  }
+
   if (innerX !== pos.x || innerY !== pos.y) {
     emit('move', props.i, pos.x, pos.y)
   }
-  if (event.type === 'dragend' && (previousX !== innerX || previousY !== innerY)) {
-    emit('moved', props.i, pos.x, pos.y)
+  if (type === 'dragend') {
+    dragTerminalSnapshot = {
+      initialX: previousX,
+      initialY: previousY,
+    }
   }
-  emitter.emit('dragEvent', event.type, props.i, pos.x, pos.y, innerH, innerW)
+  emitter.emit('dragEvent', type, props.i, pos.x, pos.y, innerH, innerW, event)
 }
 
-/**
- * Calculate the absolute left pixel position for a given grid column.
- */
-function calcGridColLeft(col: number) {
-  const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
-  return Math.round((totalSpace * col) / state.cols) + state.margin[0] * (col + 1)
+function resolvedContainerWidth(): number {
+  if (typeof layout.width === 'number' && layout.width > 0) return layout.width
+  const physicalWidth = wrapper.value?.offsetParent?.getBoundingClientRect().width
+  if (typeof physicalWidth === 'number' && Number.isFinite(physicalWidth) && physicalWidth > 0) {
+    return physicalWidth / transformScale.value
+  }
+  return state.containerWidth
 }
 
-/**
- * Calculate the absolute top pixel position for a given grid row.
- */
-function calcGridRowTop(row: number) {
-  return Math.round(state.rowHeight * row) + state.margin[1] * (row + 1)
+function itemGeometry(rtl = renderRtl.value, effectiveScale = transformScale.value) {
+  return {
+    width: resolvedContainerWidth(),
+    cols: state.cols,
+    rowHeight: state.rowHeight,
+    margin: [state.margin[0], state.margin[1]] as const,
+    containerPadding: state.containerPadding,
+    rtl,
+    effectiveScale,
+  }
 }
 
 function calcPosition(x: number, y: number, w: number, h: number) {
-  const posLeft = calcGridColLeft(x)
-  const posTop = calcGridRowTop(y)
-  const posWidth = w === Infinity ? w : calcGridColLeft(x + w) - posLeft - state.margin[0]
-  const posHeight = h === Infinity ? h : calcGridRowTop(y + h) - posTop - state.margin[1]
+  const finiteW = w === Infinity ? 1 : w
+  const finiteH = h === Infinity ? 1 : h
+  const rect = gridToPixelRect(
+    { i: props.decorative ? '__decorative__' : props.i, x, y, w: finiteW, h: finiteH },
+    itemGeometry(),
+  )
 
-  let out
   if (renderRtl.value) {
-    out = {
-      right: posLeft,
-      top: posTop,
-      width: posWidth,
-      height: posHeight,
-    }
-  } else {
-    out = {
-      left: posLeft,
-      top: posTop,
-      width: posWidth,
-      height: posHeight,
+    return {
+      right: rect.inlineStart,
+      top: rect.top,
+      width: w === Infinity ? Infinity : rect.width,
+      height: h === Infinity ? Infinity : rect.height,
     }
   }
-
-  return out
+  return {
+    left: rect.inlineStart,
+    top: rect.top,
+    width: w === Infinity ? Infinity : rect.width,
+    height: h === Infinity ? Infinity : rect.height,
+  }
 }
 
-function calcXY(top: number, left: number) {
-  const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
+function calcXY(top: number, left: number, widthOverride?: number) {
+  const width =
+    typeof widthOverride === 'number' && Number.isFinite(widthOverride) && widthOverride > 0
+      ? widthOverride
+      : itemGeometry().width
+  const position = pointerToGridPosition({
+    clientX: left,
+    clientY: top,
+    containerRect: {
+      left: 0,
+      right: width,
+      top: 0,
+      bottom: 0,
+      width,
+      height: 0,
+    },
+    anchor: { inline: 0, block: 0 },
+    geometry: { ...itemGeometry(false, 1), width },
+  })
 
-  let x = Math.round(
-    ((left - state.margin[0]) * state.cols) / (totalSpace + state.margin[0] * state.cols),
-  )
-  let y = Math.round((top - state.margin[1]) / (state.rowHeight + state.margin[1]))
-
-  x = Math.max(Math.min(x, state.cols - innerW), 0)
-  y = Math.max(Math.min(y, state.maxRows - innerH), 0)
+  const x = Math.max(Math.min(position.x, state.cols - innerW), 0)
+  const y = Math.max(Math.min(position.y, state.maxRows - innerH), 0)
 
   return { x, y }
-}
-
-function calcColWidth() {
-  return (state.containerWidth - state.margin[0] * (state.cols + 1)) / state.cols
-}
-
-function calcGridItemWHPx(gridUnits: number, colOrRowSize: number, marginPx: number) {
-  if (!Number.isFinite(gridUnits)) return gridUnits
-  return Math.round(colOrRowSize * gridUnits + Math.max(0, gridUnits - 1) * marginPx)
 }
 
 function clamp(num: number, lowerBound: number, upperBound: number) {
   return Math.max(Math.min(num, upperBound), lowerBound)
 }
 
-function calcWH(height: number, width: number, autoSizeFlag = false) {
-  const totalSpace = state.containerWidth - state.margin[0] * (state.cols + 1)
+function calcWH(height: number, width: number) {
+  const size = pixelSizeToGridSize({ width, height, geometry: itemGeometry() })
 
-  let w = Math.round(
-    ((width + state.margin[0]) * state.cols) / (totalSpace + state.margin[0] * state.cols),
-  )
-  let h = 0
-  if (!autoSizeFlag) {
-    h = Math.round((height + state.margin[1]) / (state.rowHeight + state.margin[1]))
-  } else {
-    h = Math.ceil((height + state.margin[1]) / (state.rowHeight + state.margin[1]))
-  }
-
-  w = Math.max(Math.min(w, state.cols - innerX), 0)
-  h = Math.max(Math.min(h, state.maxRows - innerY), 0)
+  const w = Math.max(Math.min(size.w, state.cols - innerX), 0)
+  const h = Math.max(Math.min(size.h, state.maxRows - innerY), 0)
   return { w, h }
 }
 
-function updateWidth(width: number, colNum?: number) {
-  state.containerWidth = width
+function selectAspectGridSize(
+  targetWidth: number,
+  targetHeight: number,
+  ratio: number,
+): { w: number; h: number } | null {
+  const rounded = pixelSizeToGridSize({
+    width: targetWidth,
+    height: targetHeight,
+    geometry: itemGeometry(),
+  })
+  const maxW = Math.min(effectiveMaxW.value, state.cols - innerX)
+  const maxH = Math.min(effectiveMaxH.value, state.maxRows - innerY)
+  const widths = new Set([rounded.w - 1, rounded.w, rounded.w + 1, effectiveMinW.value, maxW])
+  const heights = new Set([rounded.h - 1, rounded.h, rounded.h + 1, effectiveMinH.value, maxH])
+  let best:
+    | {
+        w: number
+        h: number
+        distance: number
+        ratioError: number
+      }
+    | undefined
+
+  for (const w of widths) {
+    if (!Number.isSafeInteger(w) || w < effectiveMinW.value || w > maxW) continue
+    for (const h of heights) {
+      if (!Number.isSafeInteger(h) || h < effectiveMinH.value || h > maxH) continue
+      const rect = calcPosition(innerX, innerY, w, h)
+      const distance = (rect.width - targetWidth) ** 2 + (rect.height - targetHeight) ** 2
+      const ratioError = Math.abs(rect.width / rect.height - ratio)
+      const candidate = { w, h, distance, ratioError }
+      if (
+        !best ||
+        candidate.distance < best.distance ||
+        (candidate.distance === best.distance && candidate.ratioError < best.ratioError) ||
+        (candidate.distance === best.distance &&
+          candidate.ratioError === best.ratioError &&
+          (candidate.h < best.h || (candidate.h === best.h && candidate.w < best.w)))
+      ) {
+        best = candidate
+      }
+    }
+  }
+  return best ? { w: best.w, h: best.h } : null
+}
+
+function updateWidth(width: number | null, colNum?: number) {
+  state.containerWidth = width ?? 0
   if (colNum !== undefined && colNum !== null) {
     state.cols = colNum
   }
@@ -719,19 +1187,57 @@ function tryInteract() {
   }
 }
 
-const throttleDrag = throttle(handleDrag)
+function matchesSelectorPath(target: EventTarget | null, selector: string | undefined): boolean {
+  if (!selector) return false
+  let element = target instanceof Element ? target : null
+  const root = wrapper.value
+  while (element) {
+    if (element.matches(selector)) return true
+    if (element === root) break
+    element = element.parentElement
+  }
+  return false
+}
+
+function interactionEventTarget(event: MouseEvent): EventTarget | null {
+  const interactionEvent = event as MouseEvent & {
+    originalEvent?: Event
+    _interaction?: { downEvent?: Event }
+  }
+  return (
+    interactionEvent.originalEvent?.target ??
+    interactionEvent._interaction?.downEvent?.target ??
+    event.target
+  )
+}
+
+function canStartDrag(event: MouseEvent): boolean {
+  const target = interactionEventTarget(event)
+  if (matchesSelectorPath(target, dragIgnoreSelector.value)) return false
+  return !dragAllowSelector.value || matchesSelectorPath(target, dragAllowSelector.value)
+}
+
+function canStartResize(event: MouseEvent): boolean {
+  const resizer = `.${nh.be('resizer')}`
+  return (
+    matchesSelectorPath(interactionEventTarget(event), resizer) &&
+    !matchesSelectorPath(interactionEventTarget(event), resizeIgnoreSelector.value)
+  )
+}
 
 function tryMakeDraggable() {
+  if (props.decorative || !state.registered || !layout.positionStyleReady) {
+    interactObj.value?.draggable({ enabled: false })
+    return
+  }
   tryInteract()
 
   if (!interactObj.value) return
 
-  if (state.draggable && !props.static) {
-    const opts = {
-      ignoreFrom: props.dragIgnoreFrom,
-      allowFrom: props.dragAllowFrom,
-      ...props.dragOption,
-    }
+  if (state.draggable && !effectiveStatic.value) {
+    const opts: Record<string, unknown> = { ...dragOptionSnapshot.value }
+    if (dragIgnoreSelector.value) opts.ignoreFrom = dragIgnoreSelector.value
+    if (dragAllowSelector.value) opts.allowFrom = dragAllowSelector.value
     interactObj.value.draggable(opts)
 
     if (!dragEventSet) {
@@ -740,6 +1246,8 @@ function tryMakeDraggable() {
         const threshold = effectiveDragThreshold.value
 
         if (event.type === 'dragstart') {
+          dragTargetAllowed = canStartDrag(event)
+          if (!dragTargetAllowed) return
           // 记录拖拽起始位置
           dragStartPos = { x: event.clientX, y: event.clientY }
           dragThresholdExceeded = threshold <= 0
@@ -747,25 +1255,27 @@ function tryMakeDraggable() {
             handleDrag(event)
           }
         } else if (event.type === 'dragmove') {
+          if (!dragTargetAllowed) return
           if (!dragThresholdExceeded && dragStartPos) {
             const dx = event.clientX - dragStartPos.x
             const dy = event.clientY - dragStartPos.y
             const distance = Math.sqrt(dx * dx + dy * dy)
             if (distance >= threshold) {
               dragThresholdExceeded = true
-              // 触发 dragstart 以初始化拖拽状态
-              handleDrag({ ...event, type: 'dragstart' })
+              handleDrag(event, 'dragstart')
             }
           }
           if (dragThresholdExceeded) {
-            throttleDrag(event)
+            handleDrag(event)
           }
         } else if (event.type === 'dragend') {
+          if (!dragTargetAllowed) return
           if (dragThresholdExceeded) {
             handleDrag(event)
           }
           dragStartPos = null
           dragThresholdExceeded = false
+          dragTargetAllowed = false
         }
       })
     }
@@ -774,16 +1284,23 @@ function tryMakeDraggable() {
   }
 }
 
-const throttleResize = throttle(handleResize)
-
 function tryMakeResizable() {
+  if (props.decorative || !state.registered || !layout.positionStyleReady) {
+    interactObj.value?.resizable({ enabled: false })
+    return
+  }
   tryInteract()
 
   if (!interactObj.value) return
 
-  if (state.resizable && !props.static) {
-    const maximum = calcPosition(0, 0, props.maxW, props.maxH)
-    const minimum = calcPosition(0, 0, props.minW, props.minH)
+  if (state.resizable && !effectiveStatic.value) {
+    const maximum = calcPosition(
+      0,
+      0,
+      Math.min(effectiveMaxW.value, state.cols - innerX),
+      Math.min(effectiveMaxH.value, state.maxRows - innerY),
+    )
+    const minimum = calcPosition(0, 0, effectiveMinW.value, effectiveMinH.value)
 
     const resizerBase = `.${nh.be('resizer')}`
     const opts: Record<string, any> = {
@@ -793,7 +1310,6 @@ function tryMakeResizable() {
         left: false,
         right: `${resizerBase}--se`,
       },
-      ignoreFrom: props.resizeIgnoreFrom,
       restrictSize: {
         min: {
           height: minimum.height * transformScale.value,
@@ -804,18 +1320,22 @@ function tryMakeResizable() {
           width: maximum.width * transformScale.value,
         },
       },
-      ...props.resizeOption,
+      ...resizeOptionSnapshot.value,
     }
-
-    if (props.preserveAspectRatio) {
-      opts.modifiers = [interact.modifiers.aspectRatio({ ratio: 'preserve' })]
-    }
+    if (resizeIgnoreSelector.value) opts.ignoreFrom = resizeIgnoreSelector.value
 
     interactObj.value.resizable(opts)
     if (!resizeEventSet) {
       resizeEventSet = true
       interactObj.value.on('resizestart resizemove resizeend', event => {
-        event.type === 'resizemove' ? throttleResize(event) : handleResize(event)
+        if (event.type === 'resizestart') {
+          resizeTargetAllowed = canStartResize(event)
+          if (!resizeTargetAllowed) return
+        } else if (!resizeTargetAllowed) {
+          return
+        }
+        handleResize(event)
+        if (event.type === 'resizeend') resizeTargetAllowed = false
       })
     }
   } else {
@@ -830,6 +1350,8 @@ function tryMakeResizable() {
     <span
       v-if="resizableAndNotStatic"
       :class="[nh.be('resizer'), nh.bem('resizer', 'se'), renderRtl && nh.bem('resizer', 'rtl')]"
+      aria-hidden="true"
+      tabindex="-1"
     ></span>
   </section>
 </template>

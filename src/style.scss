@@ -15,6 +15,11 @@
   position: relative;
   box-sizing: border-box;
   transition: height 200ms ease;
+
+  &--suppress-transition,
+  &--suppress-transition > .vgl-item {
+    transition: none;
+  }
 }
 
 .vgl-item {
@@ -25,7 +30,8 @@
   transition-property: left, top, right;
 
   &--placeholder {
-    z-index: var(--vgl-placeholder-z-index, 2);
+    z-index: max(var(--vgl-item-z-index, 0), var(--vgl-placeholder-z-index, 2));
+    pointer-events: none;
     user-select: none;
     background-color: var(--vgl-placeholder-bg, red);
     opacity: var(--vgl-placeholder-opacity, 20%);
@@ -48,13 +54,14 @@
   }
 
   &--resizing {
-    z-index: max(var(--vgl-item-z-index, 0), var(--vgl-item-resizing-z-index, 3));
+    z-index: max(calc(var(--vgl-item-z-index, 0) + 1), var(--vgl-item-resizing-z-index, 3));
     user-select: none;
     opacity: var(--vgl-item-resizing-opacity, 60%);
+    transition: none;
   }
 
   &--dragging {
-    z-index: max(var(--vgl-item-z-index, 0), var(--vgl-item-dragging-z-index, 3));
+    z-index: max(calc(var(--vgl-item-z-index, 0) + 1), var(--vgl-item-dragging-z-index, 3));
     user-select: none;
     opacity: var(--vgl-item-dragging-opacity, 100%);
     transition: none;
@@ -108,4 +115,12 @@
   top: 0;
   left: 0;
   pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vgl-layout,
+  .vgl-item {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
 }

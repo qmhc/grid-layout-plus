@@ -6,6 +6,8 @@ temp
 .dev
 .yarn
 coverage
+playwright-report
+test-results
 /es
 /lib
 cache

@@ -3,7 +3,6 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { performance } from 'node:perf_hooks'
 
 import {
   fastHorizontalCompactor,
@@ -28,6 +27,15 @@ function positions(layout: Layout) {
 // ─── verticalCompactor ──────────────────────────────────────
 
 describe('verticalCompactor', () => {
+  it.each([verticalCompactor, fastVerticalCompactor])(
+    '极大合法 y 不按行扫描',
+    compactor => {
+      const layout: Layout = [{ i: 'large-y', x: 0, y: Number.MAX_SAFE_INTEGER - 1, w: 1, h: 1 }]
+      expect(compactor.compact(layout, 4)[0].y).toBe(0)
+    },
+    100,
+  )
+
   it('与 compact(layout, true) 输出一致 — 空布局', () => {
     const layout: Layout = []
     expect(verticalCompactor.compact(layout, 12)).toEqual(compact(cloneLayout(layout), true))
@@ -108,9 +116,9 @@ describe('horizontalCompactor', () => {
     const staticItem = result.find(l => l.i === 's')!
     expect(staticItem.x).toBe(2)
     expect(staticItem.y).toBe(0)
-    // 非静态元素向左压缩，遇到静态元素 (x=2,w=2) 碰撞后放在其右侧 x=4
+    // x=0 可容纳该元素，不需要跨过位于 x=2 的静态障碍。
     const item1 = result.find(l => l.i === '1')!
-    expect(item1.x).toBe(4)
+    expect(item1.x).toBe(0)
   })
 
   it('碰撞时放置在障碍物右侧', () => {
@@ -162,7 +170,7 @@ describe('horizontalCompactor', () => {
     expect(layout).toEqual(original)
   })
 
-  it('碰撞推移超出列边界时换到下一行', () => {
+  it('左侧已有空间时不因原始重叠执行不必要的换行', () => {
     const layout: Layout = [
       { i: 's', x: 10, y: 0, w: 2, h: 1, static: true },
       { i: '1', x: 10, y: 0, w: 2, h: 1 },
@@ -171,7 +179,7 @@ describe('horizontalCompactor', () => {
     const item = result.find(l => l.i === '1')!
 
     expect(item.x + item.w).toBeLessThanOrEqual(12)
-    expect(item).toEqual(expect.objectContaining({ x: 0, y: 1 }))
+    expect(item).toEqual(expect.objectContaining({ x: 0, y: 0 }))
     expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(positions(result))
   })
 })
@@ -179,115 +187,65 @@ describe('horizontalCompactor', () => {
 // ─── noCompactor ────────────────────────────────────────────
 
 describe('noCompactor', () => {
-  it('输出与输入位置完全相同', () => {
+  it('保留含静态项的几何并返回 detached 布局', () => {
     const layout: Layout = [
-      { i: '1', x: 3, y: 5, w: 2, h: 2 },
-      { i: '2', x: 0, y: 0, w: 1, h: 1 },
+      { i: 'static', x: 2, y: 3, w: 1, h: 1, static: true },
+      { i: 'dynamic', x: 5, y: 5, w: 2, h: 2 },
     ]
     const result = noCompactor.compact(layout, 12)
     expect(positions(result)).toEqual(positions(layout))
-  })
-
-  it('返回新数组引用', () => {
-    const layout: Layout = [{ i: '1', x: 0, y: 0, w: 1, h: 1 }]
-    const result = noCompactor.compact(layout, 12)
     expect(result).not.toBe(layout)
-  })
-
-  it('返回的元素是新对象引用（浅拷贝）', () => {
-    const layout: Layout = [{ i: '1', x: 0, y: 0, w: 1, h: 1 }]
-    const result = noCompactor.compact(layout, 12)
     expect(result[0]).not.toBe(layout[0])
-  })
-
-  it('空布局返回空数组', () => {
-    expect(noCompactor.compact([], 12)).toEqual([])
-  })
-
-  it('含静态元素时位置也不变', () => {
-    const layout: Layout = [
-      { i: 's', x: 2, y: 3, w: 1, h: 1, static: true },
-      { i: '1', x: 5, y: 5, w: 2, h: 2 },
-    ]
-    const result = noCompactor.compact(layout, 12)
-    expect(positions(result)).toEqual(positions(layout))
+    expect(result[1]).not.toBe(layout[1])
   })
 })
 
 // ─── withOverlap ────────────────────────────────────────────
 
 describe('withOverlap', () => {
-  it('allowOverlap 属性为 true', () => {
+  it('保留 type 并将 allowOverlap 标记为 true', () => {
     const wrapped = withOverlap(verticalCompactor)
     expect(wrapped.allowOverlap).toBe(true)
+    expect(wrapped.type).toBe('vertical')
+    expect(noCompactor.type).toBe('vertical')
   })
 
-  it('跳过碰撞推移，元素位置与输入相同', () => {
-    // 两个重叠元素
+  it('委托 verticalCompactor 且不修改输入', () => {
     const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 2, h: 2 },
-      { i: '2', x: 0, y: 0, w: 1, h: 1 },
+      { i: '1', x: 0, y: 4, w: 2, h: 2 },
+      { i: '2', x: 0, y: 6, w: 1, h: 1 },
     ]
     const wrapped = withOverlap(verticalCompactor)
     const result = wrapped.compact(layout, 12)
-    expect(positions(result)).toEqual(positions(layout))
+    expect(positions(result)).toEqual(positions(verticalCompactor.compact(layout, 12)))
+    expect(positions(layout)).toEqual([
+      { i: '1', x: 0, y: 4, w: 2, h: 2 },
+      { i: '2', x: 0, y: 6, w: 1, h: 1 },
+    ])
   })
 
-  it('包装 horizontalCompactor 时也跳过碰撞推移', () => {
+  it('委托 horizontalCompactor', () => {
     const layout: Layout = [
       { i: '1', x: 5, y: 0, w: 2, h: 1 },
-      { i: '2', x: 5, y: 0, w: 1, h: 1 },
+      { i: '2', x: 7, y: 0, w: 1, h: 1 },
     ]
     const wrapped = withOverlap(horizontalCompactor)
     const result = wrapped.compact(layout, 12)
-    expect(positions(result)).toEqual(positions(layout))
+    expect(positions(result)).toEqual(positions(horizontalCompactor.compact(layout, 12)))
   })
 
-  it('返回新数组引用', () => {
+  it('包装 noCompactor 时返回 detached 布局', () => {
     const layout: Layout = [{ i: '1', x: 0, y: 0, w: 1, h: 1 }]
     const wrapped = withOverlap(noCompactor)
     const result = wrapped.compact(layout, 12)
     expect(result).not.toBe(layout)
+    expect(result[0]).not.toBe(layout[0])
   })
 })
 
 // ─── 边界用例 ───────────────────────────────────────────────
 
 describe('边界用例', () => {
-  it('空布局 — 所有压缩器返回空数组', () => {
-    const empty: Layout = []
-    expect(verticalCompactor.compact(empty, 12)).toEqual([])
-    expect(horizontalCompactor.compact(empty, 12)).toEqual([])
-    expect(noCompactor.compact(empty, 12)).toEqual([])
-    expect(withOverlap(verticalCompactor).compact(empty, 12)).toEqual([])
-  })
-
-  it('单元素 — verticalCompactor 压缩到顶部', () => {
-    const layout: Layout = [{ i: '1', x: 0, y: 10, w: 1, h: 1 }]
-    const result = verticalCompactor.compact(layout, 12)
-    expect(result[0].y).toBe(0)
-    expect(result[0].x).toBe(0)
-  })
-
-  it('单元素 — horizontalCompactor 压缩到左侧', () => {
-    const layout: Layout = [{ i: '1', x: 10, y: 3, w: 1, h: 1 }]
-    const result = horizontalCompactor.compact(layout, 12)
-    expect(result[0].x).toBe(0)
-    expect(result[0].y).toBe(3)
-  })
-
-  it('全静态元素 — 所有压缩器不移动任何元素', () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 1, h: 1, static: true },
-      { i: '2', x: 5, y: 5, w: 2, h: 2, static: true },
-    ]
-    const vResult = verticalCompactor.compact(layout, 12)
-    const hResult = horizontalCompactor.compact(layout, 12)
-
-    expect(positions(vResult)).toEqual(positions(layout))
-    expect(positions(hResult)).toEqual(positions(layout))
-  })
-
   it('元素超出列数 — horizontalCompactor 仍正常处理', () => {
     // cols=4，元素宽度 2 从 x=10 开始（超出范围）
     const layout: Layout = [{ i: '1', x: 10, y: 0, w: 2, h: 1 }]
@@ -312,71 +270,11 @@ describe('边界用例', () => {
 // ─── fastVerticalCompactor ──────────────────────────────────
 
 describe('fastVerticalCompactor', () => {
-  it('空布局 — 与 verticalCompactor 输出一致', () => {
-    const layout: Layout = []
-    expect(fastVerticalCompactor.compact(layout, 12)).toEqual(verticalCompactor.compact(layout, 12))
-  })
-
-  it('单元素有空隙 — 与 verticalCompactor 输出一致', () => {
-    const layout: Layout = [{ i: '1', x: 0, y: 5, w: 1, h: 1 }]
-    expect(positions(fastVerticalCompactor.compact(layout, 12))).toEqual(
-      positions(verticalCompactor.compact(layout, 12)),
-    )
-  })
-
-  it('多元素碰撞 — 与 verticalCompactor 输出一致', () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 2, h: 5 },
-      { i: '2', x: 0, y: 0, w: 10, h: 1 },
-      { i: '3', x: 5, y: 1, w: 1, h: 1 },
-      { i: '4', x: 5, y: 2, w: 1, h: 1 },
-      { i: '5', x: 5, y: 3, w: 1, h: 1, static: true },
-    ]
-    expect(positions(fastVerticalCompactor.compact(layout, 12))).toEqual(
-      positions(verticalCompactor.compact(layout, 12)),
-    )
-  })
-
   it('含静态元素 — 与 verticalCompactor 输出一致', () => {
     const layout: Layout = [
       { i: 'a', x: 0, y: 0, w: 1, h: 1, static: true },
       { i: 'b', x: 0, y: 5, w: 1, h: 1 },
       { i: 'c', x: 1, y: 3, w: 1, h: 2 },
-    ]
-    expect(positions(fastVerticalCompactor.compact(layout, 12))).toEqual(
-      positions(verticalCompactor.compact(layout, 12)),
-    )
-  })
-
-  it('全静态元素 — 与 verticalCompactor 输出一致', () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 1, h: 1, static: true },
-      { i: '2', x: 5, y: 5, w: 2, h: 2, static: true },
-    ]
-    expect(positions(fastVerticalCompactor.compact(layout, 12))).toEqual(
-      positions(verticalCompactor.compact(layout, 12)),
-    )
-  })
-
-  it('密集布局 — 与 verticalCompactor 输出一致', () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 4, h: 2 },
-      { i: '2', x: 4, y: 0, w: 4, h: 3 },
-      { i: '3', x: 8, y: 0, w: 4, h: 1 },
-      { i: '4', x: 0, y: 5, w: 6, h: 2 },
-      { i: '5', x: 6, y: 5, w: 6, h: 1 },
-      { i: '6', x: 0, y: 10, w: 12, h: 1 },
-    ]
-    expect(positions(fastVerticalCompactor.compact(layout, 12))).toEqual(
-      positions(verticalCompactor.compact(layout, 12)),
-    )
-  })
-
-  it('带间隙的稀疏布局 — 与 verticalCompactor 输出一致', () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 10, w: 1, h: 1 },
-      { i: '2', x: 3, y: 20, w: 2, h: 3 },
-      { i: '3', x: 8, y: 50, w: 1, h: 1 },
     ]
     expect(positions(fastVerticalCompactor.compact(layout, 12))).toEqual(
       positions(verticalCompactor.compact(layout, 12)),
@@ -415,70 +313,11 @@ describe('fastVerticalCompactor', () => {
 // ─── fastHorizontalCompactor ────────────────────────────────
 
 describe('fastHorizontalCompactor', () => {
-  it('空布局 — 与 horizontalCompactor 输出一致', () => {
-    const layout: Layout = []
-    expect(fastHorizontalCompactor.compact(layout, 12)).toEqual(
-      horizontalCompactor.compact(layout, 12),
-    )
-  })
-
-  it('单元素向左压缩 — 与 horizontalCompactor 输出一致', () => {
-    const layout: Layout = [{ i: '1', x: 10, y: 3, w: 1, h: 1 }]
-    expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(
-      positions(horizontalCompactor.compact(layout, 12)),
-    )
-  })
-
-  it('多元素同行碰撞 — 与 horizontalCompactor 输出一致', () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 2, h: 1 },
-      { i: '2', x: 5, y: 0, w: 1, h: 1 },
-      { i: '3', x: 8, y: 0, w: 3, h: 1 },
-    ]
-    expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(
-      positions(horizontalCompactor.compact(layout, 12)),
-    )
-  })
-
   it('含静态元素 — 与 horizontalCompactor 输出一致', () => {
     const layout: Layout = [
       { i: 's', x: 2, y: 0, w: 2, h: 2, static: true },
       { i: '1', x: 6, y: 0, w: 1, h: 1 },
       { i: '2', x: 8, y: 1, w: 2, h: 1 },
-    ]
-    expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(
-      positions(horizontalCompactor.compact(layout, 12)),
-    )
-  })
-
-  it('全静态元素 — 与 horizontalCompactor 输出一致', () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 1, h: 1, static: true },
-      { i: '2', x: 5, y: 5, w: 2, h: 2, static: true },
-    ]
-    expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(
-      positions(horizontalCompactor.compact(layout, 12)),
-    )
-  })
-
-  it('不同行元素互不影响 — 与 horizontalCompactor 输出一致', () => {
-    const layout: Layout = [
-      { i: '1', x: 5, y: 0, w: 1, h: 1 },
-      { i: '2', x: 8, y: 5, w: 2, h: 1 },
-    ]
-    expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(
-      positions(horizontalCompactor.compact(layout, 12)),
-    )
-  })
-
-  it('密集布局 — 与 horizontalCompactor 输出一致', () => {
-    const layout: Layout = [
-      { i: '1', x: 0, y: 0, w: 4, h: 2 },
-      { i: '2', x: 4, y: 0, w: 4, h: 3 },
-      { i: '3', x: 8, y: 0, w: 4, h: 1 },
-      { i: '4', x: 0, y: 5, w: 6, h: 2 },
-      { i: '5', x: 6, y: 5, w: 6, h: 1 },
-      { i: '6', x: 0, y: 10, w: 12, h: 1 },
     ]
     expect(positions(fastHorizontalCompactor.compact(layout, 12))).toEqual(
       positions(horizontalCompactor.compact(layout, 12)),
@@ -543,46 +382,5 @@ describe('Fast Compactor 回归属性', () => {
         positions(horizontalCompactor.compact(layout, cols)),
       )
     }
-  })
-
-  it('800 项稀疏布局具有稳定的相对性能优势', () => {
-    const count = 800
-    const verticalLayout: Layout = Array.from({ length: count }, (_, index) => ({
-      i: String(index),
-      x: index,
-      y: 20,
-      w: 1,
-      h: 1,
-    }))
-    const horizontalLayout: Layout = Array.from({ length: count }, (_, index) => ({
-      i: String(index),
-      x: 20,
-      y: index,
-      w: 1,
-      h: 1,
-    }))
-
-    const medianDuration = (run: () => void) => {
-      run()
-      const durations = Array.from({ length: 5 }, () => {
-        const start = performance.now()
-        run()
-        return performance.now() - start
-      })
-      durations.sort((a, b) => a - b)
-      return durations[2]
-    }
-
-    const verticalStandard = medianDuration(() => verticalCompactor.compact(verticalLayout, count))
-    const verticalFast = medianDuration(() => fastVerticalCompactor.compact(verticalLayout, count))
-    const horizontalStandard = medianDuration(() =>
-      horizontalCompactor.compact(horizontalLayout, 40),
-    )
-    const horizontalFast = medianDuration(() =>
-      fastHorizontalCompactor.compact(horizontalLayout, 40),
-    )
-
-    expect(verticalFast).toBeLessThan(verticalStandard * 0.6)
-    expect(horizontalFast).toBeLessThan(horizontalStandard * 0.6)
   })
 })

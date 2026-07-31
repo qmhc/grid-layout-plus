@@ -17,6 +17,10 @@ export {
   validateLayout,
 } from './helpers/common'
 
+export { GridLayoutExtensionError, GridLayoutValidationError } from './core/errors'
+
+export { normalizeLayout } from './core/normalize'
+
 // 导出 Compactor 相关
 export {
   fastHorizontalCompactor,
@@ -31,18 +35,40 @@ export {
 export { absoluteStrategy, scaledStrategy, transformStrategy } from './core/position-strategies'
 
 // 导出工具函数
-export { calcGridCellDimensions } from './core/utils'
+export {
+  calcGridCellDimensions,
+  gridToPixelRect,
+  pixelSizeToGridSize,
+  pointerToGridPosition,
+} from './core/utils'
 
 // 导出类型
 export type {
+  AcceptedLayoutOperationResult,
   Breakpoint,
   Breakpoints,
+  CalcGridCellDimensionsInput,
   CollisionMode,
+  CompactMinPositions,
   CompactType,
   Compactor,
+  DeepReadonly,
   GridCellDimensions,
+  GridGeometry,
+  GridLayoutExtensionCode,
+  GridLayoutExtensionSource,
+  GridLayoutValidationCode,
   Layout,
   LayoutItem,
+  LayoutOperationReason,
+  LayoutOperationResult,
+  LayoutOperationResultBase,
+  NormalizeLayoutOptions,
   PositionStrategy,
+  PixelRect,
+  ReadonlyClientRect,
+  ReadonlyLayout,
+  ReadonlyLayoutItem,
+  RejectedLayoutOperationResult,
   ResponsiveLayout,
 } from './helpers/types'

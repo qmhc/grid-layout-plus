@@ -1,25 +1,33 @@
 name: Create Release
 
 on:
-  push:
-    tags:
-      - v*
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   release:
-    # prevents this action from running on forks
-    if: github.repository == 'qmhc/grid-layout-plus'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
 
       - name: Set node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.x
+          cache: pnpm
 
-      - run: npx changelogithub
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec changelogithub
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

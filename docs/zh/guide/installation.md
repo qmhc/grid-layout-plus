@@ -1,5 +1,7 @@
 # 安装
 
+大多数应用只需引入 `GridLayout` 和 `GridItem`。其他组件和工具可以在用到时单独引入。
+
 使用 `pnpm`（推荐）：
 
 ```sh
@@ -14,7 +16,7 @@ yarn add grid-layout-plus
 
 ## 引入
 
-全局引入：
+全局注册：
 
 ```ts
 import { GridLayout, GridItem } from 'grid-layout-plus'
@@ -24,7 +26,7 @@ app
   .component('GridItem', GridItem)
 ```
 
-在组件内引入：
+也可以在组件中直接引入：
 
 ```vue
 <script setup lang="ts">
@@ -48,7 +50,7 @@ export default defineComponent({
 
 ## 浏览器
 
-在你的页面添加可用于浏览器的软件包 (从 [发布](https://github.com/qmhc/grid-layout-plus/releases) 中下载)。
+从 [Releases](https://github.com/qmhc/grid-layout-plus/releases) 下载浏览器版本，再通过 script 标签引入：
 
 ```html
 <script src="dist/grid-layout-plus.js"></script>
@@ -56,7 +58,7 @@ export default defineComponent({
 
 ## 额外引入
 
-`GridLayout` 和 `GridItem` 是主要组件。其他功能需要显式引入。
+除两个核心组件外，其余功能不会自动注册。用到哪些，就引入哪些：
 
 > **注意：** `GridBackground` 不包含在默认注册中，必须手动引入。
 
@@ -81,3 +83,7 @@ import {
   useResponsiveLayout,
 } from 'grid-layout-plus'
 ```
+
+## 下一步
+
+接着阅读[用法](./usage)了解布局数据如何更新，或直接打开[基础用法](../example/basic)，从可运行的示例开始。

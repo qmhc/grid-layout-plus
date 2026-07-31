@@ -1,35 +1,23 @@
-import type { PositionStrategy } from '../helpers/types'
+import { GridLayoutValidationError } from './errors'
+import {
+  createAbsoluteStyle,
+  createTransformStyle,
+  validatePositionGeometry,
+} from './position-style'
+
+import type { PositionStrategy, PositionStyle } from '../helpers/types'
 
 /**
  * CSS transform translate3d 定位策略（默认）。
  * 等价于现有 setTransform / setTransformRtl。
  */
 export const transformStrategy: PositionStrategy = {
-  getStyle(top: number, left: number, width: number, height: number): Record<string, string> {
-    const translate = `translate3d(${left}px,${top}px, 0)`
-    return {
-      transform: translate,
-      WebkitTransform: translate,
-      MozTransform: translate,
-      msTransform: translate,
-      OTransform: translate,
-      width: `${width}px`,
-      height: `${height}px`,
-      position: 'absolute',
-    }
+  usesCssTransforms: true,
+  getStyle(top: number, left: number, width: number, height: number): PositionStyle {
+    return createTransformStyle(validatePositionGeometry(top, left, width, height, 'ltr'), 'ltr')
   },
-  getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string> {
-    const translate = `translate3d(${right * -1}px,${top}px, 0)`
-    return {
-      transform: translate,
-      WebkitTransform: translate,
-      MozTransform: translate,
-      msTransform: translate,
-      OTransform: translate,
-      width: `${width}px`,
-      height: `${height}px`,
-      position: 'absolute',
-    }
+  getRtlStyle(top: number, right: number, width: number, height: number): PositionStyle {
+    return createTransformStyle(validatePositionGeometry(top, right, width, height, 'rtl'), 'rtl')
   },
 }
 
@@ -38,23 +26,12 @@ export const transformStrategy: PositionStrategy = {
  * 等价于现有 setTopLeft / setTopRight。
  */
 export const absoluteStrategy: PositionStrategy = {
-  getStyle(top: number, left: number, width: number, height: number): Record<string, string> {
-    return {
-      top: `${top}px`,
-      left: `${left}px`,
-      width: `${width}px`,
-      height: `${height}px`,
-      position: 'absolute',
-    }
+  usesCssTransforms: false,
+  getStyle(top: number, left: number, width: number, height: number): PositionStyle {
+    return createAbsoluteStyle(validatePositionGeometry(top, left, width, height, 'ltr'), 'ltr')
   },
-  getRtlStyle(top: number, right: number, width: number, height: number): Record<string, string> {
-    return {
-      top: `${top}px`,
-      right: `${right}px`,
-      width: `${width}px`,
-      height: `${height}px`,
-      position: 'absolute',
-    }
+  getRtlStyle(top: number, right: number, width: number, height: number): PositionStyle {
+    return createAbsoluteStyle(validatePositionGeometry(top, right, width, height, 'rtl'), 'rtl')
   },
 }
 
@@ -64,11 +41,16 @@ export const absoluteStrategy: PositionStrategy = {
  */
 export function scaledStrategy(scale: number): PositionStrategy {
   if (!Number.isFinite(scale) || scale <= 0) {
-    throw new RangeError('[grid-layout-plus]: scale must be a positive finite number')
+    throw new GridLayoutValidationError('Scale must be a positive finite number', {
+      code: 'invalid-config',
+      path: 'config.scale',
+      cause: scale,
+    })
   }
 
   return {
     ...transformStrategy,
+    usesCssTransforms: true,
     transformScale: scale,
   }
 }

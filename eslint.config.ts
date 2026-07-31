@@ -48,6 +48,13 @@ const config: Linter.Config[] = [
     },
   },
   {
+    files: ['docs/demos/**/*.vue'],
+    rules: {
+      'vue/max-attributes-per-line': 'off',
+      'vue/singleline-html-element-content-newline': 'off',
+    },
+  },
+  {
     files: ['scripts/**'],
     rules: {
       'no-sequences': 'off',

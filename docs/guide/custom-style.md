@@ -1,12 +1,12 @@
-# Custom Style
+# Custom Styling
 
-Grid style can be customized to fit your needs.
+Use CSS variables and component classes to style the grid.
 
 ::: tip
-The class names of components have changed a lot. `grid-layout-plus` adopts the BEM naming convention, which is shorter and flatter than the original class name.
+Current class names use BEM and differ from earlier releases. Check the migration guide before reusing selectors from an older project.
 :::
 
-## Variables
+## CSS variables
 
 ```css
 .vgl-layout {
@@ -27,7 +27,7 @@ The class names of components have changed a lot. `grid-layout-plus` adopts the 
 
 ## Placeholder
 
-The default css for the placeholder is:
+The placeholder uses these styles by default:
 
 ```css
 .vgl-item--placeholder {
@@ -39,7 +39,7 @@ The default css for the placeholder is:
 }
 ```
 
-You can override the background color via `--vgl-placeholder-bg` variable:
+Set `--vgl-placeholder-bg` on `.vgl-layout` to change its background:
 
 ```css
 .vgl-layout {
@@ -47,11 +47,11 @@ You can override the background color via `--vgl-placeholder-bg` variable:
 }
 ```
 
-In [this example](../example/styling-placeholder) we change the placeholder background color to green.
+The [placeholder example](../example/styling-placeholder) lets you try this variable.
 
 ## Grid Lines
 
-To create grid lines to the layout, add the below css for GridLayout:
+You can also draw grid lines with a CSS background on `GridLayout`:
 
 ```css
 .vgl-layout::before {
@@ -68,11 +68,11 @@ To create grid lines to the layout, add the below css for GridLayout:
 }
 ```
 
-CSS calculations for grid lines (names in `[]` are props of GridLayout):
+Keep the background geometry in sync with the `GridLayout` props. The names in `[]` below refer to those props:
 
 - background size: `calc(calc(100% - [margin / 2]) / [col-num]) [row-height + margin]`
 - height: `calc(100% - [margin / 2])`
 - width: `calc(100% - [margin / 2])`
 - margin: `[margin / 2]`
 
-In [this example](../example/styling-grid-lines) we add grid lines to the layout.
+See [Styling Grid Lines](../example/styling-grid-lines) for a working version.

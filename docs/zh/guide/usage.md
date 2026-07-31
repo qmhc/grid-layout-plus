@@ -1,25 +1,53 @@
 # 用法
 
-## 数据
+布局数组由应用维护。交互过程中，`GridLayout` 会发出有效的布局变更，父组件再把确认后的值传回来。栅格项可以由 `item` 插槽渲染，也可以手动创建。
 
-首先，我们定义一个布局数据。它是一个数组，每个元素都应该要包含这些属性：`i`（id）、`x`、`y`、`w` 和 `h`。
+## 布局数据
+
+布局是一个栅格项数组。每一项都需要 `i`（id）、`x`、`y`、`w` 和 `h`。
 
 ```vue
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { ref } from 'vue'
 
-const layout = reactive([
+import type { Layout } from 'grid-layout-plus'
+
+const layout = ref<Layout>([
   { x: 0, y: 0, w: 2, h: 2, i: '0' },
   { x: 2, y: 0, w: 2, h: 4, i: '1' }
 ])
 </script>
 ```
 
-## 组件
+`GridLayout` 不会直接修改数组或其中的栅格项。使用 `v-model:layout` 时，Vue 会在每次变更被接受后替换 `layout.value`。如果只传入 `:layout="layout"`，组件可以渲染布局，但无法保存拖拽或缩放结果。
 
-接着，有两种方式可用于定义子元素：使用 `item` 插槽或使用 `default` 插槽。
+如果其他代码依赖 `reactive` 数组的引用，可以监听 `update:layout`，再原位替换数组内容：
 
-使用 `item` 插槽是一种更容易定义子元素的方式，所有定义在布局元素的属性都将在内部自动传给 GridItem 组件。
+```vue
+<script setup lang="ts">
+import { reactive } from 'vue'
+
+import type { Layout, ReadonlyLayout } from 'grid-layout-plus'
+
+const layout = reactive<Layout>([
+  { x: 0, y: 0, w: 2, h: 2, i: '0' }
+])
+
+function confirmLayout(next: ReadonlyLayout) {
+  layout.splice(0, layout.length, ...next)
+}
+</script>
+
+<template>
+  <GridLayout :layout="layout" @update:layout="confirmLayout" />
+</template>
+```
+
+## 渲染栅格项
+
+栅格项可以通过 `item` 插槽或默认插槽渲染。
+
+使用 `item` 插槽时，`GridLayout` 会创建每个 `GridItem`，并把对应的布局数据传给插槽：
 
 ```vue
 <template>
@@ -38,7 +66,7 @@ const layout = reactive([
 </template>
 ```
 
-如果你想要更灵活地监听 GridItem 组件的事件，你也可以选择使用 `default` 插槽。
+需要直接设置 `GridItem` 属性或监听其事件时，使用默认插槽：
 
 ```vue
 <template>
@@ -68,7 +96,7 @@ const layout = reactive([
 
 ## 压缩与定位
 
-在 v2 中，`vertical-compact` 和 `use-css-transforms` 布尔属性已被移除，改用可插拔的 `compactor` 和 `positionStrategy`。默认行为仍是垂直压缩配合 CSS transforms，但显式使用旧属性的代码必须迁移。参见 [v2 迁移指南](./migration)。
+`compactor` 和 `positionStrategy` 已取代移除的 `vertical-compact` 和 `use-css-transforms`。默认值仍是垂直压缩和 CSS transforms。旧代码设置过这两个属性时，请参照[迁移指南](./migration)修改。
 
 ```vue
 <template>
@@ -84,4 +112,27 @@ const layout = reactive([
 </template>
 ```
 
-详见 [属性](./properties#compactor) 了解所有可用的压缩器和定位策略。
+[属性](./properties#compactor)列出了内置压缩器和定位策略。
+
+## 无头渲染
+
+`useGridLayout` 使用同一个布局引擎，但不渲染组件 DOM。传入可写的 Layout ref 后，已接受的操作会写回该 ref；传入普通 Layout 时，组合式函数会自行维护状态。创建后不能切换这两种模式。
+
+```ts
+const grid = useGridLayout({
+  layout,
+  cols: 12,
+  rowHeight: 30
+})
+
+const result = grid.moveItem('0', 1, 0)
+if (result.status === 'rejected') {
+  console.warn(result.reason)
+}
+```
+
+自定义 DOM 渲染可参考[组合式 API 示例](../example/composable-api)。
+
+## 下一步
+
+在[示例](../example/)中查找具体交互。需要确认输入或回调时，查看[属性](./properties)和[事件](./events)。

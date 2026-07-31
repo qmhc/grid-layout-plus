@@ -1,99 +1,63 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { ref } from 'vue'
 
-const draggable = ref(true)
-const resizable = ref(true)
+import type { Layout } from 'grid-layout-plus'
+
 const bounded = ref(true)
 
-const layout = reactive([
-  { x: 0, y: 0, w: 2, h: 2, i: '0' },
-  { x: 2, y: 0, w: 2, h: 4, i: '1' },
-  { x: 4, y: 0, w: 2, h: 5, i: '2' },
-  { x: 6, y: 0, w: 2, h: 3, i: '3' },
-  { x: 8, y: 0, w: 2, h: 3, i: '4' },
-  { x: 10, y: 0, w: 2, h: 3, i: '5' },
-  { x: 0, y: 5, w: 2, h: 5, i: '6' },
-  { x: 2, y: 5, w: 2, h: 5, i: '7' },
-  { x: 4, y: 5, w: 2, h: 5, i: '8' },
-  { x: 6, y: 4, w: 2, h: 4, i: '9' },
-  { x: 8, y: 4, w: 2, h: 4, i: '10' },
-  { x: 10, y: 4, w: 2, h: 4, i: '11' },
-  { x: 0, y: 10, w: 2, h: 5, i: '12' },
-  { x: 2, y: 10, w: 2, h: 5, i: '13' },
-  { x: 4, y: 8, w: 2, h: 4, i: '14' },
-  { x: 6, y: 8, w: 2, h: 4, i: '15' },
-  { x: 8, y: 10, w: 2, h: 5, i: '16' },
-  { x: 10, y: 4, w: 2, h: 2, i: '17' },
-  { x: 0, y: 9, w: 2, h: 3, i: '18' },
-  { x: 2, y: 6, w: 2, h: 2, i: '19' },
-])
+function createLayout(): Layout {
+  return [
+    { x: 0, y: 0, w: 3, h: 2, i: '0' },
+    { x: 3, y: 0, w: 3, h: 2, i: '1' },
+    { x: 6, y: 0, w: 3, h: 2, i: '2' },
+    { x: 9, y: 0, w: 3, h: 2, i: '3' },
+  ]
+}
+
+const layout = ref(createLayout())
+
+function resetLayout() {
+  layout.value = createLayout()
+}
 </script>
 
 <template>
-  <div class="layout-json">
-    Displayed as <code>[x, y, w, h]</code>:
-    <div class="columns">
-      <div v-for="item in layout" :key="item.i">
-        <b>{{ item.i }}</b>: [{{ item.x }}, {{ item.y }}, {{ item.w }}, {{ item.h }}]
-      </div>
+  <section class="demo-root demo-shell bounded-demo">
+    <div class="demo-toolbar">
+      <Checkbox v-model:checked="bounded"> is-bounded </Checkbox>
+      <Tag
+        :class="['demo-state', bounded ? 'demo-state--success' : 'demo-state--warning']"
+        :type="bounded ? 'success' : 'warning'"
+        simple
+        circle
+      >
+        {{ bounded ? 'Bounded: on' : 'Bounded: off' }}
+      </Tag>
+      <Button button-type="button" @click="resetLayout"> Reset layout </Button>
     </div>
-  </div>
-  <hr />
-  <input v-model="draggable" type="checkbox" /> Draggable
-  <input v-model="resizable" type="checkbox" /> Resizable
-  <input v-model="bounded" type="checkbox" /> Bounded
-  <br />
-  <div style="width: 100%; height: 100%; margin-top: 10px">
     <GridLayout
       v-model:layout="layout"
-      :row-height="30"
-      :is-draggable="draggable"
-      :is-resizable="resizable"
+      class="demo-grid bounded-grid"
+      :auto-size="false"
       :is-bounded="bounded"
+      :is-resizable="false"
+      :margin="[10, 10]"
+      :row-height="50"
     >
       <template #item="{ item }">
-        <span class="text">{{ item.i }}</span>
+        <span class="demo-item__label">{{ item.i }}</span>
       </template>
     </GridLayout>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.vgl-layout {
-  background-color: #eee;
+.bounded-demo {
+  min-height: 620px;
 }
 
-:deep(.vgl-item:not(.vgl-item--placeholder)) {
-  background-color: #ccc;
-  border: 1px solid black;
-}
-
-:deep(.vgl-item--resizing) {
-  opacity: 90%;
-}
-
-:deep(.vgl-item--static) {
-  background-color: #cce;
-}
-
-.text {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: auto;
-  font-size: 24px;
-  text-align: center;
-}
-
-.layout-json {
-  padding: 10px;
-  margin-top: 10px;
-  background-color: #ddd;
-  border: 1px solid black;
-}
-
-.columns {
-  columns: 120px;
+.bounded-grid.vgl-layout {
+  height: 320px;
+  border: 2px dashed var(--demo-accent, #2859b8);
 }
 </style>

@@ -1,13 +1,77 @@
-import {
-  cloneLayout,
-  compact,
-  getFirstCollision,
-  getStatics,
-  sortLayoutItemsByColRow,
-  sortLayoutItemsByRowCol,
-} from '../helpers/common'
+import { cloneLayout, compact } from '../helpers/common'
+import { GridLayoutValidationError } from './errors'
+import { assertPositiveSafeInteger, snapshotCompactor } from './validation'
 
-import type { Compactor, Layout, LayoutItem } from '../helpers/types'
+import type {
+  Compactor,
+  Layout,
+  LayoutItem,
+  ReadonlyLayout,
+  ReadonlyLayoutItem,
+} from '../helpers/types'
+
+function failLayout(path: string, cause: unknown): never {
+  throw new GridLayoutValidationError(`Invalid layout value at ${path}`, {
+    code: 'invalid-layout',
+    path,
+    cause,
+  })
+}
+
+function safeEnd(first: number, second: number, path: string): number {
+  const result = first + second
+  if (!Number.isSafeInteger(result) || result < 0) failLayout(path, result)
+  return result
+}
+
+function prepareLayout(layout: ReadonlyLayout, cols: number): Layout {
+  assertPositiveSafeInteger(cols, 'config.cols')
+  const cloned = cloneLayout(layout)
+  for (let index = 0; index < cloned.length; index++) {
+    safeEnd(cloned[index].x, cloned[index].w, `layout[${index}].w`)
+    safeEnd(cloned[index].y, cloned[index].h, `layout[${index}].h`)
+  }
+  return cloned
+}
+
+function collides(first: ReadonlyLayoutItem, second: ReadonlyLayoutItem): boolean {
+  if (Object.is(first.i, second.i)) return false
+  return !(
+    first.x + first.w <= second.x ||
+    first.x >= second.x + second.w ||
+    first.y + first.h <= second.y ||
+    first.y >= second.y + second.h
+  )
+}
+
+function firstCollision(
+  layout: readonly ReadonlyLayoutItem[],
+  item: ReadonlyLayoutItem,
+): ReadonlyLayoutItem | undefined {
+  for (let index = 0; index < layout.length; index++) {
+    if (collides(layout[index], item)) return layout[index]
+  }
+}
+
+function layoutIndexes(layout: ReadonlyLayout): Map<string | number, number> {
+  return new Map(layout.map((item, index) => [item.i, index]))
+}
+
+function sortByRowCol(layout: Layout): Layout {
+  const indexes = layoutIndexes(layout)
+  return Array.from(layout).sort(
+    (first, second) =>
+      first.y - second.y || first.x - second.x || indexes.get(first.i)! - indexes.get(second.i)!,
+  )
+}
+
+function sortByColRow(layout: Layout): Layout {
+  const indexes = layoutIndexes(layout)
+  return Array.from(layout).sort(
+    (first, second) =>
+      first.x - second.x || first.y - second.y || indexes.get(first.i)! - indexes.get(second.i)!,
+  )
+}
 
 /**
  * 垂直压缩器 — 委托给现有 compact() 逻辑。
@@ -15,8 +79,9 @@ import type { Compactor, Layout, LayoutItem } from '../helpers/types'
  */
 export const verticalCompactor: Compactor = {
   type: 'vertical',
-  compact(layout: Layout, _cols: number): Layout {
-    return compact(cloneLayout(layout), true)
+  compact(layout: ReadonlyLayout, cols: number): Layout {
+    prepareLayout(layout, cols)
+    return compact(layout, true)
   },
 }
 
@@ -31,87 +96,62 @@ export const verticalCompactor: Compactor = {
  */
 export const horizontalCompactor: Compactor = {
   type: 'horizontal',
-  compact(layout: Layout, cols: number): Layout {
-    const cloned = cloneLayout(layout)
-    const compareWith = getStatics(cloned)
-    const sorted = sortLayoutItemsByColRow(cloned)
-    const out: Layout = Array(cloned.length)
-
-    for (let i = 0, len = sorted.length; i < len; i++) {
-      let l = sorted[i]
-
-      if (!l.static) {
-        l = compactItemHorizontally(compareWith, l, cols)
-        compareWith.push(l)
-      }
-
-      out[cloned.findIndex(item => item.i === l.i)] = l
-      l.moved = false
-    }
-
-    return out
+  compact(layout: ReadonlyLayout, cols: number): Layout {
+    return compactHorizontally(prepareLayout(layout, cols), cols)
   },
 }
 
-/**
- * 水平压缩单个元素：保持 y 不变，将 x 向左移动至无碰撞的最小位置。
- * 与 compactItem 的垂直逻辑对称：先尽量向左，再处理碰撞向右推移。
- */
-function compactItemHorizontally(compareWith: Layout, l: LayoutItem, cols: number): LayoutItem {
-  l.x = Math.max(l.x, 0)
-  l.y = Math.max(l.y, 0)
+function compactHorizontally(layout: Layout, cols: number): Layout {
+  const indexes = layoutIndexes(layout)
+  const compareWith = layout.filter(item => item.static)
+  const sorted = sortByColRow(layout)
 
-  // 向左移动至无碰撞的最小 x
-  while (l.x > 0 && !getFirstCollision(compareWith, l)) {
-    l.x--
-  }
+  for (const item of sorted) {
+    if (item.static) continue
+    const itemIndex = indexes.get(item.i)!
+    if (item.w > cols) failLayout(`layout[${itemIndex}].w`, item.w)
+    item.x = 0
 
-  // 向右推移直到无碰撞（处理初始碰撞或移动过头的情况）
-  let collision: LayoutItem | undefined
-  while ((collision = getFirstCollision(compareWith, l))) {
-    l.x = collision.x + collision.w
-
-    if (l.x + l.w > cols) {
-      l.x = cols - l.w
-      l.y++
-
-      while (l.x > 0 && !getFirstCollision(compareWith, l)) {
-        l.x--
+    let collision: ReadonlyLayoutItem | undefined
+    while ((collision = firstCollision(compareWith, item))) {
+      item.x = safeEnd(collision.x, collision.w, `layout[${itemIndex}].x`)
+      if (safeEnd(item.x, item.w, `layout[${itemIndex}].w`) > cols) {
+        item.x = 0
+        item.y = safeEnd(collision.y, collision.h, `layout[${itemIndex}].y`)
       }
     }
+    compareWith.push(item)
   }
-
-  l.x = Math.max(l.x, 0)
-  return l
+  return layout
 }
 
-/**
- * 无压缩器 — 返回浅拷贝，不移动任何元素。
- */
+/** 无压缩器 — 返回 detached 布局，不移动任何元素。 */
 export const noCompactor: Compactor = {
-  compact(layout: Layout, _cols: number): Layout {
-    return cloneLayout(layout)
+  type: 'vertical',
+  compact(layout: ReadonlyLayout, cols: number): Layout {
+    return prepareLayout(layout, cols)
   },
 }
 
 /**
  * 创建带 allowOverlap 选项的压缩器包装。
- * 当 allowOverlap=true 时跳过碰撞推移，仅返回浅拷贝。
+ * allowOverlap 仅供旧配置推导 collisionMode，显式模式仍调用原压缩器。
  *
  * @deprecated 请改用 GridLayout 的 collisionMode="overlap"。
  */
-export function withOverlap(_compactor: Compactor): Compactor {
+export function withOverlap(input: Compactor): Compactor {
+  const compactor = snapshotCompactor(input)
   return {
-    type: _compactor.type,
-    compact(layout: Layout, _cols: number): Layout {
-      return cloneLayout(layout)
+    ...(compactor.type === undefined ? {} : { type: compactor.type }),
+    compact(layout: ReadonlyLayout, cols: number): Layout {
+      return compactor.compact(layout, cols)
     },
     allowOverlap: true,
   }
 }
 
 // ---------------------------------------------------------------------------
-// 增量区间 Treap — 用于 Fast Compactors 的 O(n log n) 碰撞检测加速
+// 增量区间 Treap — 用于减少 Fast Compactors 的碰撞候选集
 // ---------------------------------------------------------------------------
 
 /** 区间树节点 */
@@ -253,16 +293,16 @@ function firstCollisionAmong(
 
 /**
  * 快速垂直压缩器 — 使用区间树按 x 轴索引已放置元素，
- * 将碰撞查询从 O(n) 降为 O(log n + k)，整体 O(n log n)。
+ * 查询开销取决于区间索引返回的候选数量，不承诺无条件复杂度上界。
  *
  * 输出与 verticalCompactor 完全一致。
  */
 export const fastVerticalCompactor: Compactor = {
   type: 'vertical',
-  compact(layout: Layout, _cols: number): Layout {
-    const cloned = cloneLayout(layout)
-    const sorted = sortLayoutItemsByRowCol(cloned)
-    const indexes = new Map(cloned.map((item, index) => [item.i, index]))
+  compact(layout: ReadonlyLayout, cols: number): Layout {
+    const cloned = prepareLayout(layout, cols)
+    const sorted = sortByRowCol(cloned)
+    const indexes = layoutIndexes(cloned)
     let tree: IntervalNode | null = null
     let order = 0
 
@@ -271,33 +311,26 @@ export const fastVerticalCompactor: Compactor = {
       if (item.static) {
         tree = insertInterval(tree, {
           lo: item.x,
-          hi: item.x + item.w,
+          hi: safeEnd(item.x, item.w, `layout[${i}].w`),
           order: order++,
           item,
         })
       }
     }
 
-    const out: Layout = Array(cloned.length)
-
-    for (let i = 0, len = sorted.length; i < len; i++) {
-      let l = sorted[i]
-
-      if (!l.static) {
-        l = fastCompactItemVertically(tree, l)
+    for (const item of sorted) {
+      if (!item.static) {
+        fastCompactItemVertically(tree, item, indexes.get(item.i)!)
         tree = insertInterval(tree, {
-          lo: l.x,
-          hi: l.x + l.w,
+          lo: item.x,
+          hi: safeEnd(item.x, item.w, `layout[${indexes.get(item.i)!}].w`),
           order: order++,
-          item: l,
+          item,
         })
       }
-
-      out[indexes.get(l.i)!] = l
-      l.moved = false
     }
 
-    return out
+    return cloned
   },
 }
 
@@ -305,23 +338,19 @@ export const fastVerticalCompactor: Compactor = {
  * 快速垂直压缩单个元素：使用区间树查询 x 轴重叠的候选元素，
  * 然后在候选集中做 y 轴碰撞检测。
  */
-function fastCompactItemVertically(tree: IntervalNode | null, l: LayoutItem): LayoutItem {
-  // 查询 x 轴与当前元素重叠的所有已放置元素
+function fastCompactItemVertically(
+  tree: IntervalNode | null,
+  item: LayoutItem,
+  itemIndex: number,
+): void {
   const candidates: IntervalEntry[] = []
-  queryIntervalTree(tree, l.x, l.x + l.w, candidates)
+  queryIntervalTree(tree, item.x, safeEnd(item.x, item.w, `layout[${itemIndex}].w`), candidates)
+  item.y = 0
 
-  // 向上移动至无碰撞的最小 y
-  while (l.y > 0 && !firstCollisionAmong(candidates, l)) {
-    l.y--
-  }
-
-  // 向下推移直到无碰撞
   let collision: LayoutItem | undefined
-  while ((collision = firstCollisionAmong(candidates, l))) {
-    l.y = collision.y + collision.h
+  while ((collision = firstCollisionAmong(candidates, item))) {
+    item.y = safeEnd(collision.y, collision.h, `layout[${itemIndex}].y`)
   }
-
-  return l
 }
 
 // ---------------------------------------------------------------------------
@@ -330,16 +359,16 @@ function fastCompactItemVertically(tree: IntervalNode | null, l: LayoutItem): La
 
 /**
  * 快速水平压缩器 — 使用区间树按 y 轴索引已放置元素，
- * 将碰撞查询从 O(n) 降为 O(log n + k)，整体 O(n log n)。
+ * 查询开销取决于区间索引返回的候选数量，不承诺无条件复杂度上界。
  *
  * 输出与 horizontalCompactor 完全一致。
  */
 export const fastHorizontalCompactor: Compactor = {
   type: 'horizontal',
-  compact(layout: Layout, cols: number): Layout {
-    const cloned = cloneLayout(layout)
-    const sorted = sortLayoutItemsByColRow(cloned)
-    const indexes = new Map(cloned.map((item, index) => [item.i, index]))
+  compact(layout: ReadonlyLayout, cols: number): Layout {
+    const cloned = prepareLayout(layout, cols)
+    const sorted = sortByColRow(cloned)
+    const indexes = layoutIndexes(cloned)
     let tree: IntervalNode | null = null
     let order = 0
 
@@ -348,33 +377,28 @@ export const fastHorizontalCompactor: Compactor = {
       if (item.static) {
         tree = insertInterval(tree, {
           lo: item.y,
-          hi: item.y + item.h,
+          hi: safeEnd(item.y, item.h, `layout[${i}].h`),
           order: order++,
           item,
         })
       }
     }
 
-    const out: Layout = Array(cloned.length)
-
-    for (let i = 0, len = sorted.length; i < len; i++) {
-      let l = sorted[i]
-
-      if (!l.static) {
-        l = fastCompactItemHorizontally(tree, l, cols)
+    for (const item of sorted) {
+      const itemIndex = indexes.get(item.i)!
+      if (!item.static) {
+        if (item.w > cols) failLayout(`layout[${itemIndex}].w`, item.w)
+        fastCompactItemHorizontally(tree, item, cols, itemIndex)
         tree = insertInterval(tree, {
-          lo: l.y,
-          hi: l.y + l.h,
+          lo: item.y,
+          hi: safeEnd(item.y, item.h, `layout[${itemIndex}].h`),
           order: order++,
-          item: l,
+          item,
         })
       }
-
-      out[indexes.get(l.i)!] = l
-      l.moved = false
     }
 
-    return out
+    return cloned
   },
 }
 
@@ -384,40 +408,25 @@ export const fastHorizontalCompactor: Compactor = {
  */
 function fastCompactItemHorizontally(
   tree: IntervalNode | null,
-  l: LayoutItem,
+  item: LayoutItem,
   cols: number,
-): LayoutItem {
-  l.x = Math.max(l.x, 0)
-  l.y = Math.max(l.y, 0)
-
+  itemIndex: number,
+): void {
+  item.x = 0
   let candidates: IntervalEntry[] = []
   const refreshCandidates = () => {
     candidates = []
-    queryIntervalTree(tree, l.y, l.y + l.h, candidates)
+    queryIntervalTree(tree, item.y, safeEnd(item.y, item.h, `layout[${itemIndex}].h`), candidates)
   }
   refreshCandidates()
 
-  // 向左移动至无碰撞的最小 x
-  while (l.x > 0 && !firstCollisionAmong(candidates, l)) {
-    l.x--
-  }
-
-  // 向右推移直到无碰撞
   let collision: LayoutItem | undefined
-  while ((collision = firstCollisionAmong(candidates, l))) {
-    l.x = collision.x + collision.w
-
-    if (l.x + l.w > cols) {
-      l.x = cols - l.w
-      l.y++
+  while ((collision = firstCollisionAmong(candidates, item))) {
+    item.x = safeEnd(collision.x, collision.w, `layout[${itemIndex}].x`)
+    if (safeEnd(item.x, item.w, `layout[${itemIndex}].w`) > cols) {
+      item.x = 0
+      item.y = safeEnd(collision.y, collision.h, `layout[${itemIndex}].y`)
       refreshCandidates()
-
-      while (l.x > 0 && !firstCollisionAmong(candidates, l)) {
-        l.x--
-      }
     }
   }
-
-  l.x = Math.max(l.x, 0)
-  return l
 }

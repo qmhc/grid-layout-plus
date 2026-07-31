@@ -5,7 +5,8 @@
     "serve": "vite"
   },
   "dependencies": {
-    "vexip-ui": "^2.3.39",
-    "vue-router": "^5.0.4"
+    "vexip-ui": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "^5.2.0"
   }
 }

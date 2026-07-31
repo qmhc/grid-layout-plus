@@ -1,71 +1,89 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { ref } from 'vue'
 
-import { GridBackground } from '../../src'
+import { GridBackground } from 'grid-layout-plus'
 
-const color = ref('rgba(0,0,0,0.1)')
+import type { Layout } from 'grid-layout-plus'
+
+const defaultColor = '#64748b'
+
+function createLayout(): Layout {
+  return [
+    { x: 0, y: 0, w: 2, h: 2, i: '0' },
+    { x: 2, y: 0, w: 2, h: 3, i: '1' },
+    { x: 4, y: 0, w: 2, h: 2, i: '2' },
+    { x: 0, y: 3, w: 2, h: 2, i: '3' },
+  ]
+}
+
+const color = ref(defaultColor)
 const strokeWidth = ref(1)
+const layout = ref(createLayout())
 
-const layout = reactive([
-  { x: 0, y: 0, w: 2, h: 2, i: '0' },
-  { x: 2, y: 0, w: 2, h: 4, i: '1' },
-  { x: 4, y: 0, w: 2, h: 3, i: '2' },
-  { x: 6, y: 0, w: 2, h: 3, i: '3' },
-  { x: 8, y: 0, w: 2, h: 3, i: '4' },
-  { x: 10, y: 0, w: 2, h: 3, i: '5' },
-])
+function handleStrokeWidthChange(value: number) {
+  if (!Number.isFinite(value)) {
+    strokeWidth.value = 1
+  }
+}
+
+function resetDemo() {
+  color.value = defaultColor
+  strokeWidth.value = 1
+  layout.value = createLayout()
+}
 </script>
 
 <template>
-  <div style="margin-bottom: 10px">
-    <label>
-      Color:
-      <input v-model="color" type="color" />
-    </label>
-    <label style="margin-left: 12px">
-      Stroke Width:
-      <input
-        v-model.number="strokeWidth"
-        type="number"
-        min="1"
-        max="5"
-        style="width: 60px"
-      />
-    </label>
-  </div>
-  <GridLayout v-model:layout="layout" :row-height="30">
-    <GridBackground :color="color" :stroke-width="strokeWidth"></GridBackground>
-    <GridItem v-for="item in layout" :key="item.i" v-bind="item">
-      <span class="text">{{ item.i }}</span>
-    </GridItem>
-  </GridLayout>
+  <section class="demo-root demo-shell">
+    <div class="demo-toolbar">
+      <div class="demo-control">
+        <span>Line color</span>
+        <ColorPicker
+          v-model:value="color"
+          format="hex"
+          show-label
+          aria-label="Grid line color"
+        ></ColorPicker>
+      </div>
+      <div class="demo-control">
+        <span>Stroke width</span>
+        <NumberInput
+          v-model:value="strokeWidth"
+          class="stroke-input"
+          :min="1"
+          :max="5"
+          :control-attrs="{ 'aria-label': 'Grid line stroke width' }"
+          @change="handleStrokeWidthChange"
+        ></NumberInput>
+        <span>px</span>
+      </div>
+      <Button button-type="button" @click="resetDemo"> Reset demo </Button>
+    </div>
+    <dl class="demo-metrics">
+      <div class="demo-metric">
+        <dt>Renderer</dt>
+        <dd>GridBackground</dd>
+      </div>
+      <div class="demo-metric">
+        <dt>Columns</dt>
+        <dd>6</dd>
+      </div>
+      <div class="demo-metric">
+        <dt>Row height</dt>
+        <dd>30px</dd>
+      </div>
+    </dl>
+    <GridLayout v-model:layout="layout" class="demo-grid" :col-num="6" :row-height="30">
+      <GridBackground :color="color" :stroke-width="strokeWidth"></GridBackground>
+      <GridItem v-for="item in layout" :key="item.i" v-bind="item">
+        <span class="demo-item__label">{{ item.i }}</span>
+      </GridItem>
+    </GridLayout>
+  </section>
 </template>
 
 <style scoped>
-.vgl-layout {
-  background-color: #eee;
-}
-
-:deep(.vgl-item:not(.vgl-item--placeholder)) {
-  background-color: #ccc;
-  border: 1px solid black;
-}
-
-:deep(.vgl-item--resizing) {
-  opacity: 90%;
-}
-
-:deep(.vgl-item--static) {
-  background-color: #cce;
-}
-
-.text {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: auto;
-  font-size: 24px;
-  text-align: center;
+.stroke-input {
+  width: 68px;
 }
 </style>

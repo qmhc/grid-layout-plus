@@ -137,6 +137,26 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
     wrapper.unmount()
   })
 
+  it('非正或非有限 rows 回退 100%，正有限小数按公式计算', async () => {
+    const wrapper = mount(GridBackground, {
+      props: {
+        cols: 4,
+        rowHeight: 50,
+        margin: [10, 10] as const,
+        width: 400,
+        rows: 0,
+      },
+    })
+
+    expect(wrapper.find('.vgl-background').attributes('style')).toContain('height: 100%')
+    await wrapper.setProps({ rows: Number.POSITIVE_INFINITY })
+    expect(wrapper.find('.vgl-background').attributes('style')).toContain('height: 100%')
+    await wrapper.setProps({ rows: 2.5 })
+    expect(wrapper.find('.vgl-background').attributes('style')).toContain('height: 160px')
+
+    wrapper.unmount()
+  })
+
   it('backgroundPosition 把网格线放在 margin 中间', () => {
     // cols=12, margin=[10,10], width=1200
     // cellWidth = (1200 - 10*13) / 12 = 89.166...
@@ -154,6 +174,49 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
     const div = wrapper.find('div')
     const style = div.attributes('style') || ''
     expect(style).toContain('background-position: 104.166667px 45px')
+
+    wrapper.unmount()
+  })
+
+  it('非法输入和派生 overflow 不渲染，恢复合法值后重新渲染', async () => {
+    const wrapper = mount(GridBackground, {
+      props: {
+        cols: 4,
+        rowHeight: 40,
+        margin: [10, 10] as const,
+        width: Number.POSITIVE_INFINITY,
+        rows: 3,
+      },
+    })
+
+    expect(wrapper.find('.vgl-background').exists()).toBe(false)
+    await wrapper.setProps({ width: 400 })
+    expect(wrapper.find('.vgl-background').exists()).toBe(true)
+
+    for (const props of [
+      { cols: 0 },
+      { rowHeight: Number.NaN },
+      { margin: [Number.POSITIVE_INFINITY, 10] as const },
+      { strokeWidth: Number.POSITIVE_INFINITY },
+      { color: 1 as unknown as string },
+      {
+        width: Number.MAX_VALUE,
+        margin: [Number.MAX_VALUE, 10] as const,
+      },
+    ]) {
+      await wrapper.setProps(props)
+      expect(wrapper.find('.vgl-background').exists()).toBe(false)
+      await wrapper.setProps({
+        cols: 4,
+        rowHeight: 40,
+        margin: [10, 10],
+        width: 400,
+        rows: 3,
+        strokeWidth: 1,
+        color: 'rgba(0,0,0,0.1)',
+      })
+      expect(wrapper.find('.vgl-background').exists()).toBe(true)
+    }
 
     wrapper.unmount()
   })

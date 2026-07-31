@@ -5,21 +5,24 @@ on:
     tags:
       - v*
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     # prevents this action from running on forks
     if: github.repository == 'qmhc/grid-layout-plus'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
 
       - name: Set node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.x
           registry-url: https://registry.npmjs.org/
@@ -28,11 +31,43 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Lint style
+        run: pnpm run lint:style
+
+      - name: Test coverage
+        run: pnpm run test:cover
+
+      - name: Build package and verify exports
         run: pnpm run build
 
+      - name: Type contracts
+        run: pnpm run test:types
+
+      - name: Build docs
+        run: pnpm run build:docs
+
+      - name: Check Playwright release markers
+        run: pnpm run test:release-markers
+
+      - name: Install browsers
+        run: pnpm exec playwright install --with-deps chromium webkit
+
+      - name: Browser tests
+        run: pnpm run test:e2e
+
       - name: Publish package
-        run: pnpm run publish:ci ${{ github.ref_name }}
+        run: pnpm run publish:ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=4096
+
+  release:
+    needs: publish
+    if: github.repository == 'qmhc/grid-layout-plus'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    secrets: inherit

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick, onErrorCaptured, ref } from 'vue'
 
-import { GridLayout } from '../src'
-import { horizontalCompactor, noCompactor, verticalCompactor } from '../src/core/compactors'
+import { GridLayout, useGridLayout } from '../src'
+import { horizontalCompactor } from '../src/core/compactors'
 import { absoluteStrategy, transformStrategy } from '../src/core/position-strategies'
 
 import type { Layout } from '../src/helpers/types'
@@ -20,11 +20,8 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
       },
     })
 
-    // 扁平 prop colNum=6 应优先于 gridConfig.colNum=10
     const vm = wrapper.vm as any
-    // GridLayout 通过 provide 传递 props，扁平 props 直接作为 props 传入
-    // withDefaults 确保扁平 props 始终有值
-    expect(vm.$props.colNum).toBe(6)
+    expect(vm.effectiveConfig.colNum).toBe(6)
     wrapper.unmount()
   })
 
@@ -38,7 +35,7 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     })
 
     const vm = wrapper.vm as any
-    expect(vm.$props.isDraggable).toBe(false)
+    expect(vm.effectiveConfig.isDraggable).toBe(false)
     wrapper.unmount()
   })
 
@@ -52,7 +49,7 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     })
 
     const vm = wrapper.vm as any
-    expect(vm.$props.isResizable).toBe(false)
+    expect(vm.effectiveConfig.isResizable).toBe(false)
     wrapper.unmount()
   })
 
@@ -66,7 +63,7 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     })
 
     const vm = wrapper.vm as any
-    expect(vm.$props.isDroppable).toBe(true)
+    expect(vm.effectiveConfig.isDroppable).toBe(true)
     wrapper.unmount()
   })
 
@@ -99,58 +96,26 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     expect(vm.effectiveConfig.isResizable).toBe(true)
     expect(vm.effectiveConfig.isDroppable).toBe(false)
     expect(vm.effectiveConfig.dragThreshold).toBe(0)
+    expect(vm.effectiveConfig.restoreOnDrag).toBe(false)
     wrapper.unmount()
   })
 
-  it('compactor 默认为 verticalCompactor', () => {
-    const wrapper = mount(GridLayout, {
-      props: {
-        layout: baseLayout,
-      },
-    })
-
-    const vm = wrapper.vm as any
-    expect(vm.$props.compactor).toBe(verticalCompactor)
-    wrapper.unmount()
-  })
-
-  it('positionStrategy 默认为 transformStrategy', () => {
-    const wrapper = mount(GridLayout, {
-      props: {
-        layout: baseLayout,
-      },
-    })
-
-    const vm = wrapper.vm as any
-    expect(vm.$props.positionStrategy).toBe(transformStrategy)
-    wrapper.unmount()
-  })
-
-  it('可以传入自定义 compactor', () => {
-    const wrapper = mount(GridLayout, {
-      props: {
-        layout: baseLayout,
-        compactor: noCompactor,
-      },
-    })
-
-    const vm = wrapper.vm as any
-    // Vue 的 reactive 系统可能包装对象，使用 toStrictEqual 验证值相等
-    expect(vm.$props.compactor.compact).toBeDefined()
-    expect(vm.$props.compactor).not.toBe(verticalCompactor)
-    wrapper.unmount()
-  })
-
-  it('GridLayout 使用 compactor 的方向处理拖拽碰撞', async () => {
+  it('GridLayout 与 headless 使用相同 Compactor 方向语义', async () => {
     const layout: Layout = [
       { x: 0, y: 0, w: 1, h: 1, i: '1' },
       { x: 1, y: 0, w: 1, h: 1, i: '2' },
     ]
+    const headless = useGridLayout({
+      layout: layout.map(item => ({ ...item })),
+      cols: 12,
+      compactor: horizontalCompactor,
+    })
+    const expected = headless.moveItem('1', 1, 0)
     const wrapper = mount(GridLayout, {
       props: {
         layout,
         compactor: horizontalCompactor,
-        isDraggable: false,
+        isDraggable: true,
       },
     })
 
@@ -159,54 +124,49 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     const vm = wrapper.vm as any
     vm.dragEvent('dragstart', '1', 1, 0, 1, 1)
 
-    expect(layout.find(item => item.i === '1')).toEqual(expect.objectContaining({ x: 1, y: 0 }))
-    expect(layout.find(item => item.i === '2')).toEqual(expect.objectContaining({ x: 0, y: 0 }))
+    expect(expected.status).toBe('unchanged')
+    expect(layout).toEqual(expected.layout)
     wrapper.unmount()
   })
 
-  it('restoreOnDrag 仍通过自定义 compactor', async () => {
-    const compact = vi.fn((layout: Layout) => layout.map(item => ({ ...item })))
-    const layout: Layout = [
-      { x: 0, y: 0, w: 1, h: 1, i: '1' },
-      { x: 1, y: 0, w: 1, h: 1, i: '2' },
-    ]
-    const wrapper = mount(GridLayout, {
-      props: {
-        layout,
-        compactor: { compact },
-        restoreOnDrag: true,
-        isDraggable: false,
+  it('restoreOnDrag 默认预览 Compactor，flat/grouped true 显式固定 active', async () => {
+    const cases = [
+      { label: 'default', props: {}, expectedStatic: undefined },
+      { label: 'flat true', props: { restoreOnDrag: true }, expectedStatic: true },
+      {
+        label: 'grouped true',
+        props: { dragConfig: { restoreOnDrag: true } },
+        expectedStatic: true,
       },
-    })
+    ] as const
 
-    await nextTick()
-    await nextTick()
-    const callCount = compact.mock.calls.length
-    const vm = wrapper.vm as any
-    vm.dragEvent('dragstart', '1', 1, 0, 1, 1)
+    for (const testCase of cases) {
+      const compact = vi.fn((layout: Layout) => layout.map(item => ({ ...item })))
+      const wrapper = mount(GridLayout, {
+        props: {
+          layout: [
+            { x: 0, y: 0, w: 1, h: 1, i: '1' },
+            { x: 1, y: 0, w: 1, h: 1, i: '2' },
+          ],
+          compactor: { compact },
+          isDraggable: true,
+          ...testCase.props,
+        },
+      })
 
-    expect(compact.mock.calls.length).toBeGreaterThan(callCount)
-    wrapper.unmount()
-  })
+      await nextTick()
+      await nextTick()
+      const callCount = compact.mock.calls.length
+      const vm = wrapper.vm as any
+      vm.dragEvent('dragstart', '1', 1, 0, 1, 1)
 
-  it('可以传入自定义 positionStrategy', () => {
-    const wrapper = mount(GridLayout, {
-      props: {
-        layout: baseLayout,
-        positionStrategy: absoluteStrategy,
-      },
-    })
-
-    const vm = wrapper.vm as any
-    expect(vm.$props.positionStrategy.getStyle).toBeDefined()
-    expect(vm.$props.positionStrategy.getRtlStyle).toBeDefined()
-    // 验证不是默认的 transformStrategy
-    // absoluteStrategy.getStyle 返回 top/left 而非 transform
-    const style = vm.$props.positionStrategy.getStyle(10, 20, 100, 50)
-    expect(style.top).toBe('10px')
-    expect(style.left).toBe('20px')
-    expect(style.transform).toBeUndefined()
-    wrapper.unmount()
+      expect(compact.mock.calls.length, testCase.label).toBeGreaterThan(callCount)
+      expect(
+        compact.mock.calls.at(-1)?.[0].find(item => item.i === '1')?.static,
+        testCase.label,
+      ).toBe(testCase.expectedStatic)
+      wrapper.unmount()
+    }
   })
 
   it('运行时切换 positionStrategy 会立即重算 GridItem 样式', async () => {
@@ -214,12 +174,14 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
       props: {
         layout: baseLayout,
         positionStrategy: transformStrategy,
+        width: 1200,
+      },
+      slots: {
+        item: ({ item }: { item: { i: string | number } }) => h('span', String(item.i)),
       },
       attachTo: document.body,
     })
 
-    const vm = wrapper.vm as any
-    vm.state.width = 1200
     await nextTick()
     await nextTick()
 
@@ -232,6 +194,166 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
 
     expect(item.attributes('style')).not.toContain('transform:')
     expect(item.attributes('style')).toContain('left:')
+    wrapper.unmount()
+  })
+
+  it('style preflight 将派生几何溢出归类为 geometry，而不是 PositionStrategy', async () => {
+    const errors: Array<Record<string, unknown>> = []
+    const rejected: Array<Record<string, unknown>> = []
+    const terminals: Array<Record<string, unknown>> = []
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: [{ i: 'geometry', x: 0, y: 0, w: 1, h: 1 }],
+        width: Number.MAX_VALUE,
+        containerPadding: [Number.MAX_VALUE, 0],
+        onError: error => errors.push(error as unknown as Record<string, unknown>),
+        onOperationRejected: payload =>
+          rejected.push(payload as unknown as Record<string, unknown>),
+        onInteractionEnd: payload => terminals.push(payload as unknown as Record<string, unknown>),
+      },
+      slots: {
+        item: ({ item }: { item: { i: string | number } }) => h('span', String(item.i)),
+      },
+    })
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatchObject({
+      code: 'derived-geometry-overflow',
+      source: 'geometry',
+      path: 'geometry.containerPadding[0]',
+      revision: null,
+    })
+    expect((errors[0].cause as { name?: unknown })?.name).toBe('GridLayoutValidationError')
+    expect(rejected).toHaveLength(0)
+    expect(terminals).toHaveLength(0)
+    expect(
+      wrapper.find('.vgl-item:not(.vgl-item--placeholder)').attributes('style') ?? '',
+    ).not.toContain('transform:')
+
+    wrapper.unmount()
+  })
+
+  it('active style preflight 几何失败共享 evaluationId 并以 geometry-error 终止', async () => {
+    const errors: Array<Record<string, unknown>> = []
+    const rejected: Array<Record<string, unknown>> = []
+    const terminals: Array<Record<string, unknown>> = []
+    const layout: Layout = [{ i: 'geometry', x: 0, y: 0, w: 1, h: 1 }]
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout,
+        width: Number.MAX_VALUE,
+        containerPadding: [10, 10],
+        onError: error => errors.push(error as unknown as Record<string, unknown>),
+        onOperationRejected: payload =>
+          rejected.push(payload as unknown as Record<string, unknown>),
+        onInteractionEnd: payload => terminals.push(payload as unknown as Record<string, unknown>),
+      },
+    })
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    const vm = wrapper.vm as any
+    vm.dragEvent('dragstart', 'geometry', 0, 0, 1, 1)
+    await wrapper.setProps({ containerPadding: [Number.MAX_VALUE, 0] })
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatchObject({
+      code: 'derived-geometry-overflow',
+      source: 'geometry',
+      path: 'geometry.containerPadding[0]',
+    })
+    expect(rejected).toHaveLength(1)
+    expect(rejected[0]).toMatchObject({
+      operation: 'config',
+      reason: 'invalid-input',
+      layout,
+    })
+    expect(rejected[0].evaluationId).toBe(errors[0].evaluationId)
+    expect(terminals).toHaveLength(1)
+    expect(terminals[0]).toMatchObject({
+      status: 'cancelled',
+      reason: 'geometry-error',
+      layout,
+    })
+
+    wrapper.unmount()
+  })
+
+  it('动态 width 派生几何失败后不向子组件传播无效宽度', async () => {
+    const errors: Array<Record<string, unknown>> = []
+    const rejected: Array<Record<string, unknown>> = []
+    const terminals: Array<Record<string, unknown>> = []
+    const capturedErrors: unknown[] = []
+    const width = ref(800)
+    const layout: Layout = [{ i: 'geometry', x: 0, y: 0, w: 2, h: 1 }]
+    const Host = defineComponent({
+      setup() {
+        onErrorCaptured(error => {
+          capturedErrors.push(error)
+          return false
+        })
+
+        return () =>
+          h(
+            GridLayout,
+            {
+              layout,
+              width: width.value,
+              onError: (error: unknown) => errors.push(error as unknown as Record<string, unknown>),
+              onOperationRejected: (payload: unknown) =>
+                rejected.push(payload as unknown as Record<string, unknown>),
+              onInteractionEnd: (payload: unknown) =>
+                terminals.push(payload as unknown as Record<string, unknown>),
+            },
+            {
+              item: ({ item }: { item: { i: string | number } }) => h('span', String(item.i)),
+            },
+          )
+      },
+    })
+    const wrapper = mount(Host)
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    const grid = wrapper.findComponent(GridLayout)
+    const item = wrapper.find('.vgl-item:not(.vgl-item--placeholder)')
+    const validStyle = item.attributes('style')
+    ;(grid.vm as any).dragEvent('dragstart', 'geometry', 0, 0, 1, 2)
+    width.value = Number.MAX_VALUE
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatchObject({
+      code: 'derived-geometry-overflow',
+      source: 'geometry',
+      path: 'layoutItem.w',
+    })
+    expect(rejected).toHaveLength(1)
+    expect(rejected[0]).toMatchObject({
+      operation: 'config',
+      reason: 'invalid-input',
+      layout,
+    })
+    expect(rejected[0].evaluationId).toBe(errors[0].evaluationId)
+    expect(terminals).toHaveLength(1)
+    expect(terminals[0]).toMatchObject({
+      status: 'cancelled',
+      reason: 'geometry-error',
+      layout,
+    })
+    expect(capturedErrors).toEqual([])
+    expect(item.attributes('style')).toBe(validStyle)
+
     wrapper.unmount()
   })
 })

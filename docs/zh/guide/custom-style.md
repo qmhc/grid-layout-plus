@@ -1,12 +1,12 @@
 # 定制样式
 
-栅格的样式可以根据你的需要进行定制。
+使用 CSS 变量和组件类名可以调整栅格样式。
 
 ::: tip 提示
-栅格的类名是变化比较大的部分，`grid-layout-plus` 采用了 BEM 命名规范，相较原来类名变得更简短与扁平。
+当前类名使用 BEM，与早期版本不同。旧项目沿用选择器前，请先查看迁移指南。
 :::
 
-## Variables
+## CSS 变量
 
 ```css
 .vgl-layout {
@@ -39,7 +39,7 @@
 }
 ```
 
-你可以通过 `--vgl-placeholder-bg` 变量修改底色：
+在 `.vgl-layout` 上设置 `--vgl-placeholder-bg` 即可修改占位符底色：
 
 ```css
 .vgl-layout {
@@ -47,11 +47,11 @@
 }
 ```
 
-在 [这个示例](../example/styling-placeholder) 我们修改占位符的底色为绿色。
+[定制占位符](../example/styling-placeholder)示例中可以直接调整这个变量。
 
 ## 栅格线
 
-为 GridLayout 添加下面的样式以创建栅格线。
+也可以在 `GridLayout` 上添加 CSS 背景来绘制栅格线：
 
 ```css
 .vgl-layout::before {
@@ -68,11 +68,11 @@
 }
 ```
 
-栅格线的 CSS 的计算（在 `[]` 里的名字为 GridLayout 的属性）：
+背景尺寸需要与 `GridLayout` 属性保持一致。下面 `[]` 中的名称均指对应属性：
 
 - background size: `calc(calc(100% - [margin / 2]) / [col-num]) [row-height + margin]`
 - height: `calc(100% - [margin / 2])`
 - width: `calc(100% - [margin / 2])`
 - margin: `[margin / 2]`
 
-在 [这个示例](../example/styling-grid-lines) 我们为布局添加了栅格线。
+[定制栅格线](../example/styling-grid-lines)中提供了完整写法。
