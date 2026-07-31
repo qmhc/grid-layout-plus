@@ -1,3 +1,8 @@
+---
+title: 事件
+description: GridLayout 的布局更新、交互生命周期、拖放事件和 GridItem 事件参考。
+---
+
 # 事件
 
 `GridLayout` 会发送布局和交互生命周期事件。每个 `GridItem` 也会报告自身的移动、缩放和容器尺寸变化。完整效果可查看[移动和缩放事件](../example/events)。
@@ -19,10 +24,6 @@
     <GridItem
       v-for="item in layout"
       :key="item.i"
-      :x="item.x"
-      :y="item.y"
-      :w="item.w"
-      :h="item.h"
       :i="item.i"
       @resize="resize"
       @move="move"
@@ -130,6 +131,8 @@ function interactionEnd(payload: InteractionTerminalPayload): void
 function operationRejected(payload: OperationRejectedPayload): void
 ```
 
+完整的数据结构和拒绝原因见[操作契约](./contracts#operationrejectedpayload)。
+
 ### error
 
 后续属性更新无效、扩展点执行失败或几何计算出错时发送，同时保留上一次有效状态。初始 Layout 或配置无效时，仍会同步抛出错误。
@@ -137,6 +140,8 @@ function operationRejected(payload: OperationRejectedPayload): void
 ```ts
 function error(payload: GridLayoutRuntimeError): void
 ```
+
+错误字段和处理规则见[错误](./contracts#错误)。
 
 ### drop-drag-over
 
@@ -179,7 +184,7 @@ function handleDrop(
 }
 ```
 
-响应式栅格需要使用 `result.breakpoint`，在同一次 Vue flush 中更新对应的响应式 Layout 和当前 Layout。如果断点、配置或 Layout 变化使计算结果失效，`drop` 不会发送过期结果。
+响应式栅格需要使用 `result.breakpoint`，在同一个 Vue 更新周期内更新对应的响应式 Layout 和当前 Layout。如果断点、配置或 Layout 变化使计算结果失效，`drop` 不会发送过期结果。
 
 ### drop-drag-leave
 

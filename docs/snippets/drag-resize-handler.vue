@@ -16,7 +16,7 @@ const layout = ref<Layout>([
     <GridItem
       v-for="item in layout"
       :key="item.i"
-      v-bind="item"
+      :i="item.i"
       drag-allow-from=".drag-handle"
       drag-ignore-from=".drag-ignore"
     >

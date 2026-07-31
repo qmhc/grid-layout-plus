@@ -75,7 +75,7 @@ function resetDemo() {
     </dl>
     <GridLayout v-model:layout="layout" class="demo-grid" :col-num="6" :row-height="30">
       <GridBackground :color="color" :stroke-width="strokeWidth"></GridBackground>
-      <GridItem v-for="item in layout" :key="item.i" v-bind="item">
+      <GridItem v-for="item in layout" :key="item.i" :i="item.i">
         <span class="demo-item__label">{{ item.i }}</span>
       </GridItem>
     </GridLayout>

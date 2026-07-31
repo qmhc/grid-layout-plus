@@ -1,3 +1,8 @@
+---
+title: Custom Styling
+description: Customize Grid Layout Plus states, placeholders, resize handles, and grid lines with CSS.
+---
+
 # Custom Styling
 
 Use CSS variables and component classes to style the grid.

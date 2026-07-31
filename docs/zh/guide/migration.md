@@ -1,3 +1,8 @@
+---
+title: 从 v1 迁移
+description: 将 Grid Layout Plus v1 项目迁移到受控的 v2 API，并调整依赖已移除或废弃行为的代码。
+---
+
 # 从 v1 迁移
 
 本页列出 Grid Layout Plus 从 v1 升级到 v2 时需要处理的不兼容变化，内容以最新的 v1 版本 `v1.1.1` 为基线。按项目用到的功能阅读相应章节即可。

@@ -1,3 +1,8 @@
+---
+title: 用法
+description: 了解 Grid Layout Plus 的受控 Layout 数据流、渲染方式和无头渲染。
+---
+
 # 用法
 
 布局数组由应用维护。交互过程中，`GridLayout` 会发出有效的布局变更，父组件再把确认后的值传回来。栅格项可以由 `item` 插槽渲染，也可以手动创建。
@@ -66,7 +71,7 @@ function confirmLayout(next: ReadonlyLayout) {
 </template>
 ```
 
-需要直接设置 `GridItem` 属性或监听其事件时，使用默认插槽：
+需要设置 `GridItem` 的交互属性或监听其事件时，使用默认插槽。几何信息和栅格项约束仍然来自父级 `layout` 中对应的 `LayoutItem`：
 
 ```vue
 <template>
@@ -81,10 +86,6 @@ function confirmLayout(next: ReadonlyLayout) {
     <GridItem
       v-for="item in layout"
       :key="item.i"
-      :x="item.x"
-      :y="item.y"
-      :w="item.w"
-      :h="item.h"
       :i="item.i"
       @resize="handleResize"
     >
@@ -131,8 +132,8 @@ if (result.status === 'rejected') {
 }
 ```
 
-自定义 DOM 渲染可参考[组合式 API 示例](../example/composable-api)。
+完整的选项和返回值见[组合式函数](./composables)。自定义 DOM 渲染可参考[组合式 API 示例](../example/composable-api)。
 
 ## 下一步
 
-在[示例](../example/)中查找具体交互。需要确认输入或回调时，查看[属性](./properties)和[事件](./events)。
+在[示例](../example/)中查找具体交互。需要确认输入或回调时，查看[属性](./properties)、[事件](./events)或[方法](./methods)。

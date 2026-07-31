@@ -1,0 +1,34 @@
+# Grid Layout Plus
+
+> A draggable, resizable, responsive grid layout library for Vue 3. The v2 API uses a controlled Layout model and exposes rendered components, headless composables, and a DOM-free Core API.
+
+Use the v2 documentation linked here as the source of truth. Layout geometry belongs to the parent `Layout`; do not pass deprecated `x`, `y`, `w`, or `h` props to `GridItem`. Rendered component methods propose controlled transactions, while headless composable operations commit synchronously.
+
+## Start here
+
+- [Installation](https://grid-layout-plus.netlify.app/guide/installation): Package installation, component imports, browser usage, and additional entry points.
+- [Usage](https://grid-layout-plus.netlify.app/guide/usage): Controlled Layout ownership, item rendering, positioning, and headless rendering.
+- [Common tasks](https://grid-layout-plus.netlify.app/guide/recipes): Complete controlled, responsive, programmatic, headless, and Core API patterns.
+- [Complete English documentation](https://grid-layout-plus.netlify.app/llms-full.txt): Combined v2 guide in Markdown-compatible plain text.
+
+## API reference
+
+- [API index](https://grid-layout-plus.netlify.app/guide/api-index): Task-to-API map and compact index of public v2 symbols.
+- [Properties and public types](https://grid-layout-plus.netlify.app/guide/properties): Layout types and the GridLayout, GridItem, and GridBackground APIs.
+- [Events](https://grid-layout-plus.netlify.app/guide/events): Controlled model updates, lifecycle events, interactions, drops, and errors.
+- [Methods](https://grid-layout-plus.netlify.app/guide/methods): Programmatic component operations and controlled transaction receipts.
+- [Composables](https://grid-layout-plus.netlify.app/guide/composables): Headless layout state, responsive state, and container-width observation.
+- [Operation contracts](https://grid-layout-plus.netlify.app/guide/contracts): Results, receipts, revisions, rejection reasons, terminal states, and structured errors.
+- [Core API](https://grid-layout-plus.netlify.app/guide/core-api): DOM-free validation, normalization, compaction, collision, positioning, and geometry functions.
+
+## 中文文档
+
+- [中文指南](https://grid-layout-plus.netlify.app/zh/guide/): Grid Layout Plus v2 中文文档入口。
+- [完整中文文档](https://grid-layout-plus.netlify.app/llms-full-zh.txt): 合并后的 Markdown 兼容纯文本指南。
+
+## Optional
+
+- [Examples](https://grid-layout-plus.netlify.app/example/): Interactive examples grouped by common use case.
+- [Migration from v1](https://grid-layout-plus.netlify.app/guide/migration): Removed, deprecated, and changed v2 behavior.
+- [Custom styling](https://grid-layout-plus.netlify.app/guide/custom-style): CSS variables, placeholders, and grid lines.
+- [Source repository](https://github.com/qmhc/grid-layout-plus): Package source, issues, and release history.

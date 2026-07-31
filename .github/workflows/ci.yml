@@ -95,6 +95,9 @@ jobs:
       - name: Type contracts
         run: pnpm run test:types
 
+      - name: Check docs
+        run: pnpm run check:docs
+
       - name: Build docs
         run: pnpm run build:docs
 

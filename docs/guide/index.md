@@ -30,6 +30,11 @@ description: Build your first Grid Layout Plus layout, then learn the API and ad
       <strong>Run the basic example</strong>
       <small>Drag and resize the items, then open and copy the minimal example.</small>
     </a>
+    <a href="/guide/recipes">
+      <span>04</span>
+      <strong>Apply a complete pattern</strong>
+      <small>Copy the controlled, responsive, programmatic, headless, or Core API workflow.</small>
+    </a>
   </div>
 </section>
 
@@ -40,14 +45,39 @@ description: Build your first Grid Layout Plus layout, then learn the API and ad
   </div>
 
   <div class="guide-reference-list">
+    <a href="/guide/api-index">
+      <strong>API index</strong>
+      <span>Find a public v2 symbol or choose the right API for a task.</span>
+      <span aria-hidden="true">→</span>
+    </a>
     <a href="/guide/properties">
       <strong>Properties</strong>
-      <span>GridLayout and GridItem inputs, defaults, types, compactors, and position strategies.</span>
+      <span>GridLayout, GridItem, and GridBackground inputs, defaults, types, compactors, and position strategies.</span>
       <span aria-hidden="true">→</span>
     </a>
     <a href="/guide/events">
       <strong>Events</strong>
       <span>Layout updates and interaction lifecycle events for moving and resizing items.</span>
+      <span aria-hidden="true">→</span>
+    </a>
+    <a href="/guide/methods">
+      <strong>Methods</strong>
+      <span>Programmatic component commands and controlled transaction receipts.</span>
+      <span aria-hidden="true">→</span>
+    </a>
+    <a href="/guide/composables">
+      <strong>Composables</strong>
+      <span>Headless layout, responsive state, and container-width observation.</span>
+      <span aria-hidden="true">→</span>
+    </a>
+    <a href="/guide/contracts">
+      <strong>Operation contracts</strong>
+      <span>Result statuses, rejection reasons, revisions, and structured errors.</span>
+      <span aria-hidden="true">→</span>
+    </a>
+    <a href="/guide/core-api">
+      <strong>Core API</strong>
+      <span>DOM-free validation, normalization, collision, compaction, and geometry.</span>
       <span aria-hidden="true">→</span>
     </a>
   </div>

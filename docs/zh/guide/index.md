@@ -30,6 +30,11 @@ description: 先创建第一个 Grid Layout Plus 布局，再逐步了解 API �
       <strong>运行基础示例</strong>
       <small>拖拽和缩放栅格项，再打开并复制最简示例。</small>
     </a>
+    <a href="/zh/guide/recipes">
+      <span>04</span>
+      <strong>使用完整方案</strong>
+      <small>参考受控布局、响应式、编程式、无头渲染或 Core API 的完整工作流。</small>
+    </a>
   </div>
 </section>
 
@@ -40,14 +45,39 @@ description: 先创建第一个 Grid Layout Plus 布局，再逐步了解 API �
   </div>
 
   <div class="guide-reference-list">
+    <a href="/zh/guide/api-index">
+      <strong>API 索引</strong>
+      <span>查找 v2 公开符号，或按任务选择合适的 API。</span>
+      <span aria-hidden="true">→</span>
+    </a>
     <a href="/zh/guide/properties">
       <strong>属性</strong>
-      <span>GridLayout 与 GridItem 的输入、默认值、类型、压缩器和定位策略。</span>
+      <span>GridLayout、GridItem 与 GridBackground 的输入、默认值、类型、压缩器和定位策略。</span>
       <span aria-hidden="true">→</span>
     </a>
     <a href="/zh/guide/events">
       <strong>事件</strong>
       <span>布局更新，以及移动和缩放栅格项时的交互生命周期事件。</span>
+      <span aria-hidden="true">→</span>
+    </a>
+    <a href="/zh/guide/methods">
+      <strong>方法</strong>
+      <span>编程式组件命令和受控事务回执。</span>
+      <span aria-hidden="true">→</span>
+    </a>
+    <a href="/zh/guide/composables">
+      <strong>组合式函数</strong>
+      <span>无头布局、响应式状态和容器宽度观测。</span>
+      <span aria-hidden="true">→</span>
+    </a>
+    <a href="/zh/guide/contracts">
+      <strong>操作契约</strong>
+      <span>结果状态、拒绝原因、revision 和结构化错误。</span>
+      <span aria-hidden="true">→</span>
+    </a>
+    <a href="/zh/guide/core-api">
+      <strong>Core API</strong>
+      <span>无 DOM 的校验、规范化、碰撞、压缩和几何换算。</span>
       <span aria-hidden="true">→</span>
     </a>
   </div>

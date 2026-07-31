@@ -1,3 +1,8 @@
+---
+title: 定制样式
+description: 使用 CSS 定制 Grid Layout Plus 的状态、占位符、缩放手柄和栅格线。
+---
+
 # 定制样式
 
 使用 CSS 变量和组件类名可以调整栅格样式。

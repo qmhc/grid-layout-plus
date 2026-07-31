@@ -1,3 +1,8 @@
+---
+title: Events
+description: Find details about GridLayout updates, interaction lifecycle events, drop events, and GridItem events.
+---
+
 # Events
 
 `GridLayout` emits layout and interaction lifecycle events. Each `GridItem` also reports its own move, resize, and container-size changes. See [Move and Resize Events](../example/events) for a working example.
@@ -19,10 +24,6 @@
     <GridItem
       v-for="item in layout"
       :key="item.i"
-      :x="item.x"
-      :y="item.y"
-      :w="item.w"
-      :h="item.h"
       :i="item.i"
       @resize="resize"
       @move="move"
@@ -130,6 +131,8 @@ Emitted when the component rejects a public command, interaction candidate, cont
 function operationRejected(payload: OperationRejectedPayload): void
 ```
 
+See [Operation contracts](./contracts#operationrejectedpayload) for the complete payload and rejection reasons.
+
 ### error
 
 Reports invalid prop updates, extension failures, and derived geometry errors while keeping the last valid committed state. An invalid initial Layout or configuration still throws synchronously.
@@ -137,6 +140,8 @@ Reports invalid prop updates, extension failures, and derived geometry errors wh
 ```ts
 function error(payload: GridLayoutRuntimeError): void
 ```
+
+See [Errors](./contracts#errors) for the error fields and handling rules.
 
 ### drop-drag-over
 
@@ -179,7 +184,7 @@ function handleDrop(
 }
 ```
 
-For a responsive grid, use `result.breakpoint` to update the matching responsive Layout and the current Layout in the same Vue flush. If a breakpoint, configuration, or Layout change invalidates an evaluation, `drop` does not emit the stale result.
+For a responsive grid, use `result.breakpoint` to update the matching responsive Layout and the current Layout in the same Vue update cycle. If a breakpoint, configuration, or Layout change invalidates an evaluation, `drop` does not emit the stale result.
 
 ### drop-drag-leave
 

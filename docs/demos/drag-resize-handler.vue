@@ -55,10 +55,6 @@ function resetDemo() {
       <GridItem
         v-for="item in layout"
         :key="item.i"
-        :x="item.x"
-        :y="item.y"
-        :w="item.w"
-        :h="item.h"
         :i="item.i"
         drag-allow-from=".demo-drag-handle"
         drag-ignore-from=".demo-no-drag"

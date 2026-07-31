@@ -10,6 +10,7 @@
     "build": "node --import tsx scripts/build.ts",
     "build:docs": "pnpm -C docs build",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s --commit-path .",
+    "check:docs": "node --import tsx docs/.vitepress/check-docs.ts",
     "dev": "pnpm -C dev-server serve",
     "dev:docs": "pnpm -C docs serve",
     "lint": "eslint --cache --config eslint.config.ts \"**/*.{js,cjs,mjs,ts,tsx,vue}\"",

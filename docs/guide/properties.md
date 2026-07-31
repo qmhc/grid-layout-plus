@@ -1,3 +1,8 @@
+---
+title: Properties
+description: Find details about GridLayout, GridItem, and GridBackground props, layout types, defaults, and extension interfaces.
+---
+
 # Properties
 
 ## Types
@@ -36,23 +41,30 @@ interface LayoutItem extends LayoutItemRequired {
 type Layout = Array<LayoutItem>
 ```
 
-### Breakpoint
+### DefaultBreakpoint and Breakpoints
 
 ```ts
-type Breakpoint = 'xxs' | 'xs' | 'sm' | 'md' | 'lg'
+type DefaultBreakpoint = 'xxs' | 'xs' | 'sm' | 'md' | 'lg'
+type Breakpoints<B extends string = DefaultBreakpoint> = Readonly<Record<B, number>>
 ```
 
-### Breakpoints
+`Breakpoint` is a deprecated alias for `DefaultBreakpoint`. New code can use the default breakpoint names or pass a custom string union as `B`.
+
+### Responsive layouts
 
 ```ts
-type Breakpoints = Record<Breakpoint, number>
+type ResponsiveLayoutsInput<B extends string = DefaultBreakpoint> = Partial<
+  Readonly<Record<B, ReadonlyLayout>>
+>
+
+type CompleteResponsiveLayouts<B extends string = DefaultBreakpoint> = Readonly<
+  Record<B, ReadonlyLayout>
+>
+
+type ResponsiveValue<B extends string, T> = T | Readonly<Record<B, T>>
 ```
 
-### ResponsiveLayout
-
-```ts
-type ResponsiveLayout = Record<Breakpoint, Layout>
-```
+`ResponsiveLayoutsInput` is the partial breakpoint map accepted by `GridLayout`. `CompleteResponsiveLayouts` is the complete breakpoint map emitted after normalization. `ResponsiveValue` accepts either one value or a complete breakpoint map. The legacy `ResponsiveLayout` type is deprecated.
 
 ### CollisionMode
 
@@ -121,11 +133,12 @@ Built-in strategies:
 ### GridConfig
 
 ```ts
-interface GridConfig {
+interface GridConfig<B extends string = DefaultBreakpoint> {
   colNum?: number
   rowHeight?: number
   maxRows?: number
-  margin?: number[]
+  margin?: ResponsiveValue<B, readonly [number, number]>
+  containerPadding?: ResponsiveValue<B, readonly [number, number]>
   autoSize?: boolean
 }
 ```
@@ -242,21 +255,21 @@ The DOM-free `gridToPixelRect`, `pointerToGridPosition`, and `pixelSizeToGridSiz
 
 ### layout
 
-- type: `Layout`
+- type: `ReadonlyLayout`
 - required
 
-The grid layout. Each array item must include `i`, `x`, `y`, `w`, and `h`. See [GridItem](#griditem) for the item-level properties.
+The grid layout. Each array item must include `i`, `x`, `y`, `w`, and `h`. See [`LayoutItem`](#layoutitem) for the optional item-level fields.
 
 With the default `collision-mode="push"`, Grid Layout Plus validates and compacts the layout before the first render. It does not mutate the input array or its items. Use `v-model:layout` to receive the normalized layout.
 
 ### responsive-layouts
 
-- type: `Partial<ResponsiveLayout>`
+- type: `ResponsiveLayoutsInput<B>`
 - default: `{}`
 
-The initial layout for each breakpoint when `responsive` is `true`. Each key is a breakpoint name and each value follows the `layout` format, for example `{ lg: [layout items], md: [layout items] }`.
+The author-provided layout for each breakpoint when `responsive` is `true`. Each key is a breakpoint name and each value follows the `layout` format, for example `{ lg: [layout items], md: [layout items] }`.
 
-Changing this prop after `GridLayout` is created has no effect.
+This prop is reactive. In controlled responsive mode, bind both `v-model:layout` and `v-model:responsive-layouts`; updates for the current Layout and the complete breakpoint map share one revision and must be written back in the same Vue update cycle.
 
 See also [responsive](#responsive), [breakpoints](#breakpoints) and [cols](#cols).
 
@@ -283,10 +296,24 @@ The maximum number of rows.
 
 ### margin
 
-- type: `number[]`
+- type: `ResponsiveValue<B, readonly [number, number]>`
 - default: `[10, 10]`
 
-The horizontal and vertical gaps between items, in pixels. Pass exactly two numbers: `[horizontal, vertical]`.
+The horizontal and vertical gaps between items, in pixels. Pass exactly two numbers: `[horizontal, vertical]`. In responsive mode, you can instead pass a complete breakpoint map.
+
+### container-padding
+
+- type: `ResponsiveValue<B, readonly [number, number]>`
+- default: the resolved `margin`
+
+The horizontal and vertical padding inside the layout container, in pixels. Pass `[horizontal, vertical]` or, in responsive mode, a complete breakpoint map.
+
+### width
+
+- type: `number`
+- default: `undefined`
+
+An explicit non-negative container width in pixels. When omitted, `GridLayout` observes its root element with `ResizeObserver`. A value of `0` is a resolved width with no renderable geometry, not an unresolved measurement.
 
 ### is-draggable
 
@@ -368,7 +395,7 @@ See also [responsiveLayouts](#responsive-layouts), [breakpoints](#breakpoints) a
 
 ### breakpoints
 
-- type: `Breakpoints`
+- type: `Breakpoints<B>`
 - default: `{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }`
 
 The width thresholds used by responsive mode.
@@ -377,7 +404,7 @@ See also [responsiveLayouts](#responsive-layouts) and [cols](#cols)
 
 ### cols
 
-- type: `Breakpoints`
+- type: `Readonly<Record<B, number>>`
 - default: `{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }`
 
 The number of columns at each breakpoint.
@@ -448,11 +475,12 @@ The minimum pointer movement, in pixels, before dragging starts. Increase it to 
 A grouped configuration object for grid-related props. An explicitly provided individual prop takes precedence; otherwise the grouped value is used.
 
 ```ts
-interface GridConfig {
+interface GridConfig<B extends string = DefaultBreakpoint> {
   colNum?: number
   rowHeight?: number
   maxRows?: number
-  margin?: number[]
+  margin?: ResponsiveValue<B, readonly [number, number]>
+  containerPadding?: ResponsiveValue<B, readonly [number, number]>
   autoSize?: boolean
 }
 ```
@@ -504,109 +532,25 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 
 `onDragOver` receives the current candidate and committed Layout. Return `false` to reject it, or return `w` and/or `h` to change its size. After a size change, the component recalculates the candidate around the same pointer before checking collisions and bounds.
 
-### Layer methods
-
-`GridLayout` exposes `bringToFront(id)` and `sendToBack(id)`. Both methods update and normalize `LayoutItem.zIndex`. If the order changes, they emit `layout-updated` and return `true`.
+Programmatic layout and layer operations are documented in [Methods](./methods).
 
 ## GridItem
+
+`GridItem` must be a descendant of `GridLayout`. Its `i` prop associates it with the matching `LayoutItem`; the parent Layout owns geometry, constraints, static state, per-item drag and resize flags, and layer order.
 
 ### i
 
 - type: `number | string`
 - required
 
-The item's unique identifier.
-
-### x
-
-- type: `number`
-- required
-
-The item's initial column. It must be a non-negative integer.
-
-### y
-
-- type: `number`
-- required
-
-The item's initial row. It must be a non-negative integer.
-
-### w
-
-- type: `number`
-- required
-
-The initial item width in columns. It must be a positive integer.
-
-### h
-
-- type: `number`
-- required
-
-The initial item height in rows. It must be a positive integer.
-
-### min-w
-
-- type: `number`
-- default: `1`
-
-The minimum width in columns. If `w` is smaller, it is clamped to `min-w`.
-
-### min-h
-
-- type: `number`
-- default: `1`
-
-The minimum height in rows. If `h` is smaller, it is clamped to `min-h`.
-
-### max-w
-
-- type: `number`
-- default: `Infinity`
-
-The maximum width in columns. If `w` is larger, it is clamped to `max-w`.
-
-### max-h
-
-- type: `number`
-- default: `Infinity`
-
-The maximum height in rows. If `h` is larger, it is clamped to `max-h`.
-
-### is-draggable
-
-- type: `boolean`
-- default: `null`
-
-Whether the item can be dragged. `null` inherits the value from `GridLayout`.
-
-### is-resizable
-
-- type: `boolean`
-- default: `null`
-
-Whether the item can be resized. `null` inherits the value from `GridLayout`.
+The item's unique identifier. It must match exactly one `LayoutItem.i` in the parent Layout.
 
 ### is-bounded
 
 - type: `boolean`
-- default: `null`
-
-During a pointer drag, keeps the item's pixel rectangle inside the `GridLayout` root. `null` inherits the value from `GridLayout`. This prop does not constrain resizing.
-
-### static
-
-- type: `boolean`
-- default: `false`
-
-Whether the item is static. A static item cannot be dragged, resized, or pushed by other items.
-
-### z-index
-
-- type: `number`
 - default: `undefined`
 
-Sets the item layer order as an integer. Higher values render in front. Layer methods may normalize these values while preserving their relative order.
+During a pointer drag, keeps the item's pixel rectangle inside the `GridLayout` root. When omitted, it inherits `GridLayout.isBounded`. This prop does not constrain resizing.
 
 ### drag-ignore-from
 
@@ -620,11 +564,11 @@ See `ignoreFrom` in the [interact.js documentation](http://interactjs.io/docs/#i
 ### drag-allow-from
 
 - type: `string`
-- default: `null`
+- default: `undefined`
 
 Selectors for descendants that may start dragging.
 
-If `null`, any descendant can start dragging unless it matches `drag-ignore-from`.
+When omitted, any descendant can start dragging unless it matches `drag-ignore-from`.
 
 See `allowFrom` in the [interact.js documentation](http://interactjs.io/docs/#ignorable-selectors).
 
@@ -646,14 +590,14 @@ Whether the item keeps its aspect ratio while resizing.
 
 ### drag-option
 
-- type: `Record<string, any>`
+- type: `Readonly<Record<string, unknown>>`
 - default: `{}`
 
 Pass-through options for the grid item's [interact.js draggable configuration](https://interactjs.io/docs/draggable/).
 
 ### resize-option
 
-- type: `Record<string, any>`
+- type: `Readonly<Record<string, unknown>>`
 - default: `{}`
 
 Pass-through options for the grid item's [interact.js resizable configuration](https://interactjs.io/docs/resizable/).
@@ -661,6 +605,42 @@ Pass-through options for the grid item's [interact.js resizable configuration](h
 ### drag-threshold
 
 - type: `number`
-- default: `null`
+- default: `undefined`
 
-The minimum drag distance for this item, in pixels. `null` inherits [`drag-threshold`](#drag-threshold) from `GridLayout`.
+The minimum drag distance for this item, in pixels. When omitted, it inherits [`drag-threshold`](#drag-threshold) from `GridLayout`.
+
+### Deprecated compatibility props
+
+`x`, `y`, `w`, `h`, `min-w`, `min-h`, `max-w`, `max-h`, `static`, `is-draggable`, `is-resizable`, and `z-index` remain optional `GridItem` props for v1 compatibility. Inside a valid `GridLayout`, they do not override the matching `LayoutItem`. Put these values in the parent `layout` instead.
+
+## GridBackground
+
+`GridBackground` draws grid lines behind the items. When it is rendered inside `GridLayout`, geometry props inherit from the parent unless explicitly provided.
+
+| Prop           | Type                        | Default                               | Description                        |
+| -------------- | --------------------------- | ------------------------------------- | ---------------------------------- |
+| `cols`         | `number`                    | parent `colNum`, otherwise `12`       | Number of columns.                 |
+| `row-height`   | `number`                    | parent `rowHeight`, otherwise `150`   | Row height in pixels.              |
+| `margin`       | `readonly [number, number]` | parent `margin`, otherwise `[10, 10]` | Horizontal and vertical gaps.      |
+| `width`        | `number`                    | parent width, otherwise `0`           | Drawing width in pixels.           |
+| `rows`         | `number`                    | fills the available height            | Optional number of rows to draw.   |
+| `color`        | `string`                    | `rgba(0,0,0,0.1)`                     | Grid-line color.                   |
+| `stroke-width` | `number`                    | `1`                                   | Non-negative line width in pixels. |
+
+See the [Grid Background example](../example/grid-background) for usage.
+
+## Slots
+
+The default slot accepts manually rendered `GridItem` components. The `item` slot lets `GridLayout` create them and exposes this scope:
+
+```ts
+interface GridLayoutSlotScope {
+  item: ReadonlyLayoutItem
+  index: number
+  style: Readonly<Record<string, string>>
+  isDragging: boolean
+  isResizing: boolean
+}
+```
+
+See [Render items](./usage#render-items) for both patterns.

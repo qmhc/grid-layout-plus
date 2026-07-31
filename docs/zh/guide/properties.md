@@ -1,3 +1,8 @@
+---
+title: 属性
+description: GridLayout、GridItem 和 GridBackground 的属性、布局类型、默认值与扩展接口参考。
+---
+
 # 属性
 
 ## 类型
@@ -36,23 +41,30 @@ interface LayoutItem extends LayoutItemRequired {
 type Layout = Array<LayoutItem>
 ```
 
-### Breakpoint
+### DefaultBreakpoint 与 Breakpoints
 
 ```ts
-type Breakpoint = 'xxs' | 'xs' | 'sm' | 'md' | 'lg'
+type DefaultBreakpoint = 'xxs' | 'xs' | 'sm' | 'md' | 'lg'
+type Breakpoints<B extends string = DefaultBreakpoint> = Readonly<Record<B, number>>
 ```
 
-### Breakpoints
+`Breakpoint` 是 `DefaultBreakpoint` 的废弃别名。新代码可以使用默认断点名称，也可以把自定义字符串联合类型传给泛型参数 `B`。
+
+### 响应式布局类型
 
 ```ts
-type Breakpoints = Record<Breakpoint, number>
+type ResponsiveLayoutsInput<B extends string = DefaultBreakpoint> = Partial<
+  Readonly<Record<B, ReadonlyLayout>>
+>
+
+type CompleteResponsiveLayouts<B extends string = DefaultBreakpoint> = Readonly<
+  Record<B, ReadonlyLayout>
+>
+
+type ResponsiveValue<B extends string, T> = T | Readonly<Record<B, T>>
 ```
 
-### ResponsiveLayout
-
-```ts
-type ResponsiveLayout = Record<Breakpoint, Layout>
-```
+`ResponsiveLayoutsInput` 是 `GridLayout` 接受的、允许省略部分断点的输入映射；`CompleteResponsiveLayouts` 是归一化后发送的完整断点映射。`ResponsiveValue` 可以是单个值，也可以是完整断点映射。旧的 `ResponsiveLayout` 类型已废弃。
 
 ### CollisionMode
 
@@ -121,11 +133,12 @@ interface PositionStrategy {
 ### GridConfig
 
 ```ts
-interface GridConfig {
+interface GridConfig<B extends string = DefaultBreakpoint> {
   colNum?: number
   rowHeight?: number
   maxRows?: number
-  margin?: number[]
+  margin?: ResponsiveValue<B, readonly [number, number]>
+  containerPadding?: ResponsiveValue<B, readonly [number, number]>
   autoSize?: boolean
 }
 ```
@@ -242,21 +255,21 @@ interface ReadonlyClientRect {
 
 ### layout
 
-- 类型：`Layout`
+- 类型：`ReadonlyLayout`
 - 必填
 
-栅格布局。数组中的每个栅格项都必须包含 `i`、`x`、`y`、`w` 和 `h`。其他栅格项属性见 [GridItem](#griditem)。
+栅格布局。数组中的每个栅格项都必须包含 `i`、`x`、`y`、`w` 和 `h`。其他可选字段见 [`LayoutItem`](#layoutitem)。
 
 使用默认的 `collision-mode="push"` 时，Grid Layout Plus 会在首次渲染前校验并压缩布局。输入数组及其中的栅格项不会被直接修改，请使用 `v-model:layout` 接收规范化后的布局。
 
 ### responsive-layouts
 
-- 类型：`Partial<ResponsiveLayout>`
+- 类型：`ResponsiveLayoutsInput<B>`
 - 默认值：`{}`
 
-`responsive` 为 `true` 时，使用这里配置的各断点初始布局。对象键为断点名称，每个值都采用 `layout` 的数组格式，例如 `{ lg: [layout items], md: [layout items] }`。
+`responsive` 为 `true` 时，使用这里配置的各断点布局。对象键为断点名称，每个值都采用 `layout` 的数组格式，例如 `{ lg: [layout items], md: [layout items] }`。
 
-`GridLayout` 创建后再修改该属性不会生效。
+该属性是响应式的。受控响应式模式下，应同时绑定 `v-model:layout` 和 `v-model:responsive-layouts`；当前 Layout 与完整断点映射使用同一个 revision，必须在同一个 Vue 更新周期写回。
 
 见 [responsive](#responsive)、[breakpoints](#breakpoints) 和 [cols](#cols)。
 
@@ -283,10 +296,24 @@ interface ReadonlyClientRect {
 
 ### margin
 
-- 类型：`number[]`
+- 类型：`ResponsiveValue<B, readonly [number, number]>`
 - 默认值：`[10, 10]`
 
-栅格项之间的横向和纵向间距，单位为像素。必须传入两个数字：`[横向, 纵向]`。
+栅格项之间的横向和纵向间距，单位为像素。必须传入两个数字：`[横向, 纵向]`。响应式模式下也可以传入完整的断点映射。
+
+### container-padding
+
+- 类型：`ResponsiveValue<B, readonly [number, number]>`
+- 默认值：当前解析出的 `margin`
+
+布局容器内部的横向和纵向留白，单位为像素。可以传入 `[横向, 纵向]`；响应式模式下也可以传入完整的断点映射。
+
+### width
+
+- 类型：`number`
+- 默认值：`undefined`
+
+显式指定容器宽度，单位为像素，必须是非负有限数。未传入时，`GridLayout` 会使用 `ResizeObserver` 观测根节点。`0` 表示宽度已经解析，但当前没有可渲染的几何空间，并非尚未完成测量。
 
 ### is-draggable
 
@@ -369,7 +396,7 @@ interface ReadonlyClientRect {
 
 ### breakpoints
 
-- 类型：`Breakpoints`
+- 类型：`Breakpoints<B>`
 - 默认值：`{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }`
 
 响应式模式使用的宽度断点。
@@ -378,7 +405,7 @@ interface ReadonlyClientRect {
 
 ### cols
 
-- 类型：`Breakpoints`
+- 类型：`Readonly<Record<B, number>>`
 - 默认值：`{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }`
 
 各断点对应的列数。
@@ -449,11 +476,12 @@ import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout
 栅格相关属性的分组配置对象。显式传入的独立属性优先；未传入独立属性时才使用分组值。
 
 ```ts
-interface GridConfig {
+interface GridConfig<B extends string = DefaultBreakpoint> {
   colNum?: number
   rowHeight?: number
   maxRows?: number
-  margin?: number[]
+  margin?: ResponsiveValue<B, readonly [number, number]>
+  containerPadding?: ResponsiveValue<B, readonly [number, number]>
   autoSize?: boolean
 }
 ```
@@ -505,109 +533,25 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 
 `onDragOver` 接收当前候选项和已提交的 Layout。返回 `false` 可以拒绝候选项；返回 `w` 和/或 `h` 可以修改尺寸。尺寸变化后，组件会围绕同一个指针重新计算候选位置，再检查碰撞和边界。
 
-### 层级方法
-
-`GridLayout` 暴露 `bringToFront(id)` 和 `sendToBack(id)`。两个方法都会更新并归一化 `LayoutItem.zIndex`。层级发生变化时，它们会触发 `layout-updated` 并返回 `true`。
+编程式布局操作和层级操作见[方法](./methods)。
 
 ## GridItem
+
+`GridItem` 必须位于 `GridLayout` 内。它通过 `i` 属性关联对应的 `LayoutItem`；几何信息、约束、静态状态、单项拖拽和缩放开关以及层级顺序都由父级 Layout 维护。
 
 ### i
 
 - 类型：`number | string`
 - 必填
 
-栅格项的唯一标识。
-
-### x
-
-- 类型：`number`
-- 必填
-
-栅格项的起始列，必须是非负整数。
-
-### y
-
-- 类型：`number`
-- 必填
-
-栅格项的起始行，必须是非负整数。
-
-### w
-
-- 类型：`number`
-- 必填
-
-栅格项的初始宽度，单位为列，必须是正整数。
-
-### h
-
-- 类型：`number`
-- 必填
-
-栅格项的初始高度，单位为行，必须是正整数。
-
-### min-w
-
-- 类型：`number`
-- 默认值：`1`
-
-最小宽度，单位为列。`w` 小于该值时会被限制为 `min-w`。
-
-### min-h
-
-- 类型：`number`
-- 默认值：`1`
-
-最小高度，单位为行。`h` 小于该值时会被限制为 `min-h`。
-
-### max-w
-
-- 类型：`number`
-- 默认值：`Infinity`
-
-最大宽度，单位为列。`w` 大于该值时会被限制为 `max-w`。
-
-### max-h
-
-- 类型：`number`
-- 默认值：`Infinity`
-
-最大高度，单位为行。`h` 大于该值时会被限制为 `max-h`。
-
-### is-draggable
-
-- 类型：`boolean`
-- 默认值：`null`
-
-栅格项是否可以拖拽。`null` 表示继承 `GridLayout` 的配置。
-
-### is-resizable
-
-- 类型：`boolean`
-- 默认值：`null`
-
-栅格项是否可以缩放。`null` 表示继承 `GridLayout` 的配置。
+栅格项的唯一标识，必须与父级 Layout 中恰好一个 `LayoutItem.i` 匹配。
 
 ### is-bounded
 
 - 类型：`boolean`
-- 默认值：`null`
-
-在指针拖动期间，将栅格项的像素矩形限制在 `GridLayout` 根节点内。`null` 表示继承 `GridLayout` 的配置。该属性不限制缩放。
-
-### static
-
-- 类型：`boolean`
-- 默认值：`false`
-
-栅格项是否为静态项。静态项不能拖拽、缩放，也不会被其他栅格项推开。
-
-### z-index
-
-- 类型：`number`
 - 默认值：`undefined`
 
-用整数设置栅格项层级，数值越大越靠前。层级方法可能会归一化这些数值，但会保持相对顺序。
+在指针拖动期间，将栅格项的像素矩形限制在 `GridLayout` 根节点内。未传入时继承 `GridLayout.isBounded`。该属性不限制缩放。
 
 ### drag-ignore-from
 
@@ -621,11 +565,11 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 ### drag-allow-from
 
 - 类型：`string`
-- 默认值：`null`
+- 默认值：`undefined`
 
 指定可以开始拖拽的后代元素选择器。
 
-如果为 `null`，任何后代元素都可以开始拖拽，但匹配 `drag-ignore-from` 的元素除外。
+未传入时，任何后代元素都可以开始拖拽，但匹配 `drag-ignore-from` 的元素除外。
 
 详见 [interact.js 文档](http://interactjs.io/docs/#ignorable-selectors)中的 `allowFrom`。
 
@@ -647,14 +591,14 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 
 ### drag-option
 
-- 类型：`Record<string, any>`
+- 类型：`Readonly<Record<string, unknown>>`
 - 默认值：`{}`
 
 传递给 [interact.js 拖拽配置](https://interactjs.io/docs/draggable/) 的对象。
 
 ### resize-option
 
-- 类型：`Record<string, any>`
+- 类型：`Readonly<Record<string, unknown>>`
 - 默认值：`{}`
 
 传递给 [interact.js 缩放配置](https://interactjs.io/docs/resizable/) 的对象。
@@ -662,6 +606,42 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 ### drag-threshold
 
 - 类型：`number`
-- 默认值：`null`
+- 默认值：`undefined`
 
-该栅格项开始拖拽前至少需要移动的像素距离。`null` 表示继承 `GridLayout` 的 [`drag-threshold`](#drag-threshold)。
+该栅格项开始拖拽前至少需要移动的像素距离。未传入时继承 `GridLayout` 的 [`drag-threshold`](#drag-threshold)。
+
+### 废弃的兼容属性
+
+`x`、`y`、`w`、`h`、`min-w`、`min-h`、`max-w`、`max-h`、`static`、`is-draggable`、`is-resizable` 和 `z-index` 仍作为可选 `GridItem` 属性保留，用于兼容 v1。在有效的 `GridLayout` 内，它们不会覆盖对应的 `LayoutItem`。新代码应把这些值写入父级 `layout`。
+
+## GridBackground
+
+`GridBackground` 在栅格项后方绘制栅格线。放在 `GridLayout` 内时，未显式传入的几何属性会继承父级配置。
+
+| 属性           | 类型                        | 默认值                           | 说明                   |
+| -------------- | --------------------------- | -------------------------------- | ---------------------- |
+| `cols`         | `number`                    | 父级 `colNum`，否则为 `12`       | 栅格列数。             |
+| `row-height`   | `number`                    | 父级 `rowHeight`，否则为 `150`   | 行高，单位为像素。     |
+| `margin`       | `readonly [number, number]` | 父级 `margin`，否则为 `[10, 10]` | 横向和纵向间距。       |
+| `width`        | `number`                    | 父级宽度，否则为 `0`             | 绘制宽度，单位为像素。 |
+| `rows`         | `number`                    | 填满可用高度                     | 可选的绘制行数。       |
+| `color`        | `string`                    | `rgba(0,0,0,0.1)`                | 栅格线颜色。           |
+| `stroke-width` | `number`                    | `1`                              | 非负线宽，单位为像素。 |
+
+用法见[栅格背景示例](../example/grid-background)。
+
+## 插槽
+
+默认插槽用于手动渲染 `GridItem`。使用 `item` 插槽时，由 `GridLayout` 创建栅格项，并暴露以下数据：
+
+```ts
+interface GridLayoutSlotScope {
+  item: ReadonlyLayoutItem
+  index: number
+  style: Readonly<Record<string, string>>
+  isDragging: boolean
+  isResizing: boolean
+}
+```
+
+两种方式见[渲染栅格项](./usage#渲染栅格项)。

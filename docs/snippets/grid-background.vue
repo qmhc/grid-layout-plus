@@ -15,7 +15,7 @@ const layout = ref<Layout>([
 <template>
   <GridLayout v-model:layout="layout" :col-num="6" :row-height="30">
     <GridBackground color="#64748b" :stroke-width="1"></GridBackground>
-    <GridItem v-for="item in layout" :key="item.i" v-bind="item">
+    <GridItem v-for="item in layout" :key="item.i" :i="item.i">
       {{ item.i }}
     </GridItem>
   </GridLayout>

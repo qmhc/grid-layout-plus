@@ -1,3 +1,8 @@
+---
+title: Installation
+description: Install Grid Layout Plus and import its components, composables, compactors, and position strategies.
+---
+
 # Installation
 
 Most applications only need `GridLayout` and `GridItem` to get started. Import the other components and utilities only when you use them.

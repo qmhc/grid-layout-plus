@@ -152,10 +152,6 @@ function layoutUpdatedEvent(newLayout: Layout) {
       <GridItem
         v-for="item in layout"
         :key="item.i"
-        :x="item.x"
-        :y="item.y"
-        :w="item.w"
-        :h="item.h"
         :i="item.i"
         @resize="resizeEvent"
         @move="moveEvent"

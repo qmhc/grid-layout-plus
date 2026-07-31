@@ -294,6 +294,7 @@
   margin: auto;
   font-size: clamp(14px, 2vw, 24px);
   text-align: center;
+  user-select: none;
 }
 
 .demo-shell code {

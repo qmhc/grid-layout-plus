@@ -1,3 +1,8 @@
+---
+title: 安装
+description: 安装 Grid Layout Plus，并引入组件、组合式函数、压缩器和定位策略。
+---
+
 # 安装
 
 大多数应用只需引入 `GridLayout` 和 `GridItem`。其他组件和工具可以在用到时单独引入。

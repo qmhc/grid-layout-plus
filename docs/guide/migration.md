@@ -1,3 +1,8 @@
+---
+title: Migration from v1
+description: Migrate Grid Layout Plus v1 projects to the controlled v2 API and update code that relies on removed or deprecated behavior.
+---
+
 # Migration from v1
 
 This page covers the incompatible changes when upgrading Grid Layout Plus from v1 to v2.

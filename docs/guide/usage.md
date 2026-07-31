@@ -1,3 +1,8 @@
+---
+title: Usage
+description: Learn the controlled Layout data flow, rendering options, and headless rendering in Grid Layout Plus.
+---
+
 # Usage
 
 Your application owns the layout array. `GridLayout` emits valid updates during an interaction, and the parent writes the accepted value back. You can then render items with the `item` slot or create each `GridItem` yourself.
@@ -66,7 +71,7 @@ With the `item` slot, `GridLayout` creates each `GridItem` and passes the matchi
 </template>
 ```
 
-Use the default slot when you need to set properties or listen to events on each `GridItem`:
+Use the default slot when you need to set interaction properties or listen to events on each `GridItem`. Geometry and item constraints still come from the matching `LayoutItem` in the parent `layout`:
 
 ```vue
 <template>
@@ -81,10 +86,6 @@ Use the default slot when you need to set properties or listen to events on each
     <GridItem
       v-for="item in layout"
       :key="item.i"
-      :x="item.x"
-      :y="item.y"
-      :w="item.w"
-      :h="item.h"
       :i="item.i"
       @resize="handleResize"
     >
@@ -131,8 +132,8 @@ if (result.status === 'rejected') {
 }
 ```
 
-See the [composable example](../example/composable-api) for custom DOM rendering.
+For the full options and return type, see [Composables](./composables). For custom DOM rendering, see the [Composable API example](../example/composable-api).
 
 ## Next step
 
-Browse the [examples](../example/) for a specific interaction. For exact inputs and callbacks, see [Properties](./properties) and [Events](./events).
+Browse the [examples](../example/) for a specific interaction. For exact inputs and callbacks, see [Properties](./properties), [Events](./events), or [Methods](./methods).

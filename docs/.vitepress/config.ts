@@ -3,6 +3,16 @@ import { resolve } from 'node:path'
 import { defineConfig } from 'vitepress'
 import autoprefixer from 'autoprefixer'
 
+import { writeLlmsBundles } from './llms'
+
+const siteUrl = 'https://grid-layout-plus.netlify.app'
+
+function toCanonicalUrl(relativePath: string) {
+  const pagePath = relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+
+  return new URL(pagePath, `${siteUrl}/`).toString()
+}
+
 export default defineConfig({
   vite: {
     logLevel: process.env.NODE_ENV === 'production' ? 'error' : undefined,
@@ -22,9 +32,34 @@ export default defineConfig({
       },
     },
   },
-  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/grid-layout-plus.svg' }]],
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/grid-layout-plus.svg' }],
+    [
+      'link',
+      {
+        rel: 'alternate',
+        type: 'text/plain',
+        href: '/llms.txt',
+        title: 'LLM documentation index',
+      },
+    ],
+  ],
   title: 'Grid Layout Plus',
+  cleanUrls: true,
   lastUpdated: true,
+  sitemap: {
+    hostname: siteUrl,
+  },
+  transformPageData(pageData) {
+    pageData.frontmatter.head ??= []
+    pageData.frontmatter.head.push([
+      'link',
+      { rel: 'canonical', href: toCanonicalUrl(pageData.relativePath) },
+    ])
+  },
+  async buildEnd(siteConfig) {
+    await writeLlmsBundles(resolve(__dirname, '..'), siteConfig.outDir)
+  },
   themeConfig: {
     logo: '/grid-layout-plus.svg',
     outline: [2, 3],
@@ -53,13 +88,19 @@ export default defineConfig({
                   items: [
                     { text: 'Installation', link: '/guide/installation' },
                     { text: 'Usage', link: '/guide/usage' },
+                    { text: 'Common Tasks', link: '/guide/recipes' },
                   ],
                 },
                 {
                   text: 'API reference',
                   items: [
+                    { text: 'API Index', link: '/guide/api-index' },
                     { text: 'Properties', link: '/guide/properties' },
                     { text: 'Events', link: '/guide/events' },
+                    { text: 'Methods', link: '/guide/methods' },
+                    { text: 'Composables', link: '/guide/composables' },
+                    { text: 'Operation Contracts', link: '/guide/contracts' },
+                    { text: 'Core API', link: '/guide/core-api' },
                   ],
                 },
                 {
@@ -163,13 +204,19 @@ export default defineConfig({
                   items: [
                     { text: '安装', link: '/zh/guide/installation' },
                     { text: '用法', link: '/zh/guide/usage' },
+                    { text: '常见任务', link: '/zh/guide/recipes' },
                   ],
                 },
                 {
                   text: 'API 参考',
                   items: [
+                    { text: 'API 索引', link: '/zh/guide/api-index' },
                     { text: '属性', link: '/zh/guide/properties' },
                     { text: '事件', link: '/zh/guide/events' },
+                    { text: '方法', link: '/zh/guide/methods' },
+                    { text: '组合式函数', link: '/zh/guide/composables' },
+                    { text: '操作契约', link: '/zh/guide/contracts' },
+                    { text: 'Core API', link: '/zh/guide/core-api' },
                   ],
                 },
                 {
