@@ -5,7 +5,6 @@
 import { describe, expect, it } from 'vitest'
 
 import { findReleaseTestMarkers } from '../scripts/check-release-tests'
-import { assertPublishedCommit, assertReleaseTag } from '../scripts/publish'
 import {
   InteractionTransactionBuffer,
   LatestInteractionProposal,
@@ -179,15 +178,6 @@ describe('Phase 5 事务性能边界', () => {
 })
 
 describe('Phase 5 发布门禁', () => {
-  it('发布 tag 必须与 package version 精确一致', () => {
-    expect(() => assertReleaseTag('2.0.0', 'v2.0.0')).not.toThrow()
-    expect(() => assertReleaseTag('2.0.0', 'v2.0.1')).toThrow(/expected v2\.0\.0/)
-    expect(() => assertReleaseTag('2.0.0', undefined)).toThrow(/missing/)
-    expect(() => assertPublishedCommit('commit-a', 'commit-a')).not.toThrow()
-    expect(() => assertPublishedCommit('commit-a', 'commit-b')).toThrow(/commit mismatch/)
-    expect(() => assertPublishedCommit(undefined, 'commit-a')).toThrow(/missing/)
-  })
-
   it('AST marker 扫描识别跨行和计算属性，并忽略注释与字符串', () => {
     const markers = findReleaseTestMarkers(`
       import { test, test as scenario } from '@playwright/test'

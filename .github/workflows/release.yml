@@ -1,33 +1,54 @@
-name: Create Release
+name: Collect Changesets or Release
 
 on:
-  workflow_call:
+  push:
+    branches:
+      - main
 
-permissions:
-  contents: read
+concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
+  run:
+    if: github.repository == 'qmhc/grid-layout-plus'
     permissions:
       contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set pnpm
+      - name: Install pnpm
         uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
 
       - name: Set node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.x
+          registry-url: https://registry.npmjs.org/
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
 
-      - run: pnpm exec changelogithub
+      - name: Build package
+        run: pnpm run build
+
+      - name: Create version PR or publish package
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        with:
+          publish: pnpm exec changeset publish
+          version: pnpm run version-packages
+          commit: 'release: version packages'
+          title: 'release: version packages'
+          createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=4096
