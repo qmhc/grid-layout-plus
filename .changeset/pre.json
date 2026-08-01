@@ -1,0 +1,8 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "grid-layout-plus": "1.1.1"
+  },
+  "changesets": []
+}
