@@ -461,6 +461,13 @@ function resolveEngineConfig(
 
 let engineConfig = resolveEngineConfig()
 const appliedEngineConfig = shallowRef(engineConfig)
+const renderedLayoutStyle = computed(() => ({
+  ...state.mergedStyle,
+  '--vgl-layout-interaction-z-index':
+    appliedEngineConfig.value.collisionMode === 'overlap'
+      ? '0'
+      : String(currentLayout.value.length),
+}))
 const canNormalizeInitialLayout = !responsiveMode.value || initialProvisionalBreakpoint !== null
 const initialEngine = canNormalizeInitialLayout
   ? createNormalizedLayoutEngine(currentLayout.value, engineConfig)
@@ -4281,7 +4288,7 @@ function handleDragLeave(event: DragEvent): void {
         'vgl-layout--suppress-transition': state.suppressTransitions,
       },
     ]"
-    :style="state.mergedStyle"
+    :style="renderedLayoutStyle"
     @focusin="rememberFocusedDescendant"
     @pointerdown.capture="rememberPointerFocus"
     @dragenter="handleDragEnter"

@@ -193,6 +193,62 @@ test('allow-overlap drag raises the item without changing its grid position', as
   expect(releasedRanks[0]).toBe(Math.max(...releasedRanks))
 })
 
+test('default drag temporarily raises a low-rank item above every sibling', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+
+  const items = page.locator('.vgl-layout > .vgl-item:not(.vgl-item--placeholder)')
+  const active = items.filter({ hasText: /^0$/ })
+  await expect(active).toHaveCount(1)
+  const initial = await active.boundingBox()
+  expect(initial).not.toBeNull()
+  if (!initial) return
+
+  const initialRank = await active.evaluate(node =>
+    Number.parseInt(getComputedStyle(node).zIndex, 10),
+  )
+  const initialPassiveRanks = await items.evaluateAll(nodes =>
+    nodes
+      .filter(node => node.textContent?.trim() !== '0')
+      .map(node => Number.parseInt(getComputedStyle(node).zIndex, 10)),
+  )
+  expect(initialRank).toBeLessThan(Math.max(...initialPassiveRanks))
+
+  const pointerX = initial.x + initial.width / 2
+  const pointerY = initial.y + initial.height / 2
+  await page.mouse.move(pointerX, pointerY)
+  await page.mouse.down()
+  await page.mouse.move(pointerX + 8, pointerY + 4, { steps: 4 })
+  await expect(active).toHaveClass(/vgl-item--dragging/)
+
+  const placeholder = page.locator('.vgl-layout > .vgl-item--placeholder')
+  await expect(placeholder).toBeVisible()
+  const [activeRank, placeholderRank, passiveRanks] = await Promise.all([
+    active.evaluate(node => Number.parseInt(getComputedStyle(node).zIndex, 10)),
+    placeholder.evaluate(node => Number.parseInt(getComputedStyle(node).zIndex, 10)),
+    items.evaluateAll(nodes =>
+      nodes
+        .filter(node => node.textContent?.trim() !== '0')
+        .map(node => Number.parseInt(getComputedStyle(node).zIndex, 10)),
+    ),
+  ])
+  expect(activeRank).toBeGreaterThan(placeholderRank)
+  expect(placeholderRank).toBeGreaterThan(Math.max(...passiveRanks))
+
+  await page.mouse.up()
+  await settleBrowser(page)
+
+  const [releasedRank, releasedPassiveRanks] = await Promise.all([
+    active.evaluate(node => Number.parseInt(getComputedStyle(node).zIndex, 10)),
+    items.evaluateAll(nodes =>
+      nodes
+        .filter(node => node.textContent?.trim() !== '0')
+        .map(node => Number.parseInt(getComputedStyle(node).zIndex, 10)),
+    ),
+  ])
+  expect(releasedRank).toBeLessThan(Math.max(...releasedPassiveRanks))
+})
+
 test('default drag commits the last previewed layout without release-only reflow', async ({
   page,
 }) => {

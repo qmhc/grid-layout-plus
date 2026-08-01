@@ -656,6 +656,50 @@ describe('GridLayout engine adapter', () => {
   })
 })
 
+describe('非 overlap 交互层级', () => {
+  it.each([
+    ['push', '拖拽', 'dragstart', 'dragend'],
+    ['prevent', '拖拽', 'dragstart', 'dragend'],
+    ['push', '缩放', 'resizestart', 'resizeend'],
+    ['prevent', '缩放', 'resizestart', 'resizeend'],
+  ] as const)('%s 模式%s期间临时置顶且不改写布局层级', async (mode, _, start, end) => {
+    const layout: Layout = Array.from({ length: 5 }, (_, index) => ({
+      i: String(index + 1),
+      x: index,
+      y: 0,
+      w: 1,
+      h: 1,
+    }))
+    const { wrapper, vm } = await mountGrid(layout, { collisionMode: mode })
+    const item = wrapper.find('.vgl-item:not(.vgl-item--placeholder)')
+
+    start === 'dragstart'
+      ? vm.dragEvent(start, '1', 0, 0, 1, 1)
+      : vm.resizeEvent(start, '1', 0, 0, 1, 1)
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.find('.vgl-layout').attributes('style')).toContain(
+      '--vgl-layout-interaction-z-index: 5',
+    )
+    expect(item.attributes('style')).toContain('--vgl-item-z-index: 0')
+    expect(wrapper.find('.vgl-item--placeholder').attributes('style')).toContain(
+      '--vgl-item-z-index: 0',
+    )
+    expect(componentStyles).toContain('var(--vgl-layout-interaction-z-index, 0)')
+    expect(componentStyles).toContain('calc(var(--vgl-layout-interaction-z-index, 0) + 1)')
+    expect(layout.every(layoutItem => layoutItem.zIndex === undefined)).toBe(true)
+
+    end === 'dragend' ? vm.dragEvent(end, '1', 0, 0, 1, 1) : vm.resizeEvent(end, '1', 0, 0, 1, 1)
+    await nextTick()
+    await nextTick()
+
+    expect(item.attributes('style')).toContain('--vgl-item-z-index: 0')
+    expect(layout.every(layoutItem => layoutItem.zIndex === undefined)).toBe(true)
+    wrapper.unmount()
+  })
+})
+
 describe('overlap 层级', () => {
   it('进入交互即默认将元素置顶并在无几何变化的终态保留层级', async () => {
     const layout: Layout = [
@@ -706,12 +750,8 @@ describe('overlap 层级', () => {
     expect(wrapper.find('.vgl-item--placeholder').attributes('style')).toContain(
       '--vgl-item-z-index: 4',
     )
-    expect(componentStyles).toContain(
-      'z-index: max(var(--vgl-item-z-index, 0), var(--vgl-placeholder-z-index, 2));',
-    )
-    expect(componentStyles).toContain(
-      `z-index: max(calc(var(--vgl-item-z-index, 0) + 1), var(--vgl-item-${stateName}-z-index, 3));`,
-    )
+    expect(componentStyles).toContain('var(--vgl-placeholder-z-index, 2)')
+    expect(componentStyles).toContain(`var(--vgl-item-${stateName}-z-index, 3)`)
     wrapper.unmount()
   })
 
