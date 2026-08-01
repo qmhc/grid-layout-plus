@@ -1,101 +1,133 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { ref } from 'vue'
 
-const layout = reactive([
-  { x: 0, y: 0, w: 2, h: 2, i: '0' },
-  { x: 2, y: 0, w: 2, h: 4, i: '1' },
-  { x: 4, y: 0, w: 2, h: 5, i: '2' },
-  { x: 6, y: 0, w: 2, h: 3, i: '3' },
-  { x: 8, y: 0, w: 2, h: 3, i: '4' },
-  { x: 10, y: 0, w: 2, h: 3, i: '5' },
-  { x: 0, y: 5, w: 2, h: 5, i: '6' },
-  { x: 2, y: 5, w: 2, h: 5, i: '7' },
-  { x: 4, y: 5, w: 2, h: 5, i: '8' },
-  { x: 6, y: 4, w: 2, h: 4, i: '9' },
-  { x: 8, y: 4, w: 2, h: 4, i: '10' },
-  { x: 10, y: 4, w: 2, h: 4, i: '11' },
-  { x: 0, y: 10, w: 2, h: 5, i: '12' },
-  { x: 2, y: 10, w: 2, h: 5, i: '13' },
-  { x: 4, y: 8, w: 2, h: 4, i: '14' },
-  { x: 6, y: 8, w: 2, h: 4, i: '15' },
-  { x: 8, y: 10, w: 2, h: 5, i: '16' },
-  { x: 10, y: 4, w: 2, h: 2, i: '17' },
-  { x: 0, y: 9, w: 2, h: 3, i: '18' },
-  { x: 2, y: 6, w: 2, h: 2, i: '19' },
-])
+import type { Layout } from 'grid-layout-plus'
+
+function createLayout(): Layout {
+  return [
+    { x: 0, y: 0, w: 4, h: 3, i: '0' },
+    { x: 4, y: 0, w: 4, h: 4, i: '1' },
+    { x: 8, y: 0, w: 4, h: 3, i: '2' },
+    { x: 0, y: 3, w: 4, h: 3, i: '3' },
+    { x: 4, y: 4, w: 4, h: 3, i: '4' },
+    { x: 8, y: 3, w: 4, h: 4, i: '5' },
+  ]
+}
+
+const layout = ref(createLayout())
+const lastAction = ref('Waiting · drag only from a labeled handle')
+
+function handleClick(id: string) {
+  lastAction.value = `Clicked item ${id} · no drag started`
+}
+
+function handleMove(id: string) {
+  lastAction.value = `Moving item ${id}`
+}
+
+function handleMoved(id: string) {
+  lastAction.value = `Moved item ${id}`
+}
+
+function handleResize(id: string) {
+  lastAction.value = `Resizing item ${id}`
+}
+
+function handleResized(id: string) {
+  lastAction.value = `Resized item ${id}`
+}
+
+function resetDemo() {
+  layout.value = createLayout()
+  lastAction.value = 'Reset · drag only from a labeled handle'
+}
 </script>
 
 <template>
-  <GridLayout v-model:layout="layout" :row-height="30">
-    <GridItem
-      v-for="item in layout"
-      :key="item.i"
-      :x="item.x"
-      :y="item.y"
-      :w="item.w"
-      :h="item.h"
-      :i="item.i"
-      drag-allow-from=".vue-draggable-handle"
-      drag-ignore-from=".no-drag"
-    >
-      <div class="text">
-        <div class="vue-draggable-handle"></div>
-        <div class="no-drag">
-          <span>{{ item.i }}</span>
-          <br />
-          <button type="button">
-            Click
-          </button>
+  <section class="demo-root demo-shell">
+    <div class="demo-toolbar">
+      <Tag class="demo-state demo-state--accent" type="primary" simple circle>
+        {{ lastAction }}
+      </Tag>
+      <Button button-type="button" @click="resetDemo"> Reset layout </Button>
+    </div>
+    <GridLayout v-model:layout="layout" class="demo-grid" :row-height="30">
+      <GridItem
+        v-for="item in layout"
+        :key="item.i"
+        :i="item.i"
+        drag-allow-from=".demo-drag-handle"
+        drag-ignore-from=".demo-no-drag"
+        @move="handleMove"
+        @moved="handleMoved"
+        @resize="handleResize"
+        @resized="handleResized"
+      >
+        <div class="handler-item">
+          <div class="demo-drag-handle" :title="`Drag item ${item.i}`">Drag item {{ item.i }}</div>
+          <div class="demo-no-drag">
+            <Button
+              class="handler-action"
+              button-type="button"
+              :aria-label="`Click item ${item.i} without dragging`"
+              @click.stop="handleClick(item.i)"
+            >
+              Click without dragging
+            </Button>
+          </div>
         </div>
-      </div>
-    </GridItem>
-  </GridLayout>
+      </GridItem>
+    </GridLayout>
+  </section>
 </template>
 
 <style scoped>
-.vgl-layout {
-  background-color: #eee;
-}
-
-:deep(.vgl-item:not(.vgl-item--placeholder)) {
-  background-color: #ccc;
-  border: 1px solid black;
-}
-
-:deep(.vgl-item--resizing) {
-  opacity: 90%;
-}
-
-:deep(.vgl-item--static) {
-  background-color: #cce;
-}
-
-.text {
+.handler-item {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: auto;
-  font-size: 24px;
-  text-align: center;
-}
-
-.vgl-item .no-drag {
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
   width: 100%;
   height: 100%;
 }
 
-.vue-draggable-handle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  box-sizing: border-box;
-  width: 20px;
-  height: 20px;
-  padding: 0 8px 8px 0;
-  cursor: pointer;
-  background-color: black;
-  background-origin: content-box;
-  border-radius: 10px;
+.demo-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 6px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--demo-accent, #2859b8);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: grab;
+  background: var(--demo-accent-soft, #dbe7ff);
+  border-bottom: 1px solid var(--demo-border, #64748b);
+}
+
+.demo-drag-handle:active {
+  cursor: grabbing;
+}
+
+.demo-no-drag {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px;
+}
+
+.handler-action {
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0 8px;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

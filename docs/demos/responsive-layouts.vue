@@ -1,101 +1,128 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 
-import type { Breakpoint, Layout } from 'grid-layout-plus'
+import type {
+  Breakpoint,
+  Layout,
+  LayoutUpdateMeta,
+  ReadonlyLayout,
+  ResponsiveLayoutsInput,
+  WidthChangedPayload,
+} from 'grid-layout-plus'
 
-const presetLayouts = reactive({
-  md: [
-    { x: 0, y: 0, w: 2, h: 2, i: '0' },
-    { x: 2, y: 0, w: 2, h: 4, i: '1' },
-    { x: 4, y: 0, w: 2, h: 5, i: '2' },
-    { x: 6, y: 0, w: 2, h: 3, i: '3' },
-    { x: 2, y: 4, w: 2, h: 3, i: '4' },
-    { x: 4, y: 5, w: 2, h: 3, i: '5' },
-    { x: 0, y: 2, w: 2, h: 5, i: '6' },
-    { x: 2, y: 7, w: 2, h: 5, i: '7' },
-    { x: 4, y: 8, w: 2, h: 5, i: '8' },
-    { x: 6, y: 3, w: 2, h: 4, i: '9' },
-    { x: 0, y: 7, w: 2, h: 4, i: '10' },
-    { x: 2, y: 19, w: 2, h: 4, i: '11' },
-    { x: 0, y: 14, w: 2, h: 5, i: '12' },
-    { x: 2, y: 14, w: 2, h: 5, i: '13' },
-    { x: 4, y: 13, w: 2, h: 4, i: '14' },
-    { x: 6, y: 7, w: 2, h: 4, i: '15' },
-    { x: 0, y: 19, w: 2, h: 5, i: '16' },
-    { x: 8, y: 0, w: 2, h: 2, i: '17' },
-    { x: 0, y: 11, w: 2, h: 3, i: '18' },
-    { x: 2, y: 12, w: 2, h: 2, i: '19' },
-  ],
-  lg: [
-    { x: 0, y: 0, w: 2, h: 2, i: '0' },
-    { x: 2, y: 0, w: 2, h: 4, i: '1' },
-    { x: 4, y: 0, w: 2, h: 5, i: '2' },
-    { x: 6, y: 0, w: 2, h: 3, i: '3' },
-    { x: 8, y: 0, w: 2, h: 3, i: '4' },
-    { x: 10, y: 0, w: 2, h: 3, i: '5' },
-    { x: 0, y: 5, w: 2, h: 5, i: '6' },
-    { x: 2, y: 5, w: 2, h: 5, i: '7' },
-    { x: 4, y: 5, w: 2, h: 5, i: '8' },
-    { x: 6, y: 4, w: 2, h: 4, i: '9' },
-    { x: 8, y: 4, w: 2, h: 4, i: '10' },
-    { x: 10, y: 4, w: 2, h: 4, i: '11' },
-    { x: 0, y: 10, w: 2, h: 5, i: '12' },
-    { x: 2, y: 10, w: 2, h: 5, i: '13' },
-    { x: 4, y: 8, w: 2, h: 4, i: '14' },
-    { x: 6, y: 8, w: 2, h: 4, i: '15' },
-    { x: 8, y: 10, w: 2, h: 5, i: '16' },
-    { x: 10, y: 4, w: 2, h: 2, i: '17' },
-    { x: 0, y: 9, w: 2, h: 3, i: '18' },
-    { x: 2, y: 6, w: 2, h: 2, i: '19' },
-  ],
+const defaultCols: Record<Breakpoint, number> = {
+  lg: 12,
+  md: 10,
+  sm: 6,
+  xs: 4,
+  xxs: 2,
+}
+const explicitPresets = new Set<Breakpoint>(['md', 'lg'])
+
+function createResponsiveLayouts(): ResponsiveLayoutsInput {
+  return {
+    md: [
+      { x: 0, y: 0, w: 2, h: 2, i: '0' },
+      { x: 2, y: 0, w: 2, h: 3, i: '1' },
+      { x: 4, y: 0, w: 2, h: 2, i: '2' },
+      { x: 6, y: 0, w: 2, h: 3, i: '3' },
+      { x: 8, y: 0, w: 2, h: 2, i: '4' },
+      { x: 0, y: 3, w: 2, h: 2, i: '5' },
+    ],
+    lg: [
+      { x: 0, y: 0, w: 2, h: 2, i: '0' },
+      { x: 2, y: 0, w: 2, h: 3, i: '1' },
+      { x: 4, y: 0, w: 2, h: 2, i: '2' },
+      { x: 6, y: 0, w: 2, h: 3, i: '3' },
+      { x: 8, y: 0, w: 2, h: 2, i: '4' },
+      { x: 10, y: 0, w: 2, h: 3, i: '5' },
+    ],
+  }
+}
+
+function cloneLayout(layout: ReadonlyLayout): Layout {
+  return layout.map(item => ({ ...item }))
+}
+
+const responsiveLayouts = ref<ResponsiveLayoutsInput>(createResponsiveLayouts())
+const layout = ref(cloneLayout(responsiveLayouts.value.lg ?? []))
+const containerWidth = ref(0)
+const currentBreakpoint = ref<Breakpoint | null>(null)
+const currentCols = ref(12)
+const lastAction = ref('Waiting for container measurement')
+
+const layoutSource = computed(() => {
+  if (!currentBreakpoint.value) return 'Waiting'
+  return explicitPresets.has(currentBreakpoint.value) ? 'Explicit preset' : 'Generated fallback'
 })
 
-const layout = ref(presetLayouts.lg)
+function handleWidthChanged(payload: WidthChangedPayload) {
+  containerWidth.value = Math.round(payload.width)
+  currentBreakpoint.value = payload.committed.breakpoint
+  currentCols.value = payload.committed.cols
+}
 
-function breakpointChangedEvent(newBreakpoint: Breakpoint, newLayout: Layout) {
-  console.info('BREAKPOINT CHANGED breakpoint=', newBreakpoint, ', layout: ', newLayout)
+function handleBreakpointChanged(
+  breakpoint: Breakpoint | null,
+  nextLayout: ReadonlyLayout,
+  _meta: LayoutUpdateMeta,
+) {
+  currentBreakpoint.value = breakpoint
+  currentCols.value = breakpoint ? defaultCols[breakpoint] : 12
+  lastAction.value = breakpoint
+    ? `${breakpoint} loaded · ${nextLayout.length} items`
+    : 'Responsive mode inactive'
+}
+
+function resetDemo() {
+  responsiveLayouts.value = createResponsiveLayouts()
+  lastAction.value = 'Presets restored'
 }
 </script>
 
 <template>
-  <GridLayout
-    v-model:layout="layout"
-    :responsive-layouts="presetLayouts"
-    :row-height="30"
-    responsive
-    @breakpoint-changed="breakpointChangedEvent"
-  >
-    <template #item="{ item }">
-      <span class="text">{{ item.i }}</span>
-    </template>
-  </GridLayout>
+  <section class="demo-root demo-shell">
+    <div class="demo-toolbar">
+      <Tag class="demo-state demo-state--accent" type="primary" simple circle>
+        Responsive layouts
+      </Tag>
+      <Tag class="demo-state" simple circle> {{ lastAction }} </Tag>
+      <Button button-type="button" @click="resetDemo"> Reset presets </Button>
+    </div>
+    <dl class="demo-metrics">
+      <div class="demo-metric">
+        <dt>Width</dt>
+        <dd>{{ containerWidth }}px</dd>
+      </div>
+      <div class="demo-metric">
+        <dt>Breakpoint</dt>
+        <dd>{{ currentBreakpoint ?? 'measuring' }}</dd>
+      </div>
+      <div class="demo-metric">
+        <dt>Columns</dt>
+        <dd>{{ currentCols }}</dd>
+      </div>
+      <div class="demo-metric">
+        <dt>Layout source</dt>
+        <dd>{{ layoutSource }}</dd>
+      </div>
+      <div class="demo-metric">
+        <dt>Items</dt>
+        <dd>{{ layout.length }}</dd>
+      </div>
+    </dl>
+    <GridLayout
+      v-model:layout="layout"
+      v-model:responsive-layouts="responsiveLayouts"
+      class="demo-grid"
+      :row-height="30"
+      responsive
+      @breakpoint-changed="handleBreakpointChanged"
+      @width-changed="handleWidthChanged"
+    >
+      <template #item="{ item }">
+        <span class="demo-item__label">{{ item.i }}</span>
+      </template>
+    </GridLayout>
+  </section>
 </template>
-
-<style scoped>
-.vgl-layout {
-  background-color: #eee;
-}
-
-:deep(.vgl-item:not(.vgl-item--placeholder)) {
-  background-color: #ccc;
-  border: 1px solid black;
-}
-
-:deep(.vgl-item--resizing) {
-  opacity: 90%;
-}
-
-:deep(.vgl-item--static) {
-  background-color: #cce;
-}
-
-.text {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: auto;
-  font-size: 24px;
-  text-align: center;
-}
-</style>

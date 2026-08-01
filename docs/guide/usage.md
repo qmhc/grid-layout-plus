@@ -1,25 +1,58 @@
+---
+title: Usage
+description: Learn the controlled Layout data flow, rendering options, and headless rendering in Grid Layout Plus.
+---
+
 # Usage
 
-## Data
+Your application owns the layout array. `GridLayout` emits valid updates during an interaction, and the parent writes the accepted value back. You can then render items with the `item` slot or create each `GridItem` yourself.
 
-First, we define a layout data. It's an array, each item should include `i` (id), `x`, `y`, `w` and `h` properties.
+## Layout data
+
+A layout is an array of items. Each item needs `i` (id), `x`, `y`, `w`, and `h`.
 
 ```vue
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { ref } from 'vue'
 
-const layout = reactive([
+import type { Layout } from 'grid-layout-plus'
+
+const layout = ref<Layout>([
   { x: 0, y: 0, w: 2, h: 2, i: '0' },
   { x: 2, y: 0, w: 2, h: 4, i: '1' }
 ])
 </script>
 ```
 
-## Component
+`GridLayout` never mutates this array or its items. With `v-model:layout`, Vue replaces `layout.value` after each accepted update. If you pass only `:layout="layout"`, the component renders the layout but cannot save drag or resize changes.
 
-And there are two ways to define items, using `item` slot or `default` slot.
+If other code depends on the identity of a `reactive` array, listen for `update:layout` and replace the array contents:
 
-Using `item` slot is an easier way to define elements of each item, the properties of layout items definition will auto be passed for GridItem component inernally.
+```vue
+<script setup lang="ts">
+import { reactive } from 'vue'
+
+import type { Layout, ReadonlyLayout } from 'grid-layout-plus'
+
+const layout = reactive<Layout>([
+  { x: 0, y: 0, w: 2, h: 2, i: '0' }
+])
+
+function confirmLayout(next: ReadonlyLayout) {
+  layout.splice(0, layout.length, ...next)
+}
+</script>
+
+<template>
+  <GridLayout :layout="layout" @update:layout="confirmLayout" />
+</template>
+```
+
+## Render items
+
+You can render items with the `item` slot or the default slot.
+
+With the `item` slot, `GridLayout` creates each `GridItem` and passes the matching layout data to the slot:
 
 ```vue
 <template>
@@ -30,8 +63,6 @@ Using `item` slot is an easier way to define elements of each item, the properti
     :row-height="30"
     is-draggable
     is-resizable
-    vertical-compact
-    use-css-transforms
   >
     <template #item="{ item }">
       {{ item.i }}
@@ -40,7 +71,7 @@ Using `item` slot is an easier way to define elements of each item, the properti
 </template>
 ```
 
-If you want a more flexible way to listen events of GridItem component, you also can chose the `default` slot.
+Use the default slot when you need to set interaction properties or listen to events on each `GridItem`. Geometry and item constraints still come from the matching `LayoutItem` in the parent `layout`:
 
 ```vue
 <template>
@@ -51,16 +82,10 @@ If you want a more flexible way to listen events of GridItem component, you also
     :row-height="30"
     is-draggable
     is-resizable
-    vertical-compact
-    use-css-transforms
   >
     <GridItem
       v-for="item in layout"
       :key="item.i"
-      :x="item.x"
-      :y="item.y"
-      :w="item.w"
-      :h="item.h"
       :i="item.i"
       @resize="handleResize"
     >
@@ -69,3 +94,46 @@ If you want a more flexible way to listen events of GridItem component, you also
   </GridLayout>
 </template>
 ```
+
+## Compaction and Positioning
+
+The `compactor` and `positionStrategy` props replace the removed `vertical-compact` and `use-css-transforms` props. Defaults still use vertical compaction and CSS transforms. See the [migration guide](./migration) when updating code that set either removed prop.
+
+```vue
+<template>
+  <GridLayout
+    v-model:layout="layout"
+    :compactor="horizontalCompactor"
+    :position-strategy="absoluteStrategy"
+  >
+    <template #item="{ item }">
+      {{ item.i }}
+    </template>
+  </GridLayout>
+</template>
+```
+
+[Properties](./properties#compactor) lists the built-in compactors and position strategies.
+
+## Headless rendering
+
+`useGridLayout` runs the same layout engine without rendering component DOM. Pass a writable Layout ref to save accepted operations back to that ref. With a plain Layout, the composable keeps its own state. This choice cannot change after the composable is created.
+
+```ts
+const grid = useGridLayout({
+  layout,
+  cols: 12,
+  rowHeight: 30
+})
+
+const result = grid.moveItem('0', 1, 0)
+if (result.status === 'rejected') {
+  console.warn(result.reason)
+}
+```
+
+For the full options and return type, see [Composables](./composables). For custom DOM rendering, see the [Composable API example](../example/composable-api).
+
+## Next step
+
+Browse the [examples](../example/) for a specific interaction. For exact inputs and callbacks, see [Properties](./properties), [Events](./events), or [Methods](./methods).

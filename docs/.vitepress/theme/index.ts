@@ -4,9 +4,11 @@ import Theme from 'vitepress/theme'
 import { install } from 'vexip-ui'
 import { GridItem, GridLayout } from 'grid-layout-plus'
 import { toCapitalCase } from '@vexip-ui/utils'
+import DemoFrame from './DemoFrame.vue'
 
 import 'vexip-ui/css/index.css'
 import 'vexip-ui/css/dark/index.css'
+import '../../demos/shared.css'
 import './style.css'
 
 import type { App } from 'vue'
@@ -22,6 +24,7 @@ export default {
   },
   enhanceApp({ app }: { app: App }) {
     app.use(install)
+    app.component('DemoFrame', DemoFrame)
     app.component('GridLayout', GridLayout)
     app.component('GridItem', GridItem)
 

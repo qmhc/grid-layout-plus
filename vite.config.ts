@@ -7,8 +7,8 @@ import cssInject from 'vite-plugin-css-injected-by-js'
 import autoprefixer from 'autoprefixer'
 
 interface Manifest {
-  dependencies?: Record<string, string>,
-  peerDependencies?: Record<string, string>,
+  dependencies?: Record<string, string>
+  peerDependencies?: Record<string, string>
   version?: string
 }
 
@@ -35,10 +35,9 @@ export default defineConfig({
     sourcemap: true,
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      formats: ['es'],
     },
     rollupOptions: {
-      input: [resolve(__dirname, 'src/index.ts')],
+      input: [resolve(__dirname, 'src/index.ts'), resolve(__dirname, 'src/core.ts')],
       external,
       output: [
         {
@@ -46,7 +45,8 @@ export default defineConfig({
           preserveModules: true,
           preserveModulesRoot: resolve(__dirname, 'src'),
           dir: 'lib',
-          entryFileNames: '[name].js',
+          entryFileNames: '[name].cjs',
+          chunkFileNames: '[name]-[hash].cjs',
         },
         {
           format: 'es',
@@ -61,5 +61,11 @@ export default defineConfig({
       sourceMap: false,
     },
   },
-  plugins: [vue(), cssInject()],
+  plugins: [
+    vue(),
+    cssInject({
+      jsAssetsFilterFunction: chunk =>
+        chunk.fileName === 'index.cjs' || chunk.fileName === 'index.mjs',
+    }),
+  ],
 })

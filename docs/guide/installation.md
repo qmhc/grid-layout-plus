@@ -1,12 +1,19 @@
+---
+title: Installation
+description: Install Grid Layout Plus and import its components, composables, compactors, and position strategies.
+---
+
 # Installation
 
-Using `pnpm` (Recommended):
+Most applications only need `GridLayout` and `GridItem` to get started. Import the other components and utilities only when you use them.
+
+With `pnpm` (recommended):
 
 ```sh
 pnpm i grid-layout-plus
 ```
 
-Using `yarn`:
+With `yarn`:
 
 ```sh
 yarn add grid-layout-plus
@@ -14,7 +21,7 @@ yarn add grid-layout-plus
 
 ## Import
 
-Globally import:
+Register the components globally:
 
 ```ts
 import { GridLayout, GridItem } from 'grid-layout-plus'
@@ -24,7 +31,7 @@ app
   .component('GridItem', GridItem)
 ```
 
-Import in a component:
+Or import them in a component:
 
 ```vue
 <script setup lang="ts">
@@ -48,8 +55,40 @@ export default defineComponent({
 
 ## Browser
 
-Include the browser-ready bundle (download from [releases](https://github.com/qmhc/grid-layout-plus/releases)) in your page.
+Download the browser bundle from [Releases](https://github.com/qmhc/grid-layout-plus/releases), then include it with a script tag:
 
 ```html
 <script src="dist/grid-layout-plus.js"></script>
 ```
+
+## Additional Imports
+
+Features outside the two core components are not registered automatically. Import the ones you use:
+
+> **Note:** `GridBackground` is NOT included in the default registration. You must import it manually.
+
+```ts
+import {
+  // Components
+  GridBackground,
+
+  // Compactors
+  verticalCompactor,
+  horizontalCompactor,
+  noCompactor,
+
+  // Position strategies
+  transformStrategy,
+  absoluteStrategy,
+  scaledStrategy,
+
+  // Composables
+  useGridLayout,
+  useContainerWidth,
+  useResponsiveLayout,
+} from 'grid-layout-plus'
+```
+
+## Next step
+
+Read [Usage](./usage) for the layout data flow, or open [Basic Usage](../example/basic) to start from a working example.

@@ -6,6 +6,8 @@ temp
 .dev
 .yarn
 coverage
+playwright-report
+test-results
 /es
 /lib
 cache
@@ -25,6 +27,7 @@ pnpm-debug.log*
 
 # Editor directories and files
 .idea
+/.kiro/
 *.suo
 *.ntvs*
 *.njsproj

@@ -1,149 +1,518 @@
+import { GridLayoutValidationError } from '../core/errors'
+import {
+  defineDataProperty,
+  getOwnDescriptor,
+  getOwnKeys,
+  getPrototype,
+  propertyPath,
+  readPlainDataObject,
+} from '../core/validation'
+
 import type { InjectionKey } from 'vue'
 import type { EventEmitter } from '@vexip-ui/utils'
-import type { Layout, LayoutInstance, LayoutItem } from './types'
+import type { LayoutInstance } from './internal-types'
+import type {
+  CompactMinPositions,
+  CompactType,
+  Layout,
+  LayoutItem,
+  ReadonlyLayout,
+  ReadonlyLayoutItem,
+} from './types'
 
 export const LAYOUT_KEY = Symbol('LAYOUT_KEY') as InjectionKey<LayoutInstance>
 export const EMITTER_KEY = Symbol('EMITTER_KEY') as InjectionKey<EventEmitter>
 
-/**
- * Return the bottom coordinate of the layout.
- *
- * @param layout Layout array.
- * @return Bottom coordinate.
- */
-export function bottom(layout: Layout): number {
+const REQUIRED_LAYOUT_ITEM_KEYS = ['i', 'x', 'y', 'w', 'h'] as const
+const KNOWN_LAYOUT_ITEM_KEYS = new Set([
+  ...REQUIRED_LAYOUT_ITEM_KEYS,
+  'minW',
+  'minH',
+  'maxW',
+  'maxH',
+  'moved',
+  'static',
+  'isDraggable',
+  'isResizable',
+  'zIndex',
+])
+
+interface LayoutSnapshot {
+  layout: Layout
+  sources: ReadonlyLayoutItem[]
+}
+
+function failLayout(path: string, cause: unknown): never {
+  throw new GridLayoutValidationError(`Invalid layout value at ${path}`, {
+    code: 'invalid-layout',
+    path,
+    cause,
+  })
+}
+
+function canonicalZero(value: number): number {
+  return Object.is(value, -0) ? 0 : value
+}
+
+function assertSafeInteger(
+  value: unknown,
+  path: string,
+  options: Readonly<{ positive?: boolean; allowNegative?: boolean }> = {},
+): asserts value is number {
+  const { positive = false, allowNegative = false } = options
+  if (
+    !Number.isSafeInteger(value) ||
+    (positive ? (value as number) <= 0 : !allowNegative && (value as number) < 0)
+  ) {
+    failLayout(path, value)
+  }
+}
+
+function assertOptionalBoolean(value: unknown, path: string): asserts value is boolean | undefined {
+  if (value !== undefined && typeof value !== 'boolean') failLayout(path, value)
+}
+
+function assertOptionalPositiveLimit(
+  value: unknown,
+  path: string,
+): asserts value is number | undefined {
+  if (
+    value !== undefined &&
+    value !== Infinity &&
+    (!Number.isSafeInteger(value) || (value as number) <= 0)
+  ) {
+    failLayout(path, value)
+  }
+}
+
+function addGridValues(first: number, second: number, path: string): number {
+  const result = first + second
+  if (!Number.isSafeInteger(result) || result < 0) failLayout(path, result)
+  return result
+}
+
+function subtractGridValues(first: number, second: number, path: string): number {
+  const result = first - second
+  if (!Number.isSafeInteger(result)) failLayout(path, result)
+  return result
+}
+
+function addSignedGridValues(first: number, second: number, path: string): number {
+  const result = first + second
+  if (!Number.isSafeInteger(result)) failLayout(path, result)
+  return result
+}
+
+function validateLayoutExtents(layout: ReadonlyLayout, root = 'layout'): void {
+  layout.forEach((item, index) => {
+    addGridValues(item.x, item.w, `${root}[${index}].w`)
+    addGridValues(item.y, item.h, `${root}[${index}].h`)
+  })
+}
+
+function validateItemExtents(item: ReadonlyLayoutItem, path: string): void {
+  addGridValues(item.x, item.w, `${path}.w`)
+  addGridValues(item.y, item.h, `${path}.h`)
+}
+
+function cloneMetadataValue(value: unknown, path: string, ancestors: Set<object>): unknown {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'boolean' ||
+    (typeof value === 'number' && Number.isFinite(value))
+  ) {
+    return value
+  }
+
+  if (typeof value !== 'object' || value === null) failLayout(path, value)
+  if (ancestors.has(value)) failLayout(path, value)
+  ancestors.add(value)
+
+  try {
+    if (Array.isArray(value)) {
+      const keys = getOwnKeys(value, 'invalid-layout', path)
+      const lengthDescriptor = getOwnDescriptor(value, 'length', 'invalid-layout', path)
+      const length = lengthDescriptor.value
+      if (!Number.isSafeInteger(length) || length < 0) failLayout(path, length)
+
+      const allowedKeys = new Set(Array.from({ length }, (_, index) => String(index)))
+      allowedKeys.add('length')
+      for (const key of keys) {
+        if (typeof key === 'symbol') failLayout(`${path}.<symbol>`, key)
+        if (!allowedKeys.has(key)) failLayout(propertyPath(path, key), key)
+      }
+
+      const result: unknown[] = Array(length)
+      for (let index = 0; index < length; index++) {
+        const indexPath = `${path}[${index}]`
+        const descriptor = getOwnDescriptor(value, String(index), 'invalid-layout', indexPath)
+        if (!descriptor.enumerable || !('value' in descriptor)) failLayout(indexPath, descriptor)
+        result[index] = cloneMetadataValue(descriptor.value, indexPath, ancestors)
+      }
+      return result
+    }
+
+    const properties = readPlainDataObject(value, {
+      code: 'invalid-layout',
+      path,
+    })
+    const prototype = getPrototype(value, 'invalid-layout', path)
+    const result: Record<string, unknown> = prototype === null ? Object.create(null) : {}
+    for (const key of Object.keys(properties)) {
+      defineDataProperty(
+        result,
+        key,
+        cloneMetadataValue(properties[key], propertyPath(path, key), ancestors),
+      )
+    }
+    return result
+  } finally {
+    ancestors.delete(value)
+  }
+}
+
+function cloneLayoutItemAt(
+  value: unknown,
+  path: string,
+  options: Readonly<{ allowNegativeX?: boolean }> = {},
+): LayoutItem {
+  const properties = readPlainDataObject(value, {
+    code: 'invalid-layout',
+    path,
+    requiredKeys: REQUIRED_LAYOUT_ITEM_KEYS,
+  })
+
+  const id = properties.i
+  if (
+    (typeof id !== 'string' || id.length === 0) &&
+    (typeof id !== 'number' || !Number.isSafeInteger(id) || Object.is(id, -0))
+  ) {
+    failLayout(`${path}.i`, id)
+  }
+
+  assertSafeInteger(properties.x, `${path}.x`, {
+    allowNegative: options.allowNegativeX,
+  })
+  assertSafeInteger(properties.y, `${path}.y`)
+  assertSafeInteger(properties.w, `${path}.w`, { positive: true })
+  assertSafeInteger(properties.h, `${path}.h`, { positive: true })
+  assertOptionalPositiveLimit(properties.minW, `${path}.minW`)
+  assertOptionalPositiveLimit(properties.minH, `${path}.minH`)
+  assertOptionalPositiveLimit(properties.maxW, `${path}.maxW`)
+  assertOptionalPositiveLimit(properties.maxH, `${path}.maxH`)
+  assertOptionalBoolean(properties.moved, `${path}.moved`)
+  assertOptionalBoolean(properties.static, `${path}.static`)
+  assertOptionalBoolean(properties.isDraggable, `${path}.isDraggable`)
+  assertOptionalBoolean(properties.isResizable, `${path}.isResizable`)
+
+  if (properties.zIndex !== undefined) {
+    assertSafeInteger(properties.zIndex, `${path}.zIndex`, { allowNegative: true })
+  }
+
+  const minW = (properties.minW as number | undefined) ?? 1
+  const minH = (properties.minH as number | undefined) ?? 1
+  const maxW = (properties.maxW as number | undefined) ?? Infinity
+  const maxH = (properties.maxH as number | undefined) ?? Infinity
+  if (minW > maxW) failLayout(`${path}.minW`, minW)
+  if (minH > maxH) failLayout(`${path}.minH`, minH)
+
+  const result: Record<string, unknown> = {}
+  const ancestors = new Set<object>([value as object])
+  for (const key of Object.keys(properties)) {
+    if (key === 'moved') continue
+    const itemPath = propertyPath(path, key)
+    const itemValue = properties[key]
+    const resultValue = KNOWN_LAYOUT_ITEM_KEYS.has(key)
+      ? (key === 'x' || key === 'y' || key === 'zIndex') && typeof itemValue === 'number'
+        ? canonicalZero(itemValue)
+        : itemValue
+      : cloneMetadataValue(itemValue, itemPath, ancestors)
+    defineDataProperty(result, key, resultValue)
+  }
+
+  return result as unknown as LayoutItem
+}
+
+function snapshotLayout(
+  value: unknown,
+  contextName = 'layout',
+  options: Readonly<{ allowNegativeX?: boolean }> = {},
+): LayoutSnapshot {
+  if (!Array.isArray(value)) failLayout(contextName, value)
+
+  const lengthDescriptor = getOwnDescriptor(value, 'length', 'invalid-layout', contextName)
+  const length = lengthDescriptor.value
+  if (!Number.isSafeInteger(length) || length < 0) failLayout(contextName, length)
+
+  const allowedKeys = new Set(Array.from({ length }, (_, index) => String(index)))
+  allowedKeys.add('length')
+  for (const key of getOwnKeys(value, 'invalid-layout', contextName)) {
+    if (typeof key === 'symbol') failLayout(`${contextName}.<symbol>`, key)
+    if (!allowedKeys.has(key)) failLayout(propertyPath(contextName, key), key)
+  }
+
+  const layout: Layout = Array(length)
+  const sources: ReadonlyLayoutItem[] = Array(length)
+  const ids = new Set<string | number>()
+
+  for (let index = 0; index < length; index++) {
+    const itemPath = `${contextName}[${index}]`
+    const descriptor = getOwnDescriptor(value, String(index), 'invalid-layout', itemPath)
+    if (!descriptor.enumerable || !('value' in descriptor)) failLayout(itemPath, descriptor)
+    const item = cloneLayoutItemAt(descriptor.value, itemPath, options)
+    if (ids.has(item.i)) failLayout(`${itemPath}.i`, item.i)
+    ids.add(item.i)
+    layout[index] = item
+    sources[index] = descriptor.value as ReadonlyLayoutItem
+  }
+
+  return { layout, sources }
+}
+
+function collidesUnchecked(first: ReadonlyLayoutItem, second: ReadonlyLayoutItem): boolean {
+  if (Object.is(first.i, second.i)) return false
+  return !(
+    first.x + first.w <= second.x ||
+    first.x >= second.x + second.w ||
+    first.y + first.h <= second.y ||
+    first.y >= second.y + second.h
+  )
+}
+
+function firstCollisionUnchecked(
+  layout: readonly ReadonlyLayoutItem[],
+  item: ReadonlyLayoutItem,
+): ReadonlyLayoutItem | undefined {
+  for (let index = 0; index < layout.length; index++) {
+    if (collidesUnchecked(layout[index], item)) return layout[index]
+  }
+}
+
+function indexById(layout: ReadonlyLayout): Map<string | number, number> {
+  return new Map(layout.map((item, index) => [item.i, index]))
+}
+
+function sortByRowColUnchecked<T extends ReadonlyLayoutItem>(
+  layout: readonly T[],
+  indexes: ReadonlyMap<string | number, number>,
+): T[] {
+  return Array.from(layout).sort(
+    (first, second) =>
+      first.y - second.y || first.x - second.x || indexes.get(first.i)! - indexes.get(second.i)!,
+  )
+}
+
+function sortByColRowUnchecked<T extends ReadonlyLayoutItem>(
+  layout: readonly T[],
+  indexes: ReadonlyMap<string | number, number>,
+): T[] {
+  return Array.from(layout).sort(
+    (first, second) =>
+      first.x - second.x || first.y - second.y || indexes.get(first.i)! - indexes.get(second.i)!,
+  )
+}
+
+/** 返回 Layout 的最大底边坐标。 */
+export function bottom(layout: ReadonlyLayout): number {
+  const snapshot = snapshotLayout(layout).layout
   let max = 0
-  let bottomY
-  for (let i = 0, len = layout.length; i < len; i++) {
-    bottomY = layout[i].y + layout[i].h
+  for (let index = 0; index < snapshot.length; index++) {
+    const bottomY = addGridValues(snapshot[index].y, snapshot[index].h, `layout[${index}].h`)
     if (bottomY > max) max = bottomY
   }
   return max
 }
 
-export function cloneLayout(layout: Layout): Layout {
-  const newLayout = Array(layout.length)
-  for (let i = 0, len = layout.length; i < len; i++) {
-    newLayout[i] = cloneLayoutItem(layout[i])
-  }
-  return newLayout
+/** 返回与输入递归隔离的可变 Layout。 */
+export function cloneLayout(layout: ReadonlyLayout): Layout {
+  return snapshotLayout(layout).layout
 }
 
-// Fast path to cloning, since this is monomorphic
-export function cloneLayoutItem(layoutItem: LayoutItem): LayoutItem {
-  // return JSON.parse(JSON.stringify(layoutItem))
-  return { ...layoutItem }
+export function cloneLayoutItem(layoutItem: ReadonlyLayoutItem): LayoutItem {
+  return cloneLayoutItemAt(layoutItem, 'layoutItem')
 }
 
-/**
- * Given two layoutitems, check if they collide.
- *
- * @return True if colliding.
- */
-export function collides(l1: LayoutItem, l2: LayoutItem): boolean {
-  if (l1 === l2) return false // same element
-  if (l1.x + l1.w <= l2.x) return false // l1 is left of l2
-  if (l1.x >= l2.x + l2.w) return false // l1 is right of l2
-  if (l1.y + l1.h <= l2.y) return false // l1 is above l2
-  if (l1.y >= l2.y + l2.h) return false // l1 is below l2
-  return true // boxes overlap
+/** 使用半开矩形判定两个 LayoutItem 是否碰撞。 */
+export function collides(first: ReadonlyLayoutItem, second: ReadonlyLayoutItem): boolean {
+  const firstSnapshot = cloneLayoutItemAt(first, 'layoutItem.first')
+  const secondSnapshot = cloneLayoutItemAt(second, 'layoutItem.second')
+  addGridValues(firstSnapshot.x, firstSnapshot.w, 'layoutItem.first.w')
+  addGridValues(firstSnapshot.y, firstSnapshot.h, 'layoutItem.first.h')
+  addGridValues(secondSnapshot.x, secondSnapshot.w, 'layoutItem.second.w')
+  addGridValues(secondSnapshot.y, secondSnapshot.h, 'layoutItem.second.h')
+  return collidesUnchecked(firstSnapshot, secondSnapshot)
 }
 
-/**
- * Given a layout, compact it. This involves going down each y coordinate and removing gaps
- * between items.
- *
- * @param  layout Layout.
- * @param  verticalCompact Whether or not to compact the layout vertically.
- * @param minPositions
- * @return Compacted Layout.
- */
-export function compact(layout: Layout, verticalCompact?: boolean, minPositions?: any): Layout {
-  // Statics go in the compareWith array right away so items flow around them.
-  const compareWith = getStatics(layout)
-  // We go through the items by row and column.
-  const sorted = sortLayoutItemsByRowCol(layout)
-  // Holding for new items.
-  const out: Layout = Array(layout.length)
-
-  for (let i = 0, len = sorted.length; i < len; i++) {
-    let l = sorted[i]
-
-    // Don't move static elements
-    if (!l.static) {
-      l = compactItem(compareWith, l, verticalCompact, minPositions)
-
-      // Add to comparison array. We only collide with items before this one.
-      // Statics are already in this array.
-      compareWith.push(l)
-    }
-
-    // Add to output array to make sure they still come out in the right order.
-    out[layout.findIndex(i => i.i === l.i)] = l
-
-    // Clear moved flag, if it exists.
-    l.moved = false
+function typedId(id: unknown): string {
+  if (typeof id === 'number' && Number.isSafeInteger(id) && !Object.is(id, -0)) {
+    return `number:${id}`
   }
-
-  return out
+  if (typeof id === 'string' && id.length > 0) {
+    return `string:${JSON.stringify(id)}`
+  }
+  throw new GridLayoutValidationError('Invalid minPositions id', {
+    code: 'invalid-config',
+    path: 'minPositions',
+    cause: id,
+  })
 }
 
-/**
- * Compact an item in the layout.
- */
-export function compactItem(
-  compareWith: Layout,
-  l: LayoutItem,
-  verticalCompact?: boolean,
-  minPositions?: any,
-): LayoutItem {
-  if (verticalCompact) {
-    // Move the element up as far as it can go without colliding.
-    while (l.y > 0 && !getFirstCollision(compareWith, l)) {
-      l.y--
-    }
-  } else if (minPositions) {
-    const minY = minPositions[l.i].y
-    while (l.y > minY && !getFirstCollision(compareWith, l)) {
-      l.y--
-    }
+function validateMinPositions(
+  value: CompactMinPositions,
+  layout: ReadonlyLayout,
+): Map<string | number, number> {
+  let iterator: MapIterator<[string | number, Readonly<{ y: number }>]>
+  try {
+    iterator = Map.prototype.entries.call(value)
+  } catch (cause) {
+    throw new GridLayoutValidationError('Invalid compact minPositions', {
+      code: 'invalid-config',
+      path: 'minPositions',
+      cause,
+    })
   }
 
-  // Move it down, and keep moving it down if it's colliding.
-  let collides
-  while ((collides = getFirstCollision(compareWith, l))) {
-    l.y = collides.y + collides.h
+  const ownKeys = getOwnKeys(value as object, 'invalid-config', 'minPositions')
+  if (ownKeys.length) {
+    const key = ownKeys[0]
+    const path =
+      typeof key === 'symbol' ? 'minPositions.<symbol>' : propertyPath('minPositions', key)
+    throw new GridLayoutValidationError('Invalid compact minPositions', {
+      code: 'invalid-config',
+      path,
+      cause: key,
+    })
   }
-  return l
+
+  const items = new Map(layout.map(item => [item.i, item]))
+  const result = new Map<string | number, number>()
+  for (const [id, entry] of iterator) {
+    const entryPath = `minPositions[${JSON.stringify(typedId(id))}]`
+    const item = items.get(id)
+    if (!item) {
+      throw new GridLayoutValidationError('Unknown minPositions id', {
+        code: 'invalid-config',
+        path: entryPath,
+        cause: id,
+      })
+    }
+    const properties = readPlainDataObject(entry, {
+      code: 'invalid-config',
+      path: entryPath,
+      allowedKeys: ['y'],
+      requiredKeys: ['y'],
+    })
+    const y = properties.y
+    if (!Number.isSafeInteger(y) || (y as number) < 0 || (y as number) > item.y) {
+      throw new GridLayoutValidationError('Invalid minPositions y', {
+        code: 'invalid-config',
+        path: `${entryPath}.y`,
+        cause: y,
+      })
+    }
+    result.set(id, canonicalZero(y as number))
+  }
+  return result
 }
 
-/**
- * Given a layout, make sure all elements fit within its bounds.
- *
- * @param  layout Layout array.
- * @param  bounds Number of columns.
- */
-export function correctBounds(layout: Layout, bounds: { cols: number }): Layout {
-  const collidesWith = getStatics(layout)
-  for (let i = 0, len = layout.length; i < len; i++) {
-    const l = layout[i]
-    // Overflows right
-    if (l.x + l.w > bounds.cols) l.x = bounds.cols - l.w
-    // Overflows left
-    if (l.x < 0) {
-      l.x = 0
-      l.w = bounds.cols
+/** 使用障碍底边候选执行确定性垂直压缩。 */
+export function compact(
+  layout: ReadonlyLayout,
+  verticalCompact = true,
+  minPositions?: CompactMinPositions,
+): Layout {
+  if (typeof verticalCompact !== 'boolean') {
+    throw new GridLayoutValidationError('Invalid verticalCompact', {
+      code: 'invalid-config',
+      path: 'config.verticalCompact',
+      cause: verticalCompact,
+    })
+  }
+  if (verticalCompact && minPositions !== undefined) {
+    throw new GridLayoutValidationError('minPositions cannot be used with vertical compaction', {
+      code: 'invalid-config',
+      path: 'minPositions',
+      cause: minPositions,
+    })
+  }
+
+  const cloned = snapshotLayout(layout).layout
+  validateLayoutExtents(cloned)
+  const positions =
+    minPositions === undefined ? undefined : validateMinPositions(minPositions, cloned)
+  const indexes = indexById(cloned)
+  const compareWith = cloned.filter(item => item.static)
+  const sorted = sortByRowColUnchecked(cloned, indexes)
+
+  for (const item of sorted) {
+    if (item.static) continue
+    item.y = verticalCompact ? 0 : (positions?.get(item.i) ?? item.y)
+
+    let collision: ReadonlyLayoutItem | undefined
+    while ((collision = firstCollisionUnchecked(compareWith, item))) {
+      item.y = addGridValues(collision.y, collision.h, `layout[${indexes.get(item.i)!}].y`)
     }
-    if (!l.static) collidesWith.push(l)
-    else {
-      // If this is static and collides with other statics, we must move it down.
-      // We have to do something nicer than just letting them overlap.
-      while (getFirstCollision(collidesWith, l)) {
-        l.y++
-      }
+    compareWith.push(item)
+  }
+
+  return cloned
+}
+
+export function correctBounds(
+  layout: ReadonlyLayout,
+  bounds: Readonly<{ cols: number }>,
+  allowOverlap = false,
+): Layout {
+  const properties = readPlainDataObject(bounds, {
+    code: 'invalid-config',
+    path: 'config.bounds',
+    allowedKeys: ['cols'],
+    requiredKeys: ['cols'],
+  })
+  if (!Number.isSafeInteger(properties.cols) || (properties.cols as number) <= 0) {
+    throw new GridLayoutValidationError('Invalid bounds cols', {
+      code: 'invalid-config',
+      path: 'config.bounds.cols',
+      cause: properties.cols,
+    })
+  }
+  if (typeof allowOverlap !== 'boolean') {
+    throw new GridLayoutValidationError('Invalid allowOverlap', {
+      code: 'invalid-config',
+      path: 'config.allowOverlap',
+      cause: allowOverlap,
+    })
+  }
+
+  const cols = properties.cols as number
+  const cloned = snapshotLayout(layout, 'layout', { allowNegativeX: true }).layout
+  const obstacles = cloned.filter(item => item.static)
+
+  for (let index = 0; index < cloned.length; index++) {
+    const item = cloned[index]
+    const right = addSignedGridValues(item.x, item.w, `layout[${index}].w`)
+    addGridValues(item.y, item.h, `layout[${index}].h`)
+    if (right > cols) {
+      item.x = subtractGridValues(cols, item.w, `layout[${index}].x`)
+    }
+    if (item.x < 0) {
+      item.x = 0
+      item.w = cols
+    }
+
+    if (!item.static) {
+      obstacles.push(item)
+      continue
+    }
+    if (allowOverlap) continue
+
+    let collision: ReadonlyLayoutItem | undefined
+    while ((collision = firstCollisionUnchecked(obstacles, item))) {
+      item.y = addGridValues(collision.y, collision.h, `layout[${index}].y`)
     }
   }
-  return layout
+  return cloned
 }
 
 /**
@@ -153,75 +522,223 @@ export function correctBounds(layout: Layout, bounds: { cols: number }): Layout 
  * @param   id     ID
  * @return     Item at ID.
  */
-export function getLayoutItem(layout: Layout, id: number | string): LayoutItem | undefined {
+export function getLayoutItem(layout: Layout, id: number | string): LayoutItem | undefined
+export function getLayoutItem(
+  layout: ReadonlyLayout,
+  id: number | string,
+): ReadonlyLayoutItem | undefined
+export function getLayoutItem(
+  layout: ReadonlyLayout,
+  id: number | string,
+): ReadonlyLayoutItem | undefined {
   for (let i = 0, len = layout.length; i < len; i++) {
-    if (layout[i].i === id) return layout[i]
+    if (Object.is(layout[i].i, id)) return layout[i]
   }
 }
 
-/**
- * Returns the first item this layout collides with.
- * It doesn't appear to matter which order we approach this from, although
- * perhaps that is the wrong thing to do.
- *
- * @param  {Object} layoutItem Layout item.
- * @return {Object|undefined}  A colliding layout item, or undefined.
- */
-export function getFirstCollision(layout: Layout, layoutItem: LayoutItem): LayoutItem | undefined {
-  for (let i = 0, len = layout.length; i < len; i++) {
-    if (collides(layout[i], layoutItem)) return layout[i]
+export function getFirstCollision(
+  layout: ReadonlyLayout,
+  layoutItem: ReadonlyLayoutItem,
+): ReadonlyLayoutItem | undefined {
+  const snapshot = snapshotLayout(layout)
+  const item = cloneLayoutItemAt(layoutItem, 'layoutItem')
+  validateLayoutExtents(snapshot.layout)
+  validateItemExtents(item, 'layoutItem')
+  for (let index = 0; index < snapshot.layout.length; index++) {
+    if (collidesUnchecked(snapshot.layout[index], item)) return snapshot.sources[index]
   }
 }
 
-export function getAllCollisions(layout: Layout, layoutItem: LayoutItem): Array<LayoutItem> {
-  return layout.filter(l => collides(l, layoutItem))
+export function getAllCollisions(
+  layout: ReadonlyLayout,
+  layoutItem: ReadonlyLayoutItem,
+): readonly ReadonlyLayoutItem[] {
+  const snapshot = snapshotLayout(layout)
+  const item = cloneLayoutItemAt(layoutItem, 'layoutItem')
+  validateLayoutExtents(snapshot.layout)
+  validateItemExtents(item, 'layoutItem')
+  const collisions: ReadonlyLayoutItem[] = []
+  for (let index = 0; index < snapshot.layout.length; index++) {
+    if (collidesUnchecked(snapshot.layout[index], item)) {
+      collisions.push(snapshot.sources[index])
+    }
+  }
+  return collisions
 }
 
-/**
- * Get all static elements.
- * @param layout Array of layout objects.
- * @return  Array of static layout items..
- */
-export function getStatics(layout: Layout): Array<LayoutItem> {
+/** @internal */
+export function getStatics(layout: ReadonlyLayout): Array<ReadonlyLayoutItem> {
   return layout.filter(l => l.static)
 }
 
-/**
- * Move an element. Responsible for doing cascading movements of other elements.
- *
- * @param        layout Full layout to modify.
- * @param   layoutItem      element to move.
- * @param       x    X position in grid units.
- * @param       y    Y position in grid units.
- * @param      isUserAction If true, designates that the item we're moving is
- *                                     being dragged/resized by th euser.
- */
+/** @deprecated 请迁移到 useGridLayout 或 normalizeLayout。 */
 export function moveElement(
+  layout: ReadonlyLayout,
+  layoutItem: ReadonlyLayoutItem,
+  x?: number,
+  y?: number,
+  isUserAction = false,
+  preventCollision = false,
+  compactType: CompactType = 'vertical',
+): Layout {
+  const snapshot = snapshotLayout(layout).layout
+  const requested = cloneLayoutItemAt(layoutItem, 'layoutItem')
+  validateLayoutExtents(snapshot)
+  validateItemExtents(requested, 'layoutItem')
+
+  if (x !== undefined) assertSafeInteger(x, 'layoutItem.x')
+  if (y !== undefined) assertSafeInteger(y, 'layoutItem.y')
+  if (typeof isUserAction !== 'boolean') {
+    throw new GridLayoutValidationError('Invalid isUserAction', {
+      code: 'invalid-config',
+      path: 'config.isUserAction',
+      cause: isUserAction,
+    })
+  }
+  if (typeof preventCollision !== 'boolean') {
+    throw new GridLayoutValidationError('Invalid preventCollision', {
+      code: 'invalid-config',
+      path: 'config.preventCollision',
+      cause: preventCollision,
+    })
+  }
+  if (compactType !== 'vertical' && compactType !== 'horizontal') {
+    throw new GridLayoutValidationError('Invalid compactType', {
+      code: 'invalid-config',
+      path: 'config.compactType',
+      cause: compactType,
+    })
+  }
+
+  const indexes = indexById(snapshot)
+  const targetIndex = indexes.get(requested.i)
+  if (targetIndex === undefined) failLayout('layoutItem.i', requested.i)
+  const target = snapshot[targetIndex]
+  const nextX = canonicalZero(x ?? target.x)
+  const nextY = canonicalZero(y ?? target.y)
+
+  if (target.static || (target.x === nextX && target.y === nextY)) return snapshot
+
+  target.x = nextX
+  target.y = nextY
+
+  if (preventCollision && snapshot.some(item => collidesUnchecked(item, target))) {
+    return snapshotLayout(layout).layout
+  }
+
+  const sorted =
+    compactType === 'horizontal'
+      ? sortByColRowUnchecked(snapshot, indexes)
+      : sortByRowColUnchecked(snapshot, indexes)
+  const queue: LayoutItem[] = [target]
+
+  while (queue.length) {
+    const moving = queue.shift()!
+    let collision = sorted.find(item => collidesUnchecked(item, moving))
+
+    while (collision) {
+      if (collision.static) {
+        if (compactType === 'horizontal') {
+          moving.x = addGridValues(collision.x, collision.w, `layout[${indexes.get(moving.i)!}].x`)
+        } else {
+          moving.y = addGridValues(collision.y, collision.h, `layout[${indexes.get(moving.i)!}].y`)
+        }
+      } else {
+        if (compactType === 'horizontal') {
+          collision.x = addGridValues(moving.x, moving.w, `layout[${indexes.get(collision.i)!}].x`)
+        } else {
+          collision.y = addGridValues(moving.y, moving.h, `layout[${indexes.get(collision.i)!}].y`)
+        }
+        queue.push(collision)
+      }
+      collision = sorted.find(item => collidesUnchecked(item, moving))
+    }
+  }
+
+  snapshot.forEach((item, index) => {
+    addGridValues(item.x, item.w, `layout[${index}].w`)
+    addGridValues(item.y, item.h, `layout[${index}].h`)
+  })
+  return snapshot
+}
+
+/** @internal 兼容旧内部调用；稳定 core 不导出。 */
+export function moveElementAwayFromCollision(
+  layout: ReadonlyLayout,
+  collidesWith: ReadonlyLayoutItem,
+  itemToMove: ReadonlyLayoutItem,
+  _isUserAction?: boolean,
+  compactType: CompactType = 'vertical',
+): Layout {
+  return moveElement(
+    layout,
+    itemToMove,
+    compactType === 'horizontal'
+      ? addGridValues(collidesWith.x, collidesWith.w, 'layoutItem.x')
+      : undefined,
+    compactType === 'vertical'
+      ? addGridValues(collidesWith.y, collidesWith.h, 'layoutItem.y')
+      : undefined,
+    false,
+    false,
+    compactType,
+  )
+}
+
+function collidesMutable(first: LayoutItem, second: LayoutItem): boolean {
+  if (first === second) return false
+  return !(
+    first.x + first.w <= second.x ||
+    first.x >= second.x + second.w ||
+    first.y + first.h <= second.y ||
+    first.y >= second.y + second.h
+  )
+}
+
+function firstCollisionMutable(layout: Layout, item: LayoutItem): LayoutItem | undefined {
+  return layout.find(candidate => collidesMutable(candidate, item))
+}
+
+function sortLayoutMutable(layout: Layout, compactType: CompactType): Layout {
+  const indexes = new Map(layout.map((item, index) => [item, index]))
+  return Array.from(layout).sort((first, second) => {
+    const order =
+      compactType === 'horizontal'
+        ? first.x - second.x || first.y - second.y
+        : first.y - second.y || first.x - second.x
+    return order || indexes.get(first)! - indexes.get(second)!
+  })
+}
+
+/**
+ * @internal
+ * Phase 2 状态机接管前供旧组件适配层使用；不得从稳定 core 导出。
+ */
+export function moveElementMutable(
   layout: Layout,
   layoutItem: LayoutItem,
   x?: number,
   y?: number,
   isUserAction = false,
   preventCollision = false,
+  compactType: CompactType = 'vertical',
 ): Layout {
   if (layoutItem.static) return layout
 
   const oldX = layoutItem.x
   const oldY = layoutItem.y
+  const movingUp =
+    compactType === 'horizontal'
+      ? typeof x === 'number' && oldX > x
+      : typeof y === 'number' && oldY > y
 
-  const movingUp = y && layoutItem.y > y
-  // This is quite a bit faster than extending the object
   if (typeof x === 'number') layoutItem.x = x
   if (typeof y === 'number') layoutItem.y = y
   layoutItem.moved = true
 
-  // If this collides with anything, move it.
-  // When doing this comparison, we have to sort the items we compare with
-  // to ensure, in the case of multiple collisions, that we're getting the
-  // nearest collision.
-  let sorted = sortLayoutItemsByRowCol(layout)
+  let sorted = sortLayoutMutable(layout, compactType)
   if (movingUp) sorted = sorted.reverse()
-  const collisions = getAllCollisions(sorted, layoutItem)
+  const collisions = sorted.filter(item => collidesMutable(item, layoutItem))
 
   if (preventCollision && collisions.length) {
     layoutItem.x = oldX
@@ -230,65 +747,70 @@ export function moveElement(
     return layout
   }
 
-  // Move each item that collides away from this element.
-  for (let i = 0, len = collisions.length; i < len; i++) {
-    const collision = collisions[i]
-
-    // Short circuit so we can't infinite loop
+  for (const collision of collisions) {
     if (collision.moved) continue
+    if (
+      compactType === 'vertical' &&
+      layoutItem.y > collision.y &&
+      layoutItem.y - collision.y > collision.h / 4
+    ) {
+      continue
+    }
+    if (
+      compactType === 'horizontal' &&
+      layoutItem.x > collision.x &&
+      layoutItem.x - collision.x > collision.w / 4
+    ) {
+      continue
+    }
 
-    // This makes it feel a bit more precise by waiting to swap for just a bit when moving up.
-    if (layoutItem.y > collision.y && layoutItem.y - collision.y > collision.h / 4) continue
-
-    // Don't move static items - we have to move *this* element away
     if (collision.static) {
-      layout = moveElementAwayFromCollision(layout, collision, layoutItem, isUserAction)
+      moveElementAwayFromCollisionMutable(layout, collision, layoutItem, isUserAction, compactType)
     } else {
-      layout = moveElementAwayFromCollision(layout, layoutItem, collision, isUserAction)
+      moveElementAwayFromCollisionMutable(layout, layoutItem, collision, isUserAction, compactType)
     }
   }
-
   return layout
 }
 
-/**
- * This is where the magic needs to happen - given a collision, move an element away from the collision.
- * We attempt to move it up if there's room, otherwise it goes below.
- *
- * @param   layout            Full layout to modify.
- * @param   collidesWith Layout item we're colliding with.
- * @param   itemToMove   Layout item we're moving.
- * @param  isUserAction  If true, designates that the item we're moving is being dragged/resized
- *                                   by the user.
- */
-export function moveElementAwayFromCollision(
+/** @internal */
+export function moveElementAwayFromCollisionMutable(
   layout: Layout,
   collidesWith: LayoutItem,
   itemToMove: LayoutItem,
-  isUserAction?: boolean,
+  isUserAction = false,
+  compactType: CompactType = 'vertical',
 ): Layout {
-  const preventCollision = false // we're already colliding
-  // If there is enough space above the collision to put this element, move it there.
-  // We only do this on the main collision as this can get funky in cascades and cause
-  // unwanted swapping behavior.
   if (isUserAction) {
-    // Make a mock item so we don't modify the item here, only modify in moveElement.
     const fakeItem: LayoutItem = {
-      x: itemToMove.x,
-      y: itemToMove.y,
+      x: compactType === 'horizontal' ? Math.max(collidesWith.x - itemToMove.w, 0) : itemToMove.x,
+      y: compactType === 'vertical' ? Math.max(collidesWith.y - itemToMove.h, 0) : itemToMove.y,
       w: itemToMove.w,
       h: itemToMove.h,
       i: '-1',
     }
-    fakeItem.y = Math.max(collidesWith.y - itemToMove.h, 0)
-    if (!getFirstCollision(layout, fakeItem)) {
-      return moveElement(layout, itemToMove, undefined, fakeItem.y, preventCollision)
+    if (!firstCollisionMutable(layout, fakeItem)) {
+      return moveElementMutable(
+        layout,
+        itemToMove,
+        compactType === 'horizontal' ? fakeItem.x : undefined,
+        compactType === 'vertical' ? fakeItem.y : undefined,
+        false,
+        false,
+        compactType,
+      )
     }
   }
 
-  // Previously this was optimized to move below the collision directly, but this can cause problems
-  // with cascading moves, as an item may actually leapflog a collision and cause a reversal in order.
-  return moveElement(layout, itemToMove, undefined, itemToMove.y + 1, preventCollision)
+  return moveElementMutable(
+    layout,
+    itemToMove,
+    compactType === 'horizontal' ? itemToMove.x + 1 : undefined,
+    compactType === 'vertical' ? itemToMove.y + 1 : undefined,
+    false,
+    false,
+    compactType,
+  )
 }
 
 /**
@@ -372,18 +894,39 @@ export function setTopRight(top: number, right: number, width: number, height: n
  *
  * @return Layout, sorted static items first.
  */
-export function sortLayoutItemsByRowCol(layout: Layout): Layout {
-  return Array.from(layout).sort(function (a, b) {
-    if (a.y === b.y && a.x === b.x) {
-      return 0
-    }
+export function sortLayoutItemsByRowCol(layout: ReadonlyLayout): readonly ReadonlyLayoutItem[] {
+  const snapshot = snapshotLayout(layout)
+  const indexes = indexById(snapshot.layout)
+  return snapshot.sources
+    .map((source, index) => ({
+      source,
+      snapshot: snapshot.layout[index],
+    }))
+    .sort(
+      (first, second) =>
+        first.snapshot.y - second.snapshot.y ||
+        first.snapshot.x - second.snapshot.x ||
+        indexes.get(first.snapshot.i)! - indexes.get(second.snapshot.i)!,
+    )
+    .map(entry => entry.source)
+}
 
-    if (a.y > b.y || (a.y === b.y && a.x > b.x)) {
-      return 1
-    }
-
-    return -1
-  })
+/** 按列、行顺序排序，用于水平压缩和水平碰撞避让。 */
+export function sortLayoutItemsByColRow(layout: ReadonlyLayout): readonly ReadonlyLayoutItem[] {
+  const snapshot = snapshotLayout(layout)
+  const indexes = indexById(snapshot.layout)
+  return snapshot.sources
+    .map((source, index) => ({
+      source,
+      snapshot: snapshot.layout[index],
+    }))
+    .sort(
+      (first, second) =>
+        first.snapshot.x - second.snapshot.x ||
+        first.snapshot.y - second.snapshot.y ||
+        indexes.get(first.snapshot.i)! - indexes.get(second.snapshot.i)!,
+    )
+    .map(entry => entry.source)
 }
 
 /**
@@ -393,38 +936,9 @@ export function sortLayoutItemsByRowCol(layout: Layout): Layout {
  * @param contextName Context name for errors.
  * @throw Validation error.
  */
-export function validateLayout(layout: Layout, contextName?: string): void {
-  contextName = contextName || 'Layout'
-  const subProps = ['x', 'y', 'w', 'h']
-  const keyArr = []
-  if (!Array.isArray(layout)) throw new Error(contextName + ' must be an array!')
-  for (let i = 0, len = layout.length; i < len; i++) {
-    const item = layout[i]
-    for (let j = 0; j < subProps.length; j++) {
-      if (typeof (item as any)[subProps[j]] !== 'number') {
-        throw new Error(
-          'VueGridLayout: ' + contextName + '[' + i + '].' + subProps[j] + ' must be a number!',
-        )
-      }
-    }
-
-    if (item.i === undefined || item.i === null) {
-      throw new Error('VueGridLayout: ' + contextName + '[' + i + '].i cannot be null!')
-    }
-
-    if (typeof item.i !== 'number' && typeof item.i !== 'string') {
-      throw new Error('VueGridLayout: ' + contextName + '[' + i + '].i must be a string or number!')
-    }
-
-    if (keyArr.indexOf(item.i) >= 0) {
-      throw new Error('VueGridLayout: ' + contextName + '[' + i + '].i must be unique!')
-    }
-    keyArr.push(item.i)
-
-    if (item.static !== undefined && typeof item.static !== 'boolean') {
-      throw new Error('VueGridLayout: ' + contextName + '[' + i + '].static must be a boolean!')
-    }
-  }
+export function validateLayout(layout: ReadonlyLayout, contextName?: string): void {
+  const root = contextName ? contextName.charAt(0).toLowerCase() + contextName.slice(1) : 'layout'
+  snapshotLayout(layout, root)
 }
 
 // Flow can't really figure this out, so we just use Object

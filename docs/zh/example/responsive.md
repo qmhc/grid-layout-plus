@@ -1,13 +1,26 @@
+---
+aside: false
+pageClass: demo-page
+---
+
 # 响应式
 
-因为开启 responsive 后组件会创建全新的 layout 对象，所以传入 `v-model` 中的数据需要使用 `ref` 定义（不是 `reactive`），否则将无法同步。
+响应式模式根据容器宽度选择断点和列数。布局请使用 `ref` 定义，因为断点变化时，`v-model:layout` 会替换整个数组。
 
-## 效果
+**试一试：** 调整页面宽度并跨过一个断点，再拖动栅格项。宽度、当前断点和列数会一起更新。
 
+<DemoFrame min-height="680px">
 <ClientOnly>
   <DemoResponsive></DemoResponsive>
 </ClientOnly>
+  <template #minimal-source>
 
-## 源码
+<<< @/snippets/responsive.vue
+
+  </template>
+  <template #source>
 
 <<< @/demos/responsive.vue
+
+  </template>
+</DemoFrame>

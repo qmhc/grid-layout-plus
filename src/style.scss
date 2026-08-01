@@ -15,16 +15,27 @@
   position: relative;
   box-sizing: border-box;
   transition: height 200ms ease;
+
+  &--suppress-transition,
+  &--suppress-transition > .vgl-item {
+    transition: none;
+  }
 }
 
 .vgl-item {
   position: absolute;
+  z-index: var(--vgl-item-z-index, auto);
   box-sizing: border-box;
   transition: 200ms ease;
   transition-property: left, top, right;
 
   &--placeholder {
-    z-index: var(--vgl-placeholder-z-index, 2);
+    z-index: max(
+      var(--vgl-item-z-index, 0),
+      var(--vgl-placeholder-z-index, 2),
+      var(--vgl-layout-interaction-z-index, 0)
+    );
+    pointer-events: none;
     user-select: none;
     background-color: var(--vgl-placeholder-bg, red);
     opacity: var(--vgl-placeholder-opacity, 20%);
@@ -47,13 +58,22 @@
   }
 
   &--resizing {
-    z-index: var(--vgl-item-resizing-z-index, 3);
+    z-index: max(
+      calc(var(--vgl-item-z-index, 0) + 1),
+      var(--vgl-item-resizing-z-index, 3),
+      calc(var(--vgl-layout-interaction-z-index, 0) + 1)
+    );
     user-select: none;
     opacity: var(--vgl-item-resizing-opacity, 60%);
+    transition: none;
   }
 
   &--dragging {
-    z-index: var(--vgl-item-dragging-z-index, 3);
+    z-index: max(
+      calc(var(--vgl-item-z-index, 0) + 1),
+      var(--vgl-item-dragging-z-index, 3),
+      calc(var(--vgl-layout-interaction-z-index, 0) + 1)
+    );
     user-select: none;
     opacity: var(--vgl-item-dragging-opacity, 100%);
     transition: none;
@@ -61,25 +81,33 @@
 
   &__resizer {
     position: absolute;
-    right: 0;
-    bottom: 0;
     box-sizing: border-box;
     width: var(--vgl-resizer-size);
     height: var(--vgl-resizer-size);
-    cursor: se-resize;
 
     $border-width: var(--vgl-resizer-border-width);
 
     &::before {
       position: absolute;
-      inset: 0 3px 3px 0;
       content: '';
       border: 0 solid var(--vgl-resizer-border-color);
-      border-right-width: $border-width;
-      border-bottom-width: $border-width;
     }
 
-    &--rtl {
+    // 右下角缩放手柄
+    &--se {
+      right: 0;
+      bottom: 0;
+      cursor: se-resize;
+
+      &::before {
+        inset: 0 3px 3px 0;
+        border-right-width: $border-width;
+        border-bottom-width: $border-width;
+      }
+    }
+
+    // RTL 模式下右下角视觉上位于左下角
+    &--rtl#{&}--se {
       right: auto;
       left: 0;
       cursor: sw-resize;
@@ -91,5 +119,20 @@
         border-left-width: $border-width;
       }
     }
+  }
+}
+
+.vgl-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vgl-layout,
+  .vgl-item {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
   }
 }

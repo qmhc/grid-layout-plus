@@ -1,77 +1,93 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
+
+import type { InteractionTerminalPayload, Layout } from 'grid-layout-plus'
+
+function createLayout(): Layout {
+  return [
+    { x: 0, y: 0, w: 3, h: 2, i: '0' },
+    { x: 3, y: 0, w: 3, h: 3, i: '1', static: true },
+    { x: 6, y: 0, w: 3, h: 2, i: '2' },
+    { x: 9, y: 0, w: 3, h: 3, i: '3' },
+    { x: 0, y: 3, w: 4, h: 2, i: '4' },
+    { x: 7, y: 4, w: 3, h: 2, i: '5' },
+  ]
+}
 
 const draggable = ref(true)
 const resizable = ref(true)
 const mirrored = ref(true)
+const layout = ref(createLayout())
+const lastAction = ref('None')
 
-const layout = reactive([
-  { x: 0, y: 0, w: 2, h: 2, i: '0', static: false },
-  { x: 2, y: 0, w: 2, h: 4, i: '1', static: true },
-  { x: 4, y: 0, w: 2, h: 5, i: '2', static: false },
-  { x: 6, y: 0, w: 2, h: 3, i: '3', static: false },
-  { x: 8, y: 0, w: 2, h: 3, i: '4', static: false },
-  { x: 10, y: 0, w: 2, h: 3, i: '5', static: false },
-  { x: 0, y: 5, w: 2, h: 5, i: '6', static: false },
-  { x: 2, y: 5, w: 2, h: 5, i: '7', static: false },
-  { x: 4, y: 5, w: 2, h: 5, i: '8', static: false },
-  { x: 6, y: 3, w: 2, h: 4, i: '9', static: true },
-  { x: 8, y: 4, w: 2, h: 4, i: '10', static: false },
-  { x: 10, y: 4, w: 2, h: 4, i: '11', static: false },
-  { x: 0, y: 10, w: 2, h: 5, i: '12', static: false },
-  { x: 2, y: 10, w: 2, h: 5, i: '13', static: false },
-  { x: 4, y: 8, w: 2, h: 4, i: '14', static: false },
-  { x: 6, y: 8, w: 2, h: 4, i: '15', static: false },
-  { x: 8, y: 10, w: 2, h: 5, i: '16', static: false },
-  { x: 10, y: 4, w: 2, h: 2, i: '17', static: false },
-  { x: 0, y: 9, w: 2, h: 3, i: '18', static: false },
-  { x: 2, y: 6, w: 2, h: 2, i: '19', static: false },
-])
+const originLabel = computed(() => {
+  return mirrored.value
+    ? 'Right origin · x increases to the left'
+    : 'Left origin · x increases to the right'
+})
+
+function handleInteractionEnd(payload: InteractionTerminalPayload) {
+  lastAction.value = `${payload.type} ${payload.status} · ${payload.reason}`
+}
+
+function resetDemo() {
+  draggable.value = true
+  resizable.value = true
+  mirrored.value = true
+  layout.value = createLayout()
+  lastAction.value = 'Reset · mirrored from the right'
+}
 </script>
 
 <template>
-  <input v-model="draggable" type="checkbox" /> Draggable
-  <input v-model="resizable" type="checkbox" /> Resizable
-  <input v-model="mirrored" type="checkbox" /> Mirrored
-  <br />
-  <GridLayout
-    v-model:layout="layout"
-    :row-height="30"
-    :is-draggable="draggable"
-    :is-resizable="resizable"
-    :is-mirrored="mirrored"
-  >
-    <template #item="{ item }">
-      <span class="text">{{ item.i }}</span>
-    </template>
-  </GridLayout>
+  <section class="demo-root demo-shell">
+    <div class="demo-toolbar">
+      <Checkbox v-model:checked="mirrored"> Mirrored </Checkbox>
+      <Checkbox v-model:checked="draggable"> Draggable </Checkbox>
+      <Checkbox v-model:checked="resizable"> Resizable </Checkbox>
+      <Button button-type="button" @click="resetDemo"> Reset demo </Button>
+    </div>
+    <div class="demo-toolbar">
+      <Tag class="demo-state demo-state--accent" type="primary" simple circle>
+        {{ originLabel }}
+      </Tag>
+      <Tag class="demo-state" simple circle> Last action: {{ lastAction }} </Tag>
+    </div>
+    <div class="mirror-axis" :class="{ 'mirror-axis--right': mirrored }" aria-hidden="true">
+      <strong>origin x=0</strong>
+      <span>{{ mirrored ? '← x increases' : 'x increases →' }}</span>
+    </div>
+    <GridLayout
+      v-model:layout="layout"
+      class="demo-grid"
+      :is-draggable="draggable"
+      :is-mirrored="mirrored"
+      :is-resizable="resizable"
+      :row-height="30"
+      @interaction-end="handleInteractionEnd"
+    >
+      <template #item="{ item }">
+        <span class="demo-item__label">
+          {{ item.i }}<template v-if="item.static"> · Static</template> · x={{ item.x }}
+        </span>
+      </template>
+    </GridLayout>
+  </section>
 </template>
 
 <style scoped>
-.vgl-layout {
-  background-color: #eee;
+.mirror-axis {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0 10px;
+  color: var(--demo-muted);
+  border-bottom: 2px solid var(--demo-accent);
 }
 
-:deep(.vgl-item:not(.vgl-item--placeholder)) {
-  background-color: #ccc;
-  border: 1px solid black;
-}
-
-:deep(.vgl-item--resizing) {
-  opacity: 90%;
-}
-
-:deep(.vgl-item--static) {
-  background-color: #cce;
-}
-
-.text {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: auto;
-  font-size: 24px;
-  text-align: center;
+.mirror-axis--right {
+  flex-direction: row-reverse;
 }
 </style>

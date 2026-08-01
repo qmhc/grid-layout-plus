@@ -1,206 +1,209 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
-// you can import from 'lodash-es' or implement it by yourself
-import { throttle } from '@vexip-ui/utils'
+import type {
+  DropConfig,
+  DropDragOverContext,
+  DropEvaluationResult,
+  Layout,
+  OperationRejectedPayload,
+} from 'grid-layout-plus'
 
-import type { GridLayout } from 'grid-layout-plus'
+type AcceptedDropResult = Extract<DropEvaluationResult, { status: 'accepted' }>
+type StatusTone = 'neutral' | 'accent' | 'success' | 'warning'
 
-const layout = ref([
-  { x: 0, y: 0, w: 2, h: 2, i: '0' },
-  { x: 2, y: 0, w: 2, h: 4, i: '1' },
-  { x: 4, y: 0, w: 2, h: 5, i: '2' },
-  { x: 6, y: 0, w: 2, h: 3, i: '3' },
-  { x: 8, y: 0, w: 2, h: 3, i: '4' },
-  { x: 10, y: 0, w: 2, h: 3, i: '5' },
-  { x: 0, y: 5, w: 2, h: 5, i: '6' },
-  { x: 2, y: 5, w: 2, h: 5, i: '7' },
-  { x: 4, y: 5, w: 2, h: 5, i: '8' },
-  { x: 5, y: 10, w: 4, h: 3, i: '9' },
-])
-
-const wrapper = ref<HTMLElement>()
-const gridLayout = ref<InstanceType<typeof GridLayout>>()
-
-onMounted(() => {
-  document.addEventListener('dragover', syncMousePosition)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('dragover', syncMousePosition)
-})
-
-const mouseAt = { x: -1, y: -1 }
-
-function syncMousePosition(event: MouseEvent) {
-  mouseAt.x = event.clientX
-  mouseAt.y = event.clientY
+interface ExternalSource {
+  key: string
+  label: string
+  detail: string
+  w: number
+  h: number
+  blocked?: boolean
 }
 
-const dropId = 'drop'
-const dragItem = { x: -1, y: -1, w: 2, h: 2, i: '' }
+const sources: readonly ExternalSource[] = [
+  { key: 'note', label: 'Note', detail: '2 × 2 payload', w: 2, h: 2 },
+  { key: 'wide', label: 'Wide card', detail: '4 × 2 payload', w: 4, h: 2 },
+  {
+    key: 'blocked',
+    label: 'Restricted card',
+    detail: 'Rejected by source policy',
+    w: 3,
+    h: 2,
+    blocked: true,
+  },
+]
 
-const drag = throttle(() => {
-  const parentRect = wrapper.value?.getBoundingClientRect()
+function createLayout(): Layout {
+  return [
+    { x: 0, y: 0, w: 3, h: 2, i: '0' },
+    { x: 3, y: 0, w: 3, h: 3, i: '1' },
+    { x: 6, y: 0, w: 3, h: 2, i: '2' },
+    { x: 9, y: 0, w: 3, h: 3, i: '3' },
+  ]
+}
 
-  if (!parentRect || !gridLayout.value) return
+const layout = ref(createLayout())
+const activeSource = ref<ExternalSource | null>(null)
+const status = ref('Choose a source and drag it into the target')
+const statusTone = ref<StatusTone>('neutral')
+const candidate = ref('None')
+let nextId = 1
+let droppedInGesture = false
 
-  const mouseInGrid =
-    mouseAt.x > parentRect.left &&
-    mouseAt.x < parentRect.right &&
-    mouseAt.y > parentRect.top &&
-    mouseAt.y < parentRect.bottom
+const statusTypeByTone = {
+  neutral: 'default',
+  accent: 'primary',
+  success: 'success',
+  warning: 'warning',
+} as const
+const dropConfig: DropConfig = {
+  isDroppable: true,
+  dropItem: { w: 2, h: 2 },
+  onDragOver() {
+    const source = activeSource.value
+    if (!source || source.blocked) return false
+    return { w: source.w, h: source.h }
+  },
+}
 
-  if (mouseInGrid && !layout.value.find(item => item.i === dropId)) {
-    layout.value.push({
-      x: (layout.value.length * 2) % 12,
-      y: layout.value.length + 12, // puts it at the bottom
-      w: 2,
-      h: 2,
-      i: dropId,
-    })
-  }
-
-  const index = layout.value.findIndex(item => item.i === dropId)
-
-  if (index !== -1) {
-    const item = gridLayout.value.getItem(dropId)
-
-    if (!item) return
-
-    try {
-      item.wrapper.style.display = 'none'
-    } catch (e) {}
-
-    Object.assign(item.state, {
-      top: mouseAt.y - parentRect.top,
-      left: mouseAt.x - parentRect.left,
-    })
-    const newPos = item.calcXY(mouseAt.y - parentRect.top, mouseAt.x - parentRect.left)
-
-    if (mouseInGrid) {
-      gridLayout.value.dragEvent('dragstart', dropId, newPos.x, newPos.y, dragItem.h, dragItem.w)
-      dragItem.i = String(index)
-      dragItem.x = layout.value[index].x
-      dragItem.y = layout.value[index].y
-    } else {
-      gridLayout.value.dragEvent('dragend', dropId, newPos.x, newPos.y, dragItem.h, dragItem.w)
-      layout.value = layout.value.filter(item => item.i !== dropId)
-    }
+const statusType = computed(() => statusTypeByTone[statusTone.value])
+const statusClass = computed(() => {
+  return {
+    'demo-state--accent': statusTone.value === 'accent',
+    'demo-state--success': statusTone.value === 'success',
+    'demo-state--warning': statusTone.value === 'warning',
   }
 })
 
-function dragEnd() {
-  const parentRect = wrapper.value?.getBoundingClientRect()
-
-  if (!parentRect || !gridLayout.value) return
-
-  const mouseInGrid =
-    mouseAt.x > parentRect.left &&
-    mouseAt.x < parentRect.right &&
-    mouseAt.y > parentRect.top &&
-    mouseAt.y < parentRect.bottom
-
-  if (mouseInGrid) {
-    alert(`Dropped element props:\n${JSON.stringify(dragItem, ['x', 'y', 'w', 'h'], 2)}`)
-    gridLayout.value.dragEvent('dragend', dropId, dragItem.x, dragItem.y, dragItem.h, dragItem.w)
-    layout.value = layout.value.filter(item => item.i !== dropId)
+function handleSourceDragStart(source: ExternalSource, event: DragEvent) {
+  activeSource.value = source
+  droppedInGesture = false
+  if (source.blocked) {
+    status.value = 'Restricted by source policy · no drop candidate'
+    statusTone.value = 'warning'
+    candidate.value = 'None'
   } else {
-    return
+    status.value = `Dragging ${source.label}`
+    statusTone.value = 'accent'
+    candidate.value = `${source.w} × ${source.h}`
   }
+  event.dataTransfer?.setData(
+    'application/x-grid-layout-plus',
+    JSON.stringify({ type: source.key, w: source.w, h: source.h }),
+  )
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
+}
 
-  layout.value.push({
-    x: dragItem.x,
-    y: dragItem.y,
-    w: dragItem.w,
-    h: dragItem.h,
-    i: dragItem.i,
+function handleDropDragOver(context: DropDragOverContext) {
+  const source = activeSource.value
+  candidate.value = `${context.candidate.w} × ${context.candidate.h} at (${context.candidate.x}, ${context.candidate.y})`
+  status.value = source ? `${source.label} accepted by target` : 'Candidate accepted'
+  statusTone.value = 'accent'
+}
+
+function handleOperationRejected(payload: OperationRejectedPayload) {
+  if (payload.operation !== 'drop') return
+  status.value = `Rejected · ${payload.reason}`
+  statusTone.value = 'warning'
+  candidate.value = 'None'
+}
+
+function handleDrop(result: AcceptedDropResult) {
+  const source = activeSource.value
+  if (!source) return
+
+  const id = `external-${nextId++}`
+  const nextLayout = result.previewLayout.map(item => ({ ...item }))
+  nextLayout.splice(result.insertionIndex, 0, {
+    ...result.candidate,
+    i: id,
   })
-  gridLayout.value.dragEvent('dragend', dragItem.i, dragItem.x, dragItem.y, dragItem.h, dragItem.w)
+  layout.value = nextLayout
+  droppedInGesture = true
+  status.value = `Dropped ${source.label} · ${id}`
+  statusTone.value = 'success'
+  candidate.value = `${result.candidate.w} × ${result.candidate.h} at (${result.candidate.x}, ${result.candidate.y})`
+}
 
-  const item = gridLayout.value.getItem(dropId)
+function handleDropDragLeave() {
+  if (statusTone.value === 'warning') return
+  status.value = 'Left target · nothing added'
+  statusTone.value = 'neutral'
+  candidate.value = 'None'
+}
 
-  if (!item) return
+function handleSourceDragEnd() {
+  if (!droppedInGesture && statusTone.value === 'accent') {
+    status.value = 'Drag ended outside the target'
+    statusTone.value = 'neutral'
+    candidate.value = 'None'
+  }
+  activeSource.value = null
+}
 
-  try {
-    item.wrapper.style.display = ''
-  } catch (e) {}
+function resetDemo() {
+  layout.value = createLayout()
+  activeSource.value = null
+  status.value = 'Reset · choose a source'
+  statusTone.value = 'neutral'
+  candidate.value = 'None'
+  nextId = 1
+  droppedInGesture = false
 }
 </script>
 
 <template>
-  <div class="layout-json">
-    Displayed as <code>[x, y, w, h]</code>:
-    <div class="columns">
-      <div v-for="item in layout" :key="item.i" class="layout-item">
-        <b>{{ item.i }}</b>: [{{ item.x }}, {{ item.y }}, {{ item.w }}, {{ item.h }}]
-      </div>
+  <section class="demo-root demo-shell">
+    <div class="demo-toolbar">
+      <Tag class="demo-state demo-state--accent" type="primary" simple circle>
+        Custom external payloads
+      </Tag>
+      <Tag class="demo-state" :class="statusClass" :type="statusType" simple circle>
+        {{ status }}
+      </Tag>
+      <Button button-type="button" @click="resetDemo"> Reset demo </Button>
     </div>
-  </div>
-  <br />
-  <div
-    class="droppable-element"
-    draggable="true"
-    unselectable="on"
-    @drag="drag"
-    @dragend="dragEnd"
-  >
-    Droppable Element (Drag me!)
-  </div>
-  <div ref="wrapper">
-    <GridLayout ref="gridLayout" v-model:layout="layout" :row-height="30">
-      <template #item="{ item }">
-        <span class="text">{{ item.i }}</span>
-      </template>
-    </GridLayout>
-  </div>
+    <div class="demo-drop-workspace">
+      <Card class="demo-panel" title="External sources" shadow="never">
+        <template #extra>
+          <Tag class="demo-state" simple circle> {{ sources.length }} payloads </Tag>
+        </template>
+        <div class="demo-drop-sources">
+          <div
+            v-for="source in sources"
+            :key="source.key"
+            class="demo-drag-source"
+            :class="{ 'demo-drag-source--blocked': source.blocked }"
+            :data-source="source.key"
+            draggable="true"
+            @dragstart="handleSourceDragStart(source, $event)"
+            @dragend="handleSourceDragEnd"
+          >
+            <strong>{{ source.label }}</strong>
+            <small>{{ source.detail }}</small>
+          </div>
+        </div>
+      </Card>
+      <Card class="demo-panel" title="Drop target" shadow="never">
+        <template #extra>
+          <Tag class="demo-state" simple circle> Candidate: {{ candidate }} </Tag>
+        </template>
+        <GridLayout
+          v-model:layout="layout"
+          class="demo-grid"
+          :drop-config="dropConfig"
+          :row-height="30"
+          @drop-drag-over="handleDropDragOver"
+          @drop="handleDrop"
+          @drop-drag-leave="handleDropDragLeave"
+          @operation-rejected="handleOperationRejected"
+        >
+          <template #item="{ item }">
+            <span class="demo-item__label">{{ item.i }}</span>
+          </template>
+        </GridLayout>
+      </Card>
+    </div>
+  </section>
 </template>
-
-<style scoped>
-.vgl-layout {
-  background-color: #eee;
-}
-
-:deep(.vgl-item:not(.vgl-item--placeholder)) {
-  background-color: #ccc;
-  border: 1px solid black;
-}
-
-:deep(.vgl-item--resizing) {
-  opacity: 90%;
-}
-
-:deep(.vgl-item--static) {
-  background-color: #cce;
-}
-
-.text {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: auto;
-  font-size: 24px;
-  text-align: center;
-}
-
-.layout-json {
-  padding: 10px;
-  margin-top: 10px;
-  background-color: #ddd;
-  border: 1px solid black;
-}
-
-.columns {
-  columns: 120px;
-}
-
-.droppable-element {
-  width: 150px;
-  padding: 10px;
-  margin: 10px 0;
-  text-align: center;
-  background-color: #fdd;
-  border: 1px solid black;
-}
-</style>
