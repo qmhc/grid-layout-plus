@@ -91,7 +91,7 @@ test('custom external source completes the public native drop flow', async ({ pa
   await page.locator('[data-source="note"]').dragTo(grid, { targetPosition })
 
   await expect(items).toHaveCount(5)
-  await expect(page.locator('.demo-state--success')).toContainText('Dropped Note as external-1')
+  await expect(page.locator('.demo-state--success')).toContainText('Dropped Note · external-1')
 
   await page.locator('[data-source="blocked"]').dragTo(grid, { targetPosition })
 
