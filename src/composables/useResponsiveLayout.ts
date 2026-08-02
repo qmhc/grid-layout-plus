@@ -27,24 +27,65 @@ import type {
 } from '../helpers/types'
 import type { ResponsiveConfigSnapshot } from '../helpers/responsive'
 
+/**
+ * Options accepted by {@link useResponsiveLayout}.
+ *
+ * @typeParam B - Breakpoint names used by the responsive configuration.
+ */
 export interface UseResponsiveLayoutOptions<B extends string = DefaultBreakpoint> {
+  /** Minimum container widths keyed by breakpoint. */
   breakpoints: MaybeRefOrGetter<Breakpoints<B>>
+  /** Column counts keyed by breakpoint. */
   cols: MaybeRefOrGetter<Readonly<Record<B, number>>>
+  /** The current container width, or `null` before width resolution. */
   width: MaybeRefOrGetter<number | null>
+  /** The writable model for the layout selected at the current breakpoint. */
   layout: Ref<Layout>
+  /** The writable model for author-provided layouts keyed by breakpoint. */
   layouts: Ref<ResponsiveLayoutsInput<B>>
+  /** The layout used to populate breakpoints missing from `layouts`. */
   initialFallback: ReadonlyLayout
+  /**
+   * The algorithm used to normalize generated layouts.
+   *
+   * @defaultValue `verticalCompactor`
+   */
   compactor?: MaybeRefOrGetter<Compactor>
+  /**
+   * How generated layouts handle item collisions.
+   *
+   * @defaultValue `'push'`
+   */
   collisionMode?: MaybeRefOrGetter<CollisionMode>
+  /**
+   * The maximum number of rows a generated layout may occupy.
+   *
+   * @defaultValue `Infinity`
+   */
   maxRows?: MaybeRefOrGetter<number>
+  /**
+   * Receives invalid configuration, layout, and partial controlled-update errors.
+   *
+   * @param error - The structured runtime error.
+   */
   onError?: (error: GridLayoutRuntimeError) => void
 }
 
+/**
+ * Reactive responsive-layout state returned by {@link useResponsiveLayout}.
+ *
+ * @typeParam B - Breakpoint names used by the responsive configuration.
+ */
 export interface UseResponsiveLayoutReturn<B extends string = DefaultBreakpoint> {
+  /** Whether width is unresolved, zero, or large enough to select renderable geometry. */
   state: Readonly<Ref<'unresolved' | 'resolved-zero' | 'resolved'>>
+  /** The active breakpoint, or `null` before width resolution. */
   currentBreakpoint: Readonly<Ref<B | null>>
+  /** The column count for the active breakpoint, or `null` before width resolution. */
   currentCols: Readonly<Ref<number | null>>
+  /** A readonly snapshot of the current layout. */
   currentLayout: Readonly<Ref<ReadonlyLayout>>
+  /** The complete normalized breakpoint map, or `null` before width resolution. */
   completeLayouts: Readonly<Ref<CompleteResponsiveLayouts<B> | null>>
 }
 
@@ -117,7 +158,7 @@ function snapshotLayout(
     return snapshotStrictLayout(value as ReadonlyLayout, {
       cols: cols ?? Number.MAX_SAFE_INTEGER,
       rowHeight: 0,
-      margin: [0, 0],
+      gap: [0, 0],
       containerPadding: [0, 0],
       maxRows: snapshot.maxRows,
       collisionMode: snapshot.collisionMode,
@@ -183,6 +224,16 @@ function toRuntimeError(error: unknown, evaluationId: number): GridLayoutRuntime
   }
 }
 
+/**
+ * Keeps a controlled layout and responsive breakpoint map synchronized with container width.
+ *
+ * When width is resolved, callers must update `layout` and `layouts` together. A partial update is
+ * reported through `onError`, and the last valid pair is restored.
+ *
+ * @typeParam B - Breakpoint names used by the responsive configuration.
+ * @param options - Responsive configuration and writable layout models.
+ * @returns Readonly refs for the selected breakpoint, columns, layout, and complete layout map.
+ */
 export function useResponsiveLayout<B extends string = DefaultBreakpoint>(
   options: UseResponsiveLayoutOptions<B>,
 ): UseResponsiveLayoutReturn<B> {

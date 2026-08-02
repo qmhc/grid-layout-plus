@@ -347,16 +347,16 @@ async function expectedGridBox(
   const root = await page.locator('.vgl-layout').boundingBox()
   if (!root) return null
 
-  const margin = 10 * scale
+  const gap = 10 * scale
   const rowHeight = 40 * scale
-  const cellWidth = (root.width - margin * 13) / 12
-  const width = item.w * cellWidth + (item.w - 1) * margin
-  const height = item.h * rowHeight + (item.h - 1) * margin
-  const inlineOffset = margin + item.x * (cellWidth + margin)
+  const cellWidth = (root.width - gap * 13) / 12
+  const width = item.w * cellWidth + (item.w - 1) * gap
+  const height = item.h * rowHeight + (item.h - 1) * gap
+  const inlineOffset = gap + item.x * (cellWidth + gap)
 
   return {
     x: rtl ? root.x + root.width - inlineOffset - width : root.x + inlineOffset,
-    y: root.y + margin + item.y * (rowHeight + margin),
+    y: root.y + gap + item.y * (rowHeight + gap),
     width,
     height,
   }
@@ -496,8 +496,7 @@ defineFutureContract({
         updatedSource:
           (
             events.find(event => event.name === 'layout-updated')?.args[1] as
-              | { source?: unknown }
-              | undefined
+              { source?: unknown } | undefined
           )?.source ?? null,
       }
     }
@@ -957,8 +956,7 @@ defineFutureContract({
     const noAckNames = eventNames(noAckEvents)
     const noAckResized = noAckEvents.filter(event => event.name === 'item-resized')
     const noAckWorkingItem = lastPayload(noAckEvents, 'interaction-change')?.item as
-      | { w?: unknown; h?: unknown }
-      | undefined
+      { w?: unknown; h?: unknown } | undefined
     const noAckUpdateIndex = noAckNames.lastIndexOf('update:layout')
     const noAckChangeIndex = noAckNames.lastIndexOf('interaction-change')
     const noAckResizedIndex = noAckNames.lastIndexOf('item-resized')
@@ -974,8 +972,7 @@ defineFutureContract({
     const dragNoAckNames = eventNames(dragNoAckEvents)
     const dragNoAckMoved = dragNoAckEvents.filter(event => event.name === 'item-moved')
     const dragNoAckWorkingItem = lastPayload(dragNoAckEvents, 'interaction-change')?.item as
-      | { x?: unknown; y?: unknown }
-      | undefined
+      { x?: unknown; y?: unknown } | undefined
     const dragNoAckMoveIndex = dragNoAckNames.lastIndexOf('item-move')
     const dragNoAckUpdateIndex = dragNoAckNames.lastIndexOf('update:layout')
     const dragNoAckChangeIndex = dragNoAckNames.lastIndexOf('interaction-change')
@@ -1609,13 +1606,13 @@ defineFutureContract({
           candidate: {
             breakpoint: null,
             cols: 12,
-            margin: [10, 10],
+            gap: [10, 10],
             containerPadding: [10, 10],
           },
           committed: {
             breakpoint: null,
             cols: 12,
-            margin: [10, 10],
+            gap: [10, 10],
             containerPadding: [10, 10],
           },
         },
@@ -1651,13 +1648,13 @@ defineFutureContract({
           candidate: {
             breakpoint: null,
             cols: 12,
-            margin: [10, 10],
+            gap: [10, 10],
             containerPadding: [10, 10],
           },
           committed: {
             breakpoint: null,
             cols: 12,
-            margin: [10, 10],
+            gap: [10, 10],
             containerPadding: [10, 10],
           },
         },
@@ -1693,13 +1690,13 @@ defineFutureContract({
           candidate: {
             breakpoint: null,
             cols: 12,
-            margin: [10, 10],
+            gap: [10, 10],
             containerPadding: [10, 10],
           },
           committed: {
             breakpoint: null,
             cols: 12,
-            margin: [10, 10],
+            gap: [10, 10],
             containerPadding: [10, 10],
           },
         },
@@ -1735,13 +1732,13 @@ defineFutureContract({
           candidate: {
             breakpoint: null,
             cols: 12,
-            margin: [10, 10],
+            gap: [10, 10],
             containerPadding: [10, 10],
           },
           committed: {
             breakpoint: null,
             cols: 12,
-            margin: [10, 10],
+            gap: [10, 10],
             containerPadding: [10, 10],
           },
         },
@@ -2544,8 +2541,7 @@ defineFutureContract({
         const activeBox = await itemA(page).boundingBox()
         const interaction = lastPayload(await readEvents(page), 'interaction-change')
         const activeItem = (interaction?.item ?? interaction?.candidate) as
-          | GridItemSnapshot
-          | undefined
+          GridItemSnapshot | undefined
         const expectedActive = activeItem ? await expectedGridBox(page, activeItem, scale) : null
         const placeholder = await page
           .locator('.vgl-item--placeholder:visible')
@@ -2869,8 +2865,7 @@ defineFutureContract({
       const dragOver = lastPayload(await readEvents(page), 'drop-drag-over')
       const candidate = dropCandidate(dragOver) as GridItemSnapshot | null
       const callback = (await callbackInputs(page)).at(-1)?.[0] as
-        | { candidate?: GridItemSnapshot }
-        | undefined
+        { candidate?: GridItemSnapshot } | undefined
       const provisional = callback?.candidate
       const root = await page.locator('.vgl-layout').boundingBox()
       let expectedCandidate: GridItemSnapshot | null = null

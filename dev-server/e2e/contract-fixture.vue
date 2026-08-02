@@ -145,7 +145,7 @@ const ackMode = ref<AckMode>(
                   : 'none') as AckMode,
 )
 const rowHeight = ref(40)
-const margin = ref<[number, number]>([10, 10])
+const gap = ref<[number, number]>([10, 10])
 const containerPadding = ref<[number, number]>([10, 10])
 const explicitWidth = ref<number | undefined>(
   [
@@ -820,7 +820,7 @@ onErrorCaptured(error => {
         :col-num="12"
         :row-height="rowHeight"
         :max-rows="maxRows"
-        :margin="margin"
+        :gap="gap"
         :is-draggable="isDraggable"
         :is-resizable="isResizable"
         :is-mirrored="isMirrored"

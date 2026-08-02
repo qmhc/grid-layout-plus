@@ -137,7 +137,7 @@ interface GridConfig<B extends string = DefaultBreakpoint> {
   colNum?: number
   rowHeight?: number
   maxRows?: number
-  margin?: ResponsiveValue<B, readonly [number, number]>
+  gap?: ResponsiveValue<B, readonly [number, number]>
   containerPadding?: ResponsiveValue<B, readonly [number, number]>
   autoSize?: boolean
 }
@@ -226,7 +226,7 @@ interface GridGeometry {
   width: number
   cols: number
   rowHeight: number
-  margin: readonly [number, number]
+  gap: readonly [number, number]
   containerPadding: readonly [number, number]
   rtl: boolean
   effectiveScale: number
@@ -287,6 +287,9 @@ The number of grid columns. It must be a positive integer.
 
 The height of one row in pixels.
 
+`LayoutItem.h` is the number of rows an item spans, not a pixel value. Its rendered height is
+`h * rowHeight + (h - 1) * gap[1]`; spanning multiple rows also spans the gaps between them.
+
 ### max-rows
 
 - type: `number`
@@ -294,7 +297,7 @@ The height of one row in pixels.
 
 The maximum number of rows.
 
-### margin
+### gap
 
 - type: `ResponsiveValue<B, readonly [number, number]>`
 - default: `[10, 10]`
@@ -304,7 +307,7 @@ The horizontal and vertical gaps between items, in pixels. Pass exactly two numb
 ### container-padding
 
 - type: `ResponsiveValue<B, readonly [number, number]>`
-- default: the resolved `margin`
+- default: `[0, 0]`
 
 The horizontal and vertical padding inside the layout container, in pixels. Pass `[horizontal, vertical]` or, in responsive mode, a complete breakpoint map.
 
@@ -479,7 +482,7 @@ interface GridConfig<B extends string = DefaultBreakpoint> {
   colNum?: number
   rowHeight?: number
   maxRows?: number
-  margin?: ResponsiveValue<B, readonly [number, number]>
+  gap?: ResponsiveValue<B, readonly [number, number]>
   containerPadding?: ResponsiveValue<B, readonly [number, number]>
   autoSize?: boolean
 }
@@ -617,15 +620,16 @@ The minimum drag distance for this item, in pixels. When omitted, it inherits [`
 
 `GridBackground` draws grid lines behind the items. When it is rendered inside `GridLayout`, geometry props inherit from the parent unless explicitly provided.
 
-| Prop           | Type                        | Default                               | Description                        |
-| -------------- | --------------------------- | ------------------------------------- | ---------------------------------- |
-| `cols`         | `number`                    | parent `colNum`, otherwise `12`       | Number of columns.                 |
-| `row-height`   | `number`                    | parent `rowHeight`, otherwise `150`   | Row height in pixels.              |
-| `margin`       | `readonly [number, number]` | parent `margin`, otherwise `[10, 10]` | Horizontal and vertical gaps.      |
-| `width`        | `number`                    | parent width, otherwise `0`           | Drawing width in pixels.           |
-| `rows`         | `number`                    | fills the available height            | Optional number of rows to draw.   |
-| `color`        | `string`                    | `rgba(0,0,0,0.1)`                     | Grid-line color.                   |
-| `stroke-width` | `number`                    | `1`                                   | Non-negative line width in pixels. |
+| Prop                | Type                        | Default                                      | Description                        |
+| ------------------- | --------------------------- | -------------------------------------------- | ---------------------------------- |
+| `cols`              | `number`                    | parent `colNum`, otherwise `12`              | Number of columns.                 |
+| `row-height`        | `number`                    | parent `rowHeight`, otherwise `150`          | Row height in pixels.              |
+| `gap`               | `readonly [number, number]` | parent `gap`, otherwise `[10, 10]`           | Horizontal and vertical gaps.      |
+| `container-padding` | `readonly [number, number]` | parent `containerPadding`, otherwise `[0,0]` | Padding around the drawn grid.     |
+| `width`             | `number`                    | parent width, otherwise `0`                  | Drawing width in pixels.           |
+| `rows`              | `number`                    | fills the available height                   | Optional number of rows to draw.   |
+| `color`             | `string`                    | `rgba(0,0,0,0.1)`                            | Grid-line color.                   |
+| `stroke-width`      | `number`                    | `1`                                          | Non-negative line width in pixels. |
 
 See the [Grid Background example](../example/grid-background) for usage.
 

@@ -16,7 +16,7 @@ interface UseGridLayoutOptions {
   layout: Ref<Layout> | ReadonlyLayout
   cols: MaybeRefOrGetter<number>
   rowHeight?: MaybeRefOrGetter<number>
-  margin?: MaybeRefOrGetter<readonly [number, number]>
+  gap?: MaybeRefOrGetter<readonly [number, number]>
   containerPadding?: MaybeRefOrGetter<readonly [number, number]>
   maxRows?: MaybeRefOrGetter<number>
   compactor?: MaybeRefOrGetter<Compactor>

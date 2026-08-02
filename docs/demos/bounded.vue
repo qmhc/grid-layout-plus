@@ -41,7 +41,7 @@ function resetLayout() {
       :auto-size="false"
       :is-bounded="bounded"
       :is-resizable="false"
-      :margin="[10, 10]"
+      :gap="[10, 10]"
       :row-height="50"
     >
       <template #item="{ item }">

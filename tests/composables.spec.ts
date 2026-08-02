@@ -49,7 +49,7 @@ describe('useGridLayout', () => {
     expect(compact).toHaveBeenCalledOnce()
     expect(api.layout.value.map(item => item.y)).toEqual([0, 0])
     expect(api.containerRows.value).toBe(1)
-    expect(api.containerHeight.value).toBe(170)
+    expect(api.containerHeight.value).toBe(150)
     expect(layout.map(item => item.y)).toEqual([5, 3])
 
     const source = ref<Layout>([{ i: 'ref', x: 0, y: 2, w: 1, h: 1 }])
@@ -908,7 +908,7 @@ describe('useGridLayout', () => {
         ],
         cols: 4,
         rowHeight: 0,
-        margin: [0, 0],
+        gap: [0, 0],
         containerPadding: [0, 0],
         collisionMode: 'push',
         compactor: noCompactor,
@@ -1042,7 +1042,7 @@ describe('useGridLayout', () => {
   })
 
   it('动态 spacing accessor 不执行 getter，并按 invalid-config 取消 active', () => {
-    const margin = ref<readonly [number, number]>([10, 10])
+    const gap = ref<readonly [number, number]>([10, 10])
     const getter = vi.fn(() => 10)
     const errors = vi.fn()
     const terminals = vi.fn()
@@ -1050,7 +1050,7 @@ describe('useGridLayout', () => {
       useGridLayout({
         layout: createLayout(),
         cols: 4,
-        margin,
+        gap,
         onError: errors,
         onInteractionEnd: terminals,
       }),
@@ -1058,23 +1058,23 @@ describe('useGridLayout', () => {
     const started = api.beginInteraction({ type: 'drag', id: 'active', nativeEvent: null })
     expect(started.status).toBe('accepted')
 
-    const invalidMargin: unknown[] = []
-    Object.defineProperty(invalidMargin, '0', {
+    const invalidGap: unknown[] = []
+    Object.defineProperty(invalidGap, '0', {
       enumerable: true,
       get: getter,
     })
-    Object.defineProperty(invalidMargin, '1', {
+    Object.defineProperty(invalidGap, '1', {
       enumerable: true,
       value: 10,
     })
-    margin.value = invalidMargin as unknown as readonly [number, number]
+    gap.value = invalidGap as unknown as readonly [number, number]
 
     expect(getter).not.toHaveBeenCalled()
     expect(errors).toHaveBeenCalledWith(
       expect.objectContaining({
         code: 'invalid-config',
         source: 'config',
-        path: 'config.margin',
+        path: 'config.gap',
       }),
     )
     expect(api.isInteracting.value).toBe(false)

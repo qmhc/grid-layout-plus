@@ -9,7 +9,7 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
       props: {
         cols: 12,
         rowHeight: 30,
-        margin: [10, 10] as [number, number],
+        gap: [10, 10] as [number, number],
         width: 1200,
       },
     })
@@ -26,7 +26,7 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
       props: {
         cols: 4,
         rowHeight: 50,
-        margin: [5, 5] as [number, number],
+        gap: [5, 5] as [number, number],
         width: 400,
         color: '#ff0000',
         strokeWidth: 2,
@@ -46,7 +46,7 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
       props: {
         cols: 12,
         rowHeight: 30,
-        margin: [10, 10] as [number, number],
+        gap: [10, 10] as [number, number],
         width: 1200,
       },
     })
@@ -60,54 +60,54 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
   })
 
   it('backgroundSize 与 calcGridCellDimensions 一致', () => {
-    // cols=4, margin=[10,10], width=400
-    // cellWidth = (400 - 10 * 5) / 4 = 350 / 4 = 87.5
-    // patternWidth = 87.5 + 10 = 97.5
+    // cols=4, gap=[10,10], width=400
+    // cellWidth = (400 - 10 * 3) / 4 = 370 / 4 = 92.5
+    // patternWidth = 92.5 + 10 = 102.5
     // patternHeight = 50 + 10 = 60
     const wrapper = mount(GridBackground, {
       props: {
         cols: 4,
         rowHeight: 50,
-        margin: [10, 10] as [number, number],
+        gap: [10, 10] as [number, number],
         width: 400,
       },
     })
 
     const div = wrapper.find('div')
     const style = div.attributes('style') || ''
-    expect(style).toContain('background-size: 97.5px 60px')
+    expect(style).toContain('background-size: 102.5px 60px')
 
     wrapper.unmount()
   })
 
-  it('不同 margin 配置下 backgroundSize 正确', () => {
-    // cols=6, margin=[20,15], width=800
-    // cellWidth = (800 - 20 * 7) / 6 = (800 - 140) / 6 = 110
-    // patternWidth = 110 + 20 = 130
+  it('不同 gap 配置下 backgroundSize 正确', () => {
+    // cols=6, gap=[20,15], width=800
+    // cellWidth = (800 - 20 * 5) / 6 = 700 / 6
+    // patternWidth = 700 / 6 + 20
     // patternHeight = 40 + 15 = 55
     const wrapper = mount(GridBackground, {
       props: {
         cols: 6,
         rowHeight: 40,
-        margin: [20, 15] as [number, number],
+        gap: [20, 15] as [number, number],
         width: 800,
       },
     })
 
     const div = wrapper.find('div')
     const style = div.attributes('style') || ''
-    expect(style).toContain('background-size: 130px 55px')
+    expect(style).toContain('background-size: 136.66666666666669px 55px')
 
     wrapper.unmount()
   })
 
   it('rows prop 控制 div 高度', () => {
-    // patternHeight = 50 + 10 = 60, rows=3 → height = 60 * 3 + 10 = 190
+    // rows=3 → height = 50 * 3 + 10 * 2 = 170
     const wrapper = mount(GridBackground, {
       props: {
         cols: 4,
         rowHeight: 50,
-        margin: [10, 10] as [number, number],
+        gap: [10, 10] as [number, number],
         width: 400,
         rows: 3,
       },
@@ -115,7 +115,7 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
 
     const div = wrapper.find('div')
     const style = div.attributes('style') || ''
-    expect(style).toContain('height: 190px')
+    expect(style).toContain('height: 170px')
 
     wrapper.unmount()
   })
@@ -125,7 +125,7 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
       props: {
         cols: 12,
         rowHeight: 30,
-        margin: [10, 10] as [number, number],
+        gap: [10, 10] as [number, number],
         width: 1200,
       },
     })
@@ -142,7 +142,7 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
       props: {
         cols: 4,
         rowHeight: 50,
-        margin: [10, 10] as const,
+        gap: [10, 10] as const,
         width: 400,
         rows: 0,
       },
@@ -152,28 +152,28 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
     await wrapper.setProps({ rows: Number.POSITIVE_INFINITY })
     expect(wrapper.find('.vgl-background').attributes('style')).toContain('height: 100%')
     await wrapper.setProps({ rows: 2.5 })
-    expect(wrapper.find('.vgl-background').attributes('style')).toContain('height: 160px')
+    expect(wrapper.find('.vgl-background').attributes('style')).toContain('height: 140px')
 
     wrapper.unmount()
   })
 
-  it('backgroundPosition 把网格线放在 margin 中间', () => {
-    // cols=12, margin=[10,10], width=1200
-    // cellWidth = (1200 - 10*13) / 12 = 89.166...
-    // bgPosX = cellWidth + 1.5*marginX = 89.166... + 15 = 104.166...
-    // bgPosY = cellHeight + 1.5*marginY = 30 + 15 = 45
+  it('backgroundPosition 把网格线放在 gap 中间', () => {
+    // cols=12, gap=[10,10], width=1200
+    // cellWidth = (1200 - 10*11) / 12 = 90.833...
+    // bgPosX = cellWidth + gapX/2 = 95.833...
+    // bgPosY = cellHeight + gapY/2 = 35
     const wrapper = mount(GridBackground, {
       props: {
         cols: 12,
         rowHeight: 30,
-        margin: [10, 10] as [number, number],
+        gap: [10, 10] as [number, number],
         width: 1200,
       },
     })
 
     const div = wrapper.find('div')
     const style = div.attributes('style') || ''
-    expect(style).toContain('background-position: 104.166667px 45px')
+    expect(style).toContain('background-position: 95.833333px 35px')
 
     wrapper.unmount()
   })
@@ -183,7 +183,7 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
       props: {
         cols: 4,
         rowHeight: 40,
-        margin: [10, 10] as const,
+        gap: [10, 10] as const,
         width: Number.POSITIVE_INFINITY,
         rows: 3,
       },
@@ -196,12 +196,12 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
     for (const props of [
       { cols: 0 },
       { rowHeight: Number.NaN },
-      { margin: [Number.POSITIVE_INFINITY, 10] as const },
+      { gap: [Number.POSITIVE_INFINITY, 10] as const },
       { strokeWidth: Number.POSITIVE_INFINITY },
       { color: 1 as unknown as string },
       {
         width: Number.MAX_VALUE,
-        margin: [Number.MAX_VALUE, 10] as const,
+        gap: [Number.MAX_VALUE, 10] as const,
       },
     ]) {
       await wrapper.setProps(props)
@@ -209,7 +209,7 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
       await wrapper.setProps({
         cols: 4,
         rowHeight: 40,
-        margin: [10, 10],
+        gap: [10, 10],
         width: 400,
         rows: 3,
         strokeWidth: 1,
@@ -217,6 +217,25 @@ describe('GridBackground 组件（需求 12.1-12.5）', () => {
       })
       expect(wrapper.find('.vgl-background').exists()).toBe(true)
     }
+
+    wrapper.unmount()
+  })
+
+  it('containerPadding 独立控制网格线位置和指定行数高度', () => {
+    const wrapper = mount(GridBackground, {
+      props: {
+        cols: 4,
+        rowHeight: 50,
+        gap: [10, 10] as const,
+        containerPadding: [20, 30] as const,
+        width: 400,
+        rows: 3,
+      },
+    })
+
+    const style = wrapper.find('.vgl-background').attributes('style')
+    expect(style).toContain('height: 230px')
+    expect(style).toContain('background-position: 107.5px 85px')
 
     wrapper.unmount()
   })

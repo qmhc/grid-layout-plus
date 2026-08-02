@@ -364,7 +364,7 @@ describe('Phase 2 review regressions', () => {
 
   it('active 策略切换使用 committed Layout 几何预检', async () => {
     const getStyle = vi.fn((top: number, left: number, width: number, height: number) => {
-      if (left !== 10) throw new Error(`unexpected working left ${left}`)
+      if (left !== 0) throw new Error(`unexpected working left ${left}`)
       return {
         top: `${top}px`,
         left: `${left}px`,
@@ -460,8 +460,8 @@ describe('Phase 2 review regressions', () => {
     await settle()
 
     expect(item.classes()).not.toContain('vgl-item--static')
-    expect(item.attributes('style')).toContain('translate3d(10px, 10px, 0)')
-    expect(item.attributes('style')).toContain('width: 87.5px')
+    expect(item.attributes('style')).toContain('translate3d(0px, 0px, 0)')
+    expect(item.attributes('style')).toContain('width: 92.5px')
     wrapper.unmount()
   })
 

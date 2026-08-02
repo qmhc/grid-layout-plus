@@ -8,6 +8,23 @@ import type {
   ReadonlyLayoutItem,
 } from './types'
 
+/** @internal GridItem 向 GridLayout 注册的内部实例。 */
+export interface GridItemRegistration {
+  i: LayoutItem['i']
+  internal?: boolean
+  wrapper?: HTMLElement
+  state: {
+    registered: boolean
+    resizable?: boolean
+    style: Record<string, string>
+  }
+  resetInteractionState(type?: 'drag' | 'resize'): void
+  finishDragInteraction(item: Pick<ReadonlyLayoutItem, 'x' | 'y'> | null): void
+  finishResizeInteraction(item: Pick<ReadonlyLayoutItem, 'x' | 'y' | 'w' | 'h'> | null): void
+  refreshPositionStyle(): void
+  disableInteractionBinding(type?: 'drag' | 'resize'): void
+}
+
 /** @internal GridLayout 与 GridItem 之间的注入上下文，不属于公共包 API。 */
 export interface LayoutInstance {
   responsive: boolean
@@ -16,7 +33,7 @@ export interface LayoutInstance {
   colNum: number
   rowHeight: number
   width: number | null
-  margin: number[]
+  gap: number[]
   containerPadding: readonly [number, number]
   isDraggable: boolean
   isResizable: boolean
@@ -31,13 +48,17 @@ export interface LayoutInstance {
   isDroppable: boolean
   dropItem: { w: number; h: number }
   dragThreshold: number
-  increaseItem: (item: any) => void
-  decreaseItem: (item: any) => void
-  updateItem: (item: any, previousId: LayoutItem['i']) => void
+  increaseItem: (item: GridItemRegistration) => void
+  decreaseItem: (item: GridItemRegistration) => void
+  updateItem: (item: GridItemRegistration, previousId: LayoutItem['i']) => void
   getLayoutItem: (id: LayoutItem['i']) => ReadonlyLayoutItem | undefined
   getItemZIndex: (id: number | string) => number | undefined
   getPositionStyle: (id: LayoutItem['i']) => Readonly<Record<string, string>>
-  handleItemConfigChange: (item: any, type: 'drag' | 'resize', error?: unknown) => void
+  handleItemConfigChange: (
+    item: GridItemRegistration,
+    type: 'drag' | 'resize',
+    error?: unknown,
+  ) => void
   rejectItemInteraction: (
     type: 'drag' | 'resize',
     id: LayoutItem['i'],

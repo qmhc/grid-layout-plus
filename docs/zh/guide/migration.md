@@ -37,6 +37,24 @@ const layout = ref<Layout>([
 
 ## 常规变化
 
+### 栅格间距与容器内边距
+
+`margin` 属性和配置字段已移除，请改名为 `gap`：
+
+```vue
+<!-- v1 -->
+<GridLayout :margin="[10, 10]" />
+
+<!-- v2 -->
+<GridLayout :gap="[10, 10]" />
+```
+
+`gap` 只控制行列之间的间距。v2 中未传入 `containerPadding` 时默认值为 `[0, 0]`，不再沿用栅格间距。若要保留 v1 默认的容器外圈留白，请显式设置两个值：
+
+```vue
+<GridLayout :gap="[10, 10]" :container-padding="[10, 10]" />
+```
+
 ### 压缩和定位属性
 
 这项变化只影响显式设置过 `vertical-compact`、`use-css-transforms` 或 `transform-scale` 的项目。

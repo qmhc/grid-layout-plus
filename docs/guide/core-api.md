@@ -126,7 +126,7 @@ interface GridGeometry {
   width: number
   cols: number
   rowHeight: number
-  margin: readonly [number, number]
+  gap: readonly [number, number]
   containerPadding: readonly [number, number]
   rtl: boolean
   effectiveScale: number

@@ -207,7 +207,7 @@ export const SsrFixture = defineComponent({
               breakpoints: props.input.breakpoints,
               cols: props.input.cols,
               rowHeight: 40,
-              margin: [10, 10],
+              gap: [10, 10],
               containerPadding: [10, 10],
               positionStrategy: props.input.strategyFailure ? invalidStrategy : undefined,
               onLayoutMounted: () => record('layout-mounted'),

@@ -63,7 +63,7 @@ describe('外部拖入 proposal', () => {
         dropItem: { w: 2, h: 2 },
         colNum: 12,
         rowHeight: 150,
-        margin: [10, 10],
+        gap: [10, 10],
       },
       attachTo: document.body,
     })
@@ -100,7 +100,7 @@ describe('外部拖入 proposal', () => {
         dropItem: { w: 1, h: 1 },
         colNum: 12,
         rowHeight: 150,
-        margin: [10, 10],
+        gap: [10, 10],
       },
       attachTo: document.body,
     })
@@ -143,7 +143,7 @@ describe('外部拖入 proposal', () => {
         dropItem: { w: 2, h: 2 },
         colNum: 12,
         rowHeight: 150,
-        margin: [10, 10],
+        gap: [10, 10],
       },
       attachTo: document.body,
     })
@@ -209,7 +209,7 @@ describe('外部拖入 proposal', () => {
         dropItem: { w: 3, h: 1 },
         colNum: 12,
         rowHeight: 150,
-        margin: [10, 10],
+        gap: [10, 10],
       },
       attachTo: document.body,
     })
@@ -324,11 +324,9 @@ describe('DropConfig 与 proposal 边界', () => {
     await nextTick()
 
     const error = wrapper.emitted('error')?.at(-1)?.[0] as
-      | { code: string; evaluationId: number }
-      | undefined
+      { code: string; evaluationId: number } | undefined
     const rejected = wrapper.emitted('operation-rejected')?.at(-1)?.[0] as
-      | { reason: string; evaluationId: number }
-      | undefined
+      { reason: string; evaluationId: number } | undefined
     expect(error).toMatchObject({ code: testCase.code })
     expect(rejected).toMatchObject({ reason: testCase.reason })
     expect(rejected?.evaluationId).toBe(error?.evaluationId)
@@ -600,8 +598,7 @@ describe('DropConfig 与 proposal 边界', () => {
 
       const evaluation = observed.find(call => call.length === layout.length + 1)
       const context = wrapper.emitted('drop-drag-over')?.at(-1)?.[0] as
-        | { candidate: Record<string, unknown>; previewLayout: ReadonlyLayout }
-        | undefined
+        { candidate: Record<string, unknown>; previewLayout: ReadonlyLayout } | undefined
       expect(evaluation?.at(-1)).toBe(expectedSyntheticId)
       expect(context?.candidate).not.toHaveProperty('i')
       expect(context?.previewLayout.map(item => item.i)).toEqual(ids)

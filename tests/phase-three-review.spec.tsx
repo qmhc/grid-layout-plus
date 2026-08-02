@@ -332,7 +332,7 @@ describe('Phase 3 review regressions', () => {
       revision: null,
     })
     expect(wrapper.find('.vgl-item:not(.vgl-item--placeholder)').attributes('style')).toContain(
-      'translate3d(10px, 10px, 0)',
+      'translate3d(0px, 0px, 0)',
     )
     expect(layouts.value.mobile).toEqual([{ i: 'item', x: 0, y: 0, w: 1, h: 1 }])
 
@@ -351,7 +351,7 @@ describe('Phase 3 review regressions', () => {
 
   it('响应式配置预检失败时不部分提交新的 width', async () => {
     const width = ref(400)
-    const margin = shallowRef({ mobile: [10, 10] as const })
+    const gap = shallowRef({ mobile: [10, 10] as const })
     const layout = ref<Layout>([{ i: 'item', x: 0, y: 0, w: 1, h: 1 }])
     const layouts = ref<ResponsiveLayoutsInput<'mobile'>>({
       mobile: layout.value,
@@ -365,7 +365,7 @@ describe('Phase 3 review regressions', () => {
           width: width.value,
           breakpoints: { mobile: 0 },
           cols: { mobile: 4 },
-          margin: margin.value,
+          gap: gap.value,
           responsiveLayouts: layouts.value,
           'onUpdate:layout': value => {
             layout.value = value
@@ -380,12 +380,12 @@ describe('Phase 3 review regressions', () => {
     await flushUpdates(8)
     const initialWidthEvents = widths.length
 
-    margin.value = { mobile: [Number.NaN, 10] }
+    gap.value = { mobile: [Number.NaN, 10] }
     width.value = 500
     await flushUpdates()
     expect(widths).toHaveLength(initialWidthEvents)
 
-    margin.value = { mobile: [10, 10] }
+    gap.value = { mobile: [10, 10] }
     width.value = 600
     await flushUpdates(8)
     expect(widths.at(-1)?.width).toBe(600)

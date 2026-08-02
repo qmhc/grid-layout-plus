@@ -19,48 +19,51 @@ import type { GridGeometry, Layout } from '../src/helpers/types'
 // ─── calcGridCellDimensions ─────────────────────────────────
 
 describe('calcGridCellDimensions', () => {
-  it('标准参数 — 公式 (containerWidth - marginX * (cols + 1)) / cols', () => {
+  it('标准参数 — 公式 (containerWidth - 2 * paddingX - gapX * (cols - 1)) / cols', () => {
     const result = calcGridCellDimensions({
       containerWidth: 1200,
       cols: 12,
-      margin: [10, 10],
+      gap: [10, 10],
+      containerPadding: [10, 10],
       rowHeight: 30,
     })
 
     // cellWidth = (1200 - 10 * 13) / 12 = (1200 - 130) / 12 = 1070 / 12
     expect(result.cellWidth).toBeCloseTo(1070 / 12)
     expect(result.cellHeight).toBe(30)
-    expect(result.marginX).toBe(10)
-    expect(result.marginY).toBe(10)
+    expect(result.gapX).toBe(10)
+    expect(result.gapY).toBe(10)
   })
 
-  it('不同 margin 值 — marginX 和 marginY 独立', () => {
+  it('不同 gap 值 — gapX 和 gapY 独立', () => {
     const result = calcGridCellDimensions({
       containerWidth: 800,
       cols: 4,
-      margin: [5, 20],
+      gap: [5, 20],
+      containerPadding: [5, 20],
       rowHeight: 50,
     })
 
     // cellWidth = (800 - 5 * 5) / 4 = (800 - 25) / 4 = 193.75
     expect(result.cellWidth).toBeCloseTo(193.75)
     expect(result.cellHeight).toBe(50)
-    expect(result.marginX).toBe(5)
-    expect(result.marginY).toBe(20)
+    expect(result.gapX).toBe(5)
+    expect(result.gapY).toBe(20)
   })
 
-  it('margin 为 0 — cellWidth = containerWidth / cols', () => {
+  it('gap 为 0 — cellWidth = containerWidth / cols', () => {
     const result = calcGridCellDimensions({
       containerWidth: 600,
       cols: 6,
-      margin: [0, 0],
+      gap: [0, 0],
+      containerPadding: [0, 0],
       rowHeight: 40,
     })
 
     expect(result.cellWidth).toBe(100)
     expect(result.cellHeight).toBe(40)
-    expect(result.marginX).toBe(0)
-    expect(result.marginY).toBe(0)
+    expect(result.gapX).toBe(0)
+    expect(result.gapY).toBe(0)
   })
 
   it('cols <= 0 — 以稳定 path 拒绝非法配置', () => {
@@ -68,7 +71,8 @@ describe('calcGridCellDimensions', () => {
       calcGridCellDimensions({
         containerWidth: 1200,
         cols: 0,
-        margin: [10, 10],
+        gap: [10, 10],
+        containerPadding: [10, 10],
         rowHeight: 30,
       }),
     ).toThrowError(
@@ -83,7 +87,8 @@ describe('calcGridCellDimensions', () => {
     const result = calcGridCellDimensions({
       containerWidth: 500,
       cols: 1,
-      margin: [10, 10],
+      gap: [10, 10],
+      containerPadding: [10, 10],
       rowHeight: 100,
     })
 
@@ -96,7 +101,8 @@ describe('calcGridCellDimensions', () => {
     const result = calcGridCellDimensions({
       containerWidth: 1000,
       cols: 12,
-      margin: [10, 10],
+      gap: [10, 10],
+      containerPadding: [10, 10],
       rowHeight: 30,
     })
 
@@ -107,12 +113,25 @@ describe('calcGridCellDimensions', () => {
     const result = calcGridCellDimensions({
       containerWidth: 10,
       cols: 12,
-      margin: [10, 10],
+      gap: [10, 10],
+      containerPadding: [10, 10],
       rowHeight: 30,
     })
 
     // (10 - 10 * 13) / 12 = (10 - 130) / 12 = -10，但会被 clamp 到 0
     expect(result.cellWidth).toBeCloseTo(0)
+  })
+
+  it('containerPadding 为 0 时只扣除内部 gap', () => {
+    const result = calcGridCellDimensions({
+      containerWidth: 1200,
+      cols: 12,
+      gap: [10, 10],
+      containerPadding: [0, 0],
+      rowHeight: 30,
+    })
+
+    expect(result.cellWidth).toBeCloseTo((1200 - 10 * 11) / 12)
   })
 })
 
@@ -120,7 +139,7 @@ const geometry: GridGeometry = {
   width: 800,
   cols: 4,
   rowHeight: 40,
-  margin: [10, 10],
+  gap: [10, 10],
   containerPadding: [20, 30],
   rtl: false,
   effectiveScale: 1,
@@ -243,7 +262,7 @@ describe('pointerToGridPosition', () => {
         geometry: {
           ...geometry,
           width: 40,
-          margin: [0, 0],
+          gap: [0, 0],
           containerPadding: [20, 0],
         },
       }),
@@ -267,7 +286,7 @@ describe('pixelSizeToGridSize', () => {
       pixelSizeToGridSize({
         width: 10,
         height: 10,
-        geometry: { ...geometry, rowHeight: 0, margin: [10, 0] },
+        geometry: { ...geometry, rowHeight: 0, gap: [10, 0] },
       }),
     ).toThrowError(
       expect.objectContaining<GridLayoutValidationError>({
@@ -306,17 +325,17 @@ describe('geometry 派生边界', () => {
         gridToPixelRect(item, {
           ...geometry,
           rowHeight: maximum,
-          margin: [0, maximum],
+          gap: [0, maximum],
           containerPadding: [0, 0],
         }),
-      'geometry.margin[1]',
+      'geometry.gap[1]',
     ],
     [
       'item extent overflow',
       () =>
         gridToPixelRect(
           { ...item, x: 2 },
-          { ...geometry, width: maximum, cols: 1, margin: [0, 0], containerPadding: [0, 0] },
+          { ...geometry, width: maximum, cols: 1, gap: [0, 0], containerPadding: [0, 0] },
         ),
       'layoutItem.x',
     ],
@@ -371,7 +390,7 @@ describe('geometry 派生边界', () => {
             ...geometry,
             width: 1,
             cols: 1,
-            margin: [maximum, 0],
+            gap: [maximum, 0],
             containerPadding: [0, 0],
           },
         }),
@@ -387,7 +406,7 @@ describe('geometry 派生边界', () => {
             ...geometry,
             width: minimum,
             cols: 1,
-            margin: [0, 0],
+            gap: [0, 0],
             containerPadding: [0, 0],
           },
         }),

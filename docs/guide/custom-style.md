@@ -61,23 +61,20 @@ You can also draw grid lines with a CSS background on `GridLayout`:
 ```css
 .vgl-layout::before {
   position: absolute;
-  width: calc(100% - 5px);
-  height: calc(100% - 5px);
-  margin: 5px;
+  inset: 0;
   content: '';
   background-image:
     linear-gradient(to right,lightgrey 1px,transparent 1px),
     linear-gradient(to bottom, lightgrey 1px, transparent 1px);
   background-repeat: repeat;
-  background-size: calc(calc(100% - 5px) / 12) 40px;
+  background-position: -5px -5px;
+  background-size: calc((100% + 10px) / 12) 40px;
 }
 ```
 
-Keep the background geometry in sync with the `GridLayout` props. The names in `[]` below refer to those props:
-
-- background size: `calc(calc(100% - [margin / 2]) / [col-num]) [row-height + margin]`
-- height: `calc(100% - [margin / 2])`
-- width: `calc(100% - [margin / 2])`
-- margin: `[margin / 2]`
+Keep the background geometry in sync with `GridLayout`: horizontal cell size is
+`(containerWidth - 2 * containerPadding[0] - (colNum - 1) * gap[0]) / colNum`, while
+the horizontal and vertical pitches are `cellWidth + gap[0]` and `rowHeight + gap[1]`.
+The example uses 12 columns, `gap=[10, 10]`, and `containerPadding=[0, 0]`.
 
 See [Styling Grid Lines](../example/styling-grid-lines) for a working version.

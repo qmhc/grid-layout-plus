@@ -140,7 +140,7 @@ const grid = useGridLayout({
   layout: sourceLayout,
   cols: 12,
   rowHeight: 32,
-  margin: [8, 8],
+  gap: [8, 8],
   onOperationRejected(payload) {
     console.warn(payload.reason)
   },

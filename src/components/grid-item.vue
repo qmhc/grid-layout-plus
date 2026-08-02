@@ -88,8 +88,8 @@ const state = reactive({
   cols: 1,
   containerWidth: 100,
   rowHeight: 30,
-  margin: [10, 10],
-  containerPadding: [10, 10] as readonly [number, number],
+  gap: [10, 10],
+  containerPadding: [0, 0] as readonly [number, number],
   maxRows: Infinity,
   draggable: undefined as boolean | undefined,
   resizable: undefined as boolean | undefined,
@@ -271,7 +271,7 @@ onMounted(() => {
   }
   state.rowHeight = layout.rowHeight
   state.containerWidth = layout.width !== null ? layout.width : 100
-  state.margin = layout.margin !== undefined ? layout.margin.map(Number) : [10, 10]
+  state.gap = layout.gap !== undefined ? layout.gap.map(Number) : [10, 10]
   state.containerPadding = layout.containerPadding
   state.maxRows = layout.maxRows
 
@@ -535,14 +535,14 @@ watch(
     }
   },
 )
-watch([() => layout.margin, () => layout.margin[0], () => layout.margin[1]], () => {
-  const margin = layout.margin
+watch([() => layout.gap, () => layout.gap[0], () => layout.gap[1]], () => {
+  const gap = layout.gap
 
-  if (!margin || (margin[0] === state.margin[0] && margin[1] === state.margin[1])) {
+  if (!gap || (gap[0] === state.gap[0] && gap[1] === state.gap[1])) {
     return
   }
 
-  state.margin = margin.map(Number)
+  state.gap = gap.map(Number)
   nextTickOnce(createStyle)
   nextTickOnce(emitContainerResized)
 })
@@ -1052,7 +1052,7 @@ function itemGeometry(rtl = renderRtl.value, effectiveScale = transformScale.val
     width: resolvedContainerWidth(),
     cols: state.cols,
     rowHeight: state.rowHeight,
-    margin: [state.margin[0], state.margin[1]] as const,
+    gap: [state.gap[0], state.gap[1]] as const,
     containerPadding: state.containerPadding,
     rtl,
     effectiveScale,

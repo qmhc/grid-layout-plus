@@ -45,6 +45,26 @@ When array identity must be preserved, replace the array contents in place in an
 
 ## General changes
 
+### Grid spacing and container padding
+
+The `margin` prop and configuration field have been removed. Rename them to `gap`:
+
+```vue
+<!-- v1 -->
+<GridLayout :margin="[10, 10]" />
+
+<!-- v2 -->
+<GridLayout :gap="[10, 10]" />
+```
+
+`gap` controls only the space between rows and columns. When `containerPadding` is
+omitted, its v2 default is `[0, 0]`; it no longer inherits the spacing value. To retain
+v1's default outer inset, set both values explicitly:
+
+```vue
+<GridLayout :gap="[10, 10]" :container-padding="[10, 10]" />
+```
+
 ### Compaction and positioning props
 
 This change only affects projects that explicitly set `vertical-compact`,

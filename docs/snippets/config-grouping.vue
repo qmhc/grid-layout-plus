@@ -8,7 +8,7 @@ import type { DragConfig, DropConfig, GridConfig, Layout, ResizeConfig } from 'g
 const gridConfig = reactive<GridConfig>({
   colNum: 12,
   rowHeight: 30,
-  margin: [10, 10],
+  gap: [10, 10],
 })
 const dragConfig = reactive<DragConfig>({ isDraggable: true, dragThreshold: 8 })
 const resizeConfig = reactive<ResizeConfig>({ isResizable: true })

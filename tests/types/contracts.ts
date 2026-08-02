@@ -77,7 +77,7 @@ const props: GridLayoutProps<BusinessBreakpoint> = {
   responsiveLayouts: {
     mobile: layout,
   },
-  margin: {
+  gap: {
     mobile: [8, 8],
     desktop: [16, 16],
   },
@@ -85,6 +85,11 @@ const props: GridLayoutProps<BusinessBreakpoint> = {
     mobile: [8, 8],
     desktop: [24, 24],
   },
+}
+const removedSpacingProp: GridLayoutProps = {
+  layout,
+  // @ts-expect-error v2 已直接移除 margin，请使用 gap
+  margin: [10, 10],
 }
 const inferredFromBreakpoints = inferBreakpoint({
   layout,
@@ -100,11 +105,17 @@ const inferredFromLayouts = inferBreakpoint({
 })
 const inferredFromSpacing = inferBreakpoint({
   layout,
-  margin: { mobile: [8, 8], desktop: [16, 16] },
+  gap: { mobile: [8, 8], desktop: [16, 16] },
   containerPadding: { mobile: [8, 8], desktop: [24, 24] },
 })
 
-void [inferredFromBreakpoints, inferredFromCols, inferredFromLayouts, inferredFromSpacing]
+void [
+  removedSpacingProp,
+  inferredFromBreakpoints,
+  inferredFromCols,
+  inferredFromLayouts,
+  inferredFromSpacing,
+]
 
 type InferredBreakpointAssertions = [
   Expect<Equal<typeof inferredFromBreakpoints, BusinessBreakpoint>>,

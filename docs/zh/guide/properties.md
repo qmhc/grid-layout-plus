@@ -137,7 +137,7 @@ interface GridConfig<B extends string = DefaultBreakpoint> {
   colNum?: number
   rowHeight?: number
   maxRows?: number
-  margin?: ResponsiveValue<B, readonly [number, number]>
+  gap?: ResponsiveValue<B, readonly [number, number]>
   containerPadding?: ResponsiveValue<B, readonly [number, number]>
   autoSize?: boolean
 }
@@ -226,7 +226,7 @@ interface GridGeometry {
   width: number
   cols: number
   rowHeight: number
-  margin: readonly [number, number]
+  gap: readonly [number, number]
   containerPadding: readonly [number, number]
   rtl: boolean
   effectiveScale: number
@@ -287,6 +287,9 @@ interface ReadonlyClientRect {
 
 每行的像素高度。
 
+`LayoutItem.h` 表示栅格项跨越的行数，不是像素值。实际渲染高度为
+`h * rowHeight + (h - 1) * gap[1]`；跨越多行时，也会覆盖这些行之间的间距。
+
 ### max-rows
 
 - 类型：`number`
@@ -294,7 +297,7 @@ interface ReadonlyClientRect {
 
 栅格允许的最大行数。
 
-### margin
+### gap
 
 - 类型：`ResponsiveValue<B, readonly [number, number]>`
 - 默认值：`[10, 10]`
@@ -304,7 +307,7 @@ interface ReadonlyClientRect {
 ### container-padding
 
 - 类型：`ResponsiveValue<B, readonly [number, number]>`
-- 默认值：当前解析出的 `margin`
+- 默认值：`[0, 0]`
 
 布局容器内部的横向和纵向留白，单位为像素。可以传入 `[横向, 纵向]`；响应式模式下也可以传入完整的断点映射。
 
@@ -480,7 +483,7 @@ interface GridConfig<B extends string = DefaultBreakpoint> {
   colNum?: number
   rowHeight?: number
   maxRows?: number
-  margin?: ResponsiveValue<B, readonly [number, number]>
+  gap?: ResponsiveValue<B, readonly [number, number]>
   containerPadding?: ResponsiveValue<B, readonly [number, number]>
   autoSize?: boolean
 }
@@ -618,15 +621,16 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 
 `GridBackground` 在栅格项后方绘制栅格线。放在 `GridLayout` 内时，未显式传入的几何属性会继承父级配置。
 
-| 属性           | 类型                        | 默认值                           | 说明                   |
-| -------------- | --------------------------- | -------------------------------- | ---------------------- |
-| `cols`         | `number`                    | 父级 `colNum`，否则为 `12`       | 栅格列数。             |
-| `row-height`   | `number`                    | 父级 `rowHeight`，否则为 `150`   | 行高，单位为像素。     |
-| `margin`       | `readonly [number, number]` | 父级 `margin`，否则为 `[10, 10]` | 横向和纵向间距。       |
-| `width`        | `number`                    | 父级宽度，否则为 `0`             | 绘制宽度，单位为像素。 |
-| `rows`         | `number`                    | 填满可用高度                     | 可选的绘制行数。       |
-| `color`        | `string`                    | `rgba(0,0,0,0.1)`                | 栅格线颜色。           |
-| `stroke-width` | `number`                    | `1`                              | 非负线宽，单位为像素。 |
+| 属性                | 类型                        | 默认值                                   | 说明                     |
+| ------------------- | --------------------------- | ---------------------------------------- | ------------------------ |
+| `cols`              | `number`                    | 父级 `colNum`，否则为 `12`               | 栅格列数。               |
+| `row-height`        | `number`                    | 父级 `rowHeight`，否则为 `150`           | 行高，单位为像素。       |
+| `gap`               | `readonly [number, number]` | 父级 `gap`，否则为 `[10, 10]`            | 横向和纵向间距。         |
+| `container-padding` | `readonly [number, number]` | 父级 `containerPadding`，否则为 `[0, 0]` | 绘制栅格外围的内部留白。 |
+| `width`             | `number`                    | 父级宽度，否则为 `0`                     | 绘制宽度，单位为像素。   |
+| `rows`              | `number`                    | 填满可用高度                             | 可选的绘制行数。         |
+| `color`             | `string`                    | `rgba(0,0,0,0.1)`                        | 栅格线颜色。             |
+| `stroke-width`      | `number`                    | `1`                                      | 非负线宽，单位为像素。   |
 
 用法见[栅格背景示例](../example/grid-background)。
 

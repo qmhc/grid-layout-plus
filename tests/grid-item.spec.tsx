@@ -107,7 +107,7 @@ describe('GridItem interaction', () => {
         layout: [{ x: 0, y: 0, w: 1, h: 1, i: 'item' }],
         colNum: 12,
         rowHeight: 30,
-        margin: [10, 10],
+        gap: [10, 10],
         isResizable: false,
         ...props,
       },
@@ -354,8 +354,7 @@ describe('GridItem interaction', () => {
     await nextTick()
 
     const payload = wrapper.emitted('interaction-start')?.[0]?.[0] as
-      | { nativeEvent: Event }
-      | undefined
+      { nativeEvent: Event } | undefined
     expect(payload?.nativeEvent).toBe(thresholdEvent)
     expect(payload?.nativeEvent.type).toBe('dragmove')
     wrapper.unmount()
@@ -551,7 +550,7 @@ describe('GridItem interaction', () => {
     await nextTick()
     await nextTick()
     await nextTick()
-    expect(item.attributes('style')).toContain('translate3d(205px, 170px, 0)')
+    expect(item.attributes('style')).toContain('translate3d(205px, 160px, 0)')
 
     fixture.layout.value = [{ i: 'other', x: 0, y: 0, w: 1, h: 1 }]
     await nextTick()
@@ -576,12 +575,12 @@ describe('GridItem interaction', () => {
     })
     const item = fixture.grid.find<HTMLElement>('[data-manual-owner]')
 
-    expect(item.attributes('style')).toContain('translate3d(10px, 10px, 0)')
+    expect(item.attributes('style')).toContain('translate3d(0px, 0px, 0)')
     fixture.id.value = 'second'
     await nextTick()
     await nextTick()
     await nextTick()
-    expect(item.attributes('style')).toContain('translate3d(205px, 10px, 0)')
+    expect(item.attributes('style')).toContain('translate3d(205px, 0px, 0)')
     fixture.host.unmount()
   })
 
@@ -602,7 +601,7 @@ describe('GridItem interaction', () => {
     fixture.showOwner.value = false
     await nextTick()
     await vi.waitFor(() => {
-      expect(duplicate.attributes('style')).toContain('translate3d(107.5px, 10px, 0)')
+      expect(duplicate.attributes('style')).toContain('translate3d(102.5px, 0px, 0)')
     })
     fixture.host.unmount()
   })
@@ -717,8 +716,8 @@ describe('GridItem interaction', () => {
  */
 describe('Column width rounding (Issue #58)', () => {
   const colNum = 6
-  const marginX = 10
-  const margin: [number, number] = [marginX, 10]
+  const gapX = 10
+  const gap: [number, number] = [gapX, 10]
   const trickyWidths = [997, 999, 1000, 1001, 1003, 1007, 1024, 1280, 1366, 1440, 1920]
 
   function buildSingleRowLayout(cols: number): Layout {
@@ -752,7 +751,7 @@ describe('Column width rounding (Issue #58)', () => {
   }
 
   for (const containerWidth of trickyWidths) {
-    it(`width=${containerWidth}: items tile exactly with no gaps or overlaps`, async () => {
+    it(`width=${containerWidth}: items use exact internal gaps and fill the container`, async () => {
       const layout = buildSingleRowLayout(colNum)
 
       const wrapper = mount(GridLayout, {
@@ -760,7 +759,7 @@ describe('Column width rounding (Issue #58)', () => {
           layout,
           colNum,
           rowHeight: 150,
-          margin,
+          gap,
           width: containerWidth,
           isDraggable: false,
           isResizable: false,
@@ -795,20 +794,20 @@ describe('Column width rounding (Issue #58)', () => {
         expect(parsed[i].width, `item ${i} width > 0`).toBeGreaterThan(0)
       }
 
-      // 相邻 item 边界对齐：item[i].left + item[i].width + margin === item[i+1].left
+      // 相邻 item 边界对齐：item[i].left + item[i].width + gap === item[i+1].left
       for (let i = 0; i < colNum - 1; i++) {
-        const expectedNext = parsed[i].left + parsed[i].width + marginX
+        const expectedNext = parsed[i].left + parsed[i].width + gapX
         expect(
           parsed[i + 1].left,
-          `item ${i + 1}.left should == item ${i} right edge + margin (w=${containerWidth})`,
+          `item ${i + 1}.left should == item ${i} right edge + gap (w=${containerWidth})`,
         ).toBeCloseTo(expectedNext, 5)
       }
 
-      // 最后一个 item 的右边界 + margin === 容器宽度
+      // containerPadding 默认为 0，最后一个 item 的右边界 === 容器宽度
       const last = parsed[colNum - 1]
       expect(
-        last.left + last.width + marginX,
-        `last item right edge + margin should == ${containerWidth}`,
+        last.left + last.width,
+        `last item right edge should == ${containerWidth}`,
       ).toBeCloseTo(containerWidth, 5)
 
       wrapper.unmount()

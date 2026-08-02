@@ -6,7 +6,7 @@ import type { DragConfig, DropConfig, GridConfig, ResizeConfig } from 'grid-layo
 const gridConfig = reactive<GridConfig>({
   colNum: 12,
   rowHeight: 30,
-  margin: [10, 10],
+  gap: [10, 10],
 })
 
 const dragConfig = reactive<DragConfig>({
@@ -47,7 +47,7 @@ function resetConfig() {
   Object.assign(gridConfig, {
     colNum: 12,
     rowHeight: 30,
-    margin: [10, 10] as [number, number],
+    gap: [10, 10] as [number, number],
   })
   Object.assign(dragConfig, {
     isDraggable: true,

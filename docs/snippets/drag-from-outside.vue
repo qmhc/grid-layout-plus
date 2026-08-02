@@ -42,7 +42,7 @@ function handleDrop(result: AcceptedDropResult) {
   <GridLayout
     v-model:layout="layout"
     :drop-config="dropConfig"
-    :margin="[10, 10]"
+    :gap="[10, 10]"
     :row-height="30"
     @drop="handleDrop"
   >

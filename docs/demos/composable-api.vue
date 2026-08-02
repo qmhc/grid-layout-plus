@@ -7,7 +7,7 @@ import type { Layout, LayoutOperationResult } from 'grid-layout-plus'
 
 const cols = 6
 const rowHeight = 30
-const margin = [8, 8] as const
+const gap = [8, 8] as const
 const containerPadding = [10, 10] as const
 
 function createLayout(): Layout {
@@ -28,7 +28,7 @@ const { layout, containerHeight, moveItem, addItem, removeItem, setLayout } = us
   layout: sourceLayout,
   cols,
   rowHeight,
-  margin,
+  gap,
   containerPadding,
 })
 
@@ -43,15 +43,15 @@ function report(operation: string, result: LayoutOperationResult) {
 
 const cellWidth = computed(() => {
   if (width.value === null) return 0
-  const available = width.value - containerPadding[0] * 2 - margin[0] * Math.max(0, cols - 1)
+  const available = width.value - containerPadding[0] * 2 - gap[0] * Math.max(0, cols - 1)
   return Math.max(0, available / cols)
 })
 
 function getItemStyle(item: Layout[number]) {
-  const itemWidth = item.w * cellWidth.value + Math.max(0, item.w - 1) * margin[0]
-  const itemHeight = item.h * rowHeight + Math.max(0, item.h - 1) * margin[1]
-  const left = containerPadding[0] + item.x * (cellWidth.value + margin[0])
-  const top = containerPadding[1] + item.y * (rowHeight + margin[1])
+  const itemWidth = item.w * cellWidth.value + Math.max(0, item.w - 1) * gap[0]
+  const itemHeight = item.h * rowHeight + Math.max(0, item.h - 1) * gap[1]
+  const left = containerPadding[0] + item.x * (cellWidth.value + gap[0])
+  const top = containerPadding[1] + item.y * (rowHeight + gap[1])
   return {
     width: `${itemWidth}px`,
     height: `${itemHeight}px`,

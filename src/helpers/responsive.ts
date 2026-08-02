@@ -145,7 +145,7 @@ export function snapshotResponsiveLayouts<B extends string>(
           collisionMode: options.collisionMode,
           compactor: options.compactor,
           rowHeight: 0,
-          margin: [0, 0],
+          gap: [0, 0],
           containerPadding: [0, 0],
           isDraggable: true,
           isResizable: true,

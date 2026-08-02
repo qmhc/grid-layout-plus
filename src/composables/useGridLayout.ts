@@ -42,39 +42,79 @@ import type {
   LayoutEngineEvaluation,
 } from '../core/layout-engine'
 
+/** An opaque token that identifies one active drag or resize interaction. */
 export type GridInteractionToken = string & {
+  /** Prevents callers from substituting an arbitrary string for an interaction token. */
   readonly __brand: 'GridInteractionToken'
 }
 
+/** Input used to start a continuous grid interaction. */
 export interface GridInteractionStart {
+  /** Whether the interaction moves or resizes an item. */
   type: 'drag' | 'resize'
+  /** The id of the item to interact with. */
   id: LayoutItem['i']
+  /** The native event that started the interaction, when available. */
   nativeEvent: Event | null
 }
 
+/** A proposed position or size for an active grid interaction. */
 export type GridInteractionCandidate =
-  | { type: 'drag'; x: number; y: number; nativeEvent: Event | null }
-  | { type: 'resize'; w: number; h: number; nativeEvent: Event | null }
+  | {
+      /** Identifies a move candidate. */
+      type: 'drag'
+      /** The proposed column coordinate. */
+      x: number
+      /** The proposed row coordinate. */
+      y: number
+      /** The latest native event, when available. */
+      nativeEvent: Event | null
+    }
+  | {
+      /** Identifies a resize candidate. */
+      type: 'resize'
+      /** The proposed width in grid columns. */
+      w: number
+      /** The proposed height in grid rows. */
+      h: number
+      /** The latest native event, when available. */
+      nativeEvent: Event | null
+    }
 
+/** The action that committed a headless layout change. */
 export type LayoutChangeReason = 'set' | 'move' | 'resize' | 'add' | 'remove' | 'layer' | 'config'
 
+/** Readonly state for the current drag interaction. */
 export interface GridDragState {
+  /** Whether a drag interaction is active. */
   readonly status: 'idle' | 'active'
+  /** The active interaction token, or `null` while idle. */
   readonly token: GridInteractionToken | null
+  /** The active item id, or `null` while idle. */
   readonly id: LayoutItem['i'] | null
+  /** The item's coordinates when dragging began, or `null` while idle. */
   readonly origin: Readonly<{ x: number; y: number }> | null
+  /** The latest accepted coordinates, or `null` while idle. */
   readonly current: Readonly<{ x: number; y: number }> | null
 }
 
+/** Readonly state for the current resize interaction. */
 export interface GridResizeState {
+  /** Whether a resize interaction is active. */
   readonly status: 'idle' | 'active'
+  /** The active interaction token, or `null` while idle. */
   readonly token: GridInteractionToken | null
+  /** The active item id, or `null` while idle. */
   readonly id: LayoutItem['i'] | null
+  /** The item's size when resizing began, or `null` while idle. */
   readonly origin: Readonly<{ w: number; h: number }> | null
+  /** The latest accepted size, or `null` while idle. */
   readonly current: Readonly<{ w: number; h: number }> | null
 }
 
+/** A recoverable runtime failure reported by components and composables. */
 export interface GridLayoutRuntimeError {
+  /** A stable machine-readable error code. */
   code:
     | 'invalid-layout'
     | 'invalid-config'
@@ -83,6 +123,7 @@ export interface GridLayoutRuntimeError {
     | 'extension-error'
     | 'extension-invalid-result'
     | 'derived-geometry-overflow'
+  /** The subsystem that reported the error. */
   source:
     | 'layout'
     | 'config'
@@ -92,12 +133,17 @@ export interface GridLayoutRuntimeError {
     | 'position-strategy'
     | 'drop-config'
     | 'grid-item'
+  /** The invalid field path, or `null` when no field applies. */
   path: string | null
+  /** The related layout revision, or `null` before a revision was allocated. */
   revision: number | null
+  /** The id of the evaluation that reported the error. */
   evaluationId: number
+  /** The original invalid value or thrown error. */
   cause: unknown
 }
 
+/** The reason an active interaction ended with a cancelled terminal state. */
 export type InteractionCancelReason =
   | 'cancelled'
   | 'config-changed'
@@ -109,111 +155,304 @@ export type InteractionCancelReason =
   | 'extension-error'
   | 'extension-invalid-result'
 
+/** Fields shared by every terminal drag or resize payload. */
 export interface InteractionTerminalBase {
+  /** The interaction kind. */
   type: 'drag' | 'resize'
+  /** The id of the item involved in the interaction. */
   id: LayoutItem['i']
+  /** The final revision, or `null` if no accepted candidate received one. */
   revision: number | null
+  /** The committed layout from before the interaction. */
   previousLayout: ReadonlyLayout
+  /** The committed layout after the interaction ended. */
   layout: ReadonlyLayout
+  /** The item snapshot from before the interaction. */
   oldItem: ReadonlyLayoutItem
+  /** The final item snapshot, or `null` if the item no longer exists. */
   item: ReadonlyLayoutItem | null
+  /** The last native event associated with the interaction, when available. */
   nativeEvent: Event | null
 }
 
+/** The committed, unchanged, or cancelled result of a continuous interaction. */
 export type InteractionTerminalPayload =
   | (InteractionTerminalBase & {
+      /** Indicates that the final candidate changed the committed layout. */
       status: 'committed'
+      /** The final candidate was applied. */
       reason: 'applied'
     })
   | (InteractionTerminalBase & {
+      /** Indicates that the interaction ended without a semantic layout change. */
       status: 'unchanged'
+      /** The final layout matched the previous layout. */
       reason: 'same-value'
     })
   | (InteractionTerminalBase & {
+      /** Indicates that the interaction ended with a cancelled terminal state. */
       status: 'cancelled'
+      /** The condition that cancelled the interaction. */
       reason: InteractionCancelReason
     })
 
+/** The result of starting a continuous grid interaction. */
 export type GridInteractionStartResult =
   | {
+      /** Indicates that the interaction started. */
       status: 'accepted'
+      /** The opaque token required by subsequent interaction commands. */
       token: GridInteractionToken
+      /** The active item at interaction start. */
       item: ReadonlyLayoutItem
+      /** The committed layout at interaction start. */
       layout: ReadonlyLayout
     }
   | {
+      /** Indicates that layout rules rejected the interaction start. */
       status: 'rejected'
+      /** The rejected layout operation. */
       result: RejectedLayoutOperationResult
     }
 
+/** The result of ending or cancelling a continuous interaction. */
 export type InteractionCommandResult =
   | {
+      /** Indicates that the interaction reached a terminal state. */
       status: 'terminal'
+      /** The committed, unchanged, or cancelled interaction payload. */
       terminal: InteractionTerminalPayload
     }
   | {
+      /** Indicates that the supplied token does not identify the expected active interaction. */
       status: 'rejected'
+      /** Why the token could not be used. */
       reason: 'invalid-token' | 'no-active-interaction' | 'token-type-mismatch'
+      /** The token supplied by the caller. */
       token: GridInteractionToken
     }
 
+/** A layout rejection reason, including reasons specific to external drops. */
 export type OperationRejectedReason =
-  | RejectedLayoutOperationResult['reason']
-  | 'callback-rejected'
-  | 'no-position'
+  RejectedLayoutOperationResult['reason'] | 'callback-rejected' | 'no-position'
 
+/** Details passed to an operation-rejection callback or event. */
 export interface OperationRejectedPayload {
+  /** The related revision, or `null` if no revision was allocated. */
   revision: number | null
+  /** The id of the evaluation that rejected the operation. */
   evaluationId: number
+  /** The kind of operation that was rejected. */
   operation: LayoutOperationResultBase['operation'] | 'config' | 'drop'
+  /** The rule or condition that rejected the operation. */
   reason: OperationRejectedReason
+  /** The target item id, or `null` for layout-wide operations. */
   id: LayoutItem['i'] | null
+  /** The layout committed before the rejected operation. */
   previousLayout: ReadonlyLayout
+  /** The layout retained after the rejection. */
   layout: ReadonlyLayout
+  /** The rejected item or drop candidate, when available. */
   candidate: ReadonlyLayoutItem | Readonly<Omit<LayoutItem, 'i' | 'moved'>> | null
+  /** The native event associated with the operation, when available. */
   nativeEvent: Event | null
 }
 
+/** Options accepted by {@link useGridLayout}. */
 export interface UseGridLayoutOptions {
+  /** A writable controlled layout ref, or an initial layout for internally managed state. */
   layout: Ref<Layout> | ReadonlyLayout
+  /** The number of grid columns. */
   cols: MaybeRefOrGetter<number>
+  /**
+   * The height of one grid row in pixels.
+   *
+   * @defaultValue `150`
+   */
   rowHeight?: MaybeRefOrGetter<number>
-  margin?: MaybeRefOrGetter<readonly [number, number]>
+  /**
+   * The horizontal and vertical gaps in pixels.
+   *
+   * @defaultValue `[10, 10]`
+   */
+  gap?: MaybeRefOrGetter<readonly [number, number]>
+  /**
+   * The horizontal and vertical container padding in pixels.
+   *
+   * @defaultValue `[0, 0]`
+   */
   containerPadding?: MaybeRefOrGetter<readonly [number, number]>
+  /**
+   * The maximum number of rows the layout may occupy.
+   *
+   * @defaultValue `Infinity`
+   */
   maxRows?: MaybeRefOrGetter<number>
+  /**
+   * The algorithm used to remove layout gaps.
+   *
+   * @defaultValue `verticalCompactor`
+   */
   compactor?: MaybeRefOrGetter<Compactor>
+  /**
+   * How layout operations handle item collisions.
+   *
+   * @defaultValue `'push'`
+   */
   collisionMode?: MaybeRefOrGetter<CollisionMode>
+  /**
+   * Whether drag interactions are accepted.
+   *
+   * @defaultValue `true`
+   */
   isDraggable?: MaybeRefOrGetter<boolean>
+  /**
+   * Whether resize interactions are accepted.
+   *
+   * @defaultValue `true`
+   */
   isResizable?: MaybeRefOrGetter<boolean>
+  /**
+   * Whether an active item stays at its pointer candidate until release.
+   *
+   * @defaultValue `false`
+   */
   restoreOnDrag?: MaybeRefOrGetter<boolean>
+  /**
+   * Whether an interaction raises its item in overlap mode.
+   *
+   * @defaultValue `true`
+   */
   bringToFrontOnInteract?: MaybeRefOrGetter<boolean>
+  /**
+   * Receives each layout committed by an operation or configuration change.
+   *
+   * @param layout - A readonly snapshot of the committed layout.
+   * @param reason - The action that produced the change.
+   */
   onLayoutChange?: (layout: ReadonlyLayout, reason: LayoutChangeReason) => void
+  /**
+   * Receives operations rejected by validation, configuration, or layout rules.
+   *
+   * @param payload - The rejected operation and retained layout state.
+   */
   onOperationRejected?: (payload: OperationRejectedPayload) => void
+  /**
+   * Receives the terminal state of each continuous interaction.
+   *
+   * @param payload - The committed, unchanged, or cancelled terminal state.
+   */
   onInteractionEnd?: (payload: InteractionTerminalPayload) => void
+  /**
+   * Receives recoverable runtime errors while the composable retains its last valid state.
+   *
+   * @param error - The structured runtime error.
+   */
   onError?: (error: GridLayoutRuntimeError) => void
 }
 
+/** Reactive state and commands returned by {@link useGridLayout}. */
 export interface UseGridLayoutReturn {
+  /** A readonly snapshot of the committed layout. */
   layout: Readonly<Ref<ReadonlyLayout>>
+  /** The latest accepted interaction candidate, or `null` outside an interaction. */
   placeholder: Readonly<Ref<ReadonlyLayoutItem | null>>
+  /** Readonly state for the current drag interaction. */
   dragState: Readonly<Ref<GridDragState>>
+  /** Readonly state for the current resize interaction. */
   resizeState: Readonly<Ref<GridResizeState>>
+  /** Whether a drag or resize interaction is active. */
   isInteracting: Readonly<Ref<boolean>>
+  /** The number of rows occupied by the committed layout. */
   containerRows: Readonly<Ref<number>>
+  /** The calculated content height in pixels. */
   containerHeight: Readonly<Ref<number>>
+  /**
+   * Validates and commits a replacement layout.
+   *
+   * @param layout - The complete layout to commit.
+   * @returns The accepted, unchanged, or rejected operation result.
+   */
   setLayout(layout: ReadonlyLayout): LayoutOperationResult
+  /**
+   * Commits new grid coordinates for one item.
+   *
+   * @param id - The id of the item to move.
+   * @param x - The proposed column coordinate.
+   * @param y - The proposed row coordinate.
+   * @returns The accepted, unchanged, or rejected operation result.
+   */
   moveItem(id: LayoutItem['i'], x: number, y: number): LayoutOperationResult
+  /**
+   * Commits a new grid size for one item.
+   *
+   * @param id - The id of the item to resize.
+   * @param w - The proposed width in grid columns.
+   * @param h - The proposed height in grid rows.
+   * @returns The accepted, unchanged, or rejected operation result.
+   */
   resizeItem(id: LayoutItem['i'], w: number, h: number): LayoutOperationResult
+  /**
+   * Validates and inserts an item.
+   *
+   * @param item - The complete item to insert, including a unique id.
+   * @returns The accepted, unchanged, or rejected operation result.
+   */
   addItem(item: ReadonlyLayoutItem): LayoutOperationResult
+  /**
+   * Removes an item.
+   *
+   * @param id - The id of the item to remove.
+   * @returns The accepted, unchanged, or rejected operation result.
+   */
   removeItem(id: LayoutItem['i']): LayoutOperationResult
+  /**
+   * Moves an item to the highest layer in overlap mode.
+   *
+   * @param id - The id of the item to raise.
+   * @returns The accepted, unchanged, or rejected operation result.
+   */
   bringToFront(id: LayoutItem['i']): LayoutOperationResult
+  /**
+   * Moves an item to the lowest layer in overlap mode.
+   *
+   * @param id - The id of the item to lower.
+   * @returns The accepted, unchanged, or rejected operation result.
+   */
   sendToBack(id: LayoutItem['i']): LayoutOperationResult
+  /**
+   * Starts a continuous drag or resize interaction.
+   *
+   * @param input - The interaction kind, target item, and initial native event.
+   * @returns An interaction token and initial snapshots, or a rejected operation.
+   */
   beginInteraction(input: GridInteractionStart): GridInteractionStartResult
+  /**
+   * Evaluates and commits the latest candidate for an active interaction.
+   *
+   * @param token - The token returned by `beginInteraction`.
+   * @param candidate - The proposed item position or size.
+   * @returns The accepted, unchanged, or rejected layout operation.
+   */
   updateInteraction(
     token: GridInteractionToken,
     candidate: GridInteractionCandidate,
   ): LayoutOperationResult
+  /**
+   * Ends an active interaction and commits its final state when valid.
+   *
+   * @param token - The token returned by `beginInteraction`.
+   * @returns The terminal interaction payload or a token rejection.
+   */
   endInteraction(token: GridInteractionToken): InteractionCommandResult
+  /**
+   * Ends an active interaction with a cancelled terminal state.
+   *
+   * Candidates accepted before cancellation remain committed.
+   *
+   * @param token - The token returned by `beginInteraction`.
+   * @returns The terminal interaction payload or a token rejection.
+   */
   cancelInteraction(token: GridInteractionToken): InteractionCommandResult
 }
 
@@ -328,6 +567,15 @@ function spacingDependency(value: unknown, index: 0 | 1): unknown {
   return descriptor && 'value' in descriptor ? value[index] : descriptor
 }
 
+/**
+ * Creates validated, headless grid-layout state with synchronous commands and interactions.
+ *
+ * A writable layout ref receives accepted changes. A plain readonly layout initializes state that
+ * remains owned by the composable. This ownership mode is fixed when the composable is created.
+ *
+ * @param options - The initial layout, reactive configuration, and lifecycle callbacks.
+ * @returns Readonly layout state and commands for one-off or continuous operations.
+ */
 export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutReturn {
   const externalLayout = isRef(options.layout) ? options.layout : null
   const instanceId = nextInstanceId()
@@ -340,15 +588,17 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
   }
 
   function resolveConfig(compactor: Compactor): InternalEffectiveConfig {
-    const margin = options.margin === undefined ? ([10, 10] as const) : toValue(options.margin)
+    const gap = options.gap === undefined ? ([10, 10] as const) : toValue(options.gap)
     const explicitMode =
       options.collisionMode === undefined ? undefined : toValue(options.collisionMode)
     return snapshotEffectiveConfig({
       cols: toValue(options.cols),
       rowHeight: options.rowHeight === undefined ? 150 : toValue(options.rowHeight),
-      margin,
+      gap,
       containerPadding:
-        options.containerPadding === undefined ? margin : toValue(options.containerPadding),
+        options.containerPadding === undefined
+          ? ([0, 0] as const)
+          : toValue(options.containerPadding),
       maxRows: options.maxRows === undefined ? Infinity : toValue(options.maxRows),
       compactor,
       collisionMode: explicitMode ?? (compactor.allowOverlap ? 'overlap' : 'push'),
@@ -862,8 +1112,8 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
     const layoutOrGeometryChanged =
       effectiveConfig.cols !== nextConfig.cols ||
       effectiveConfig.rowHeight !== nextConfig.rowHeight ||
-      effectiveConfig.margin[0] !== nextConfig.margin[0] ||
-      effectiveConfig.margin[1] !== nextConfig.margin[1] ||
+      effectiveConfig.gap[0] !== nextConfig.gap[0] ||
+      effectiveConfig.gap[1] !== nextConfig.gap[1] ||
       effectiveConfig.containerPadding[0] !== nextConfig.containerPadding[0] ||
       effectiveConfig.containerPadding[1] !== nextConfig.containerPadding[1] ||
       effectiveConfig.maxRows !== nextConfig.maxRows ||
@@ -1094,7 +1344,7 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
 
   watch(
     () => {
-      const margin = options.margin === undefined ? ([10, 10] as const) : toValue(options.margin)
+      const gap = options.gap === undefined ? ([10, 10] as const) : toValue(options.gap)
       const containerPadding =
         options.containerPadding === undefined ? undefined : toValue(options.containerPadding)
       const compactor =
@@ -1102,9 +1352,9 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
       return [
         toValue(options.cols),
         options.rowHeight === undefined ? 150 : toValue(options.rowHeight),
-        margin,
-        spacingDependency(margin, 0),
-        spacingDependency(margin, 1),
+        gap,
+        spacingDependency(gap, 0),
+        spacingDependency(gap, 1),
         containerPadding,
         spacingDependency(containerPadding, 0),
         spacingDependency(containerPadding, 1),

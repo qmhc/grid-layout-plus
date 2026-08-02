@@ -4,13 +4,51 @@ import { computed, inject } from 'vue'
 import { LAYOUT_KEY } from '../helpers/common'
 import { calcGridCellDimensions } from '../core/utils'
 
+/** Props accepted by the `GridBackground` component. */
 export interface GridBackgroundProps {
+  /**
+   * The number of columns to draw.
+   *
+   * @defaultValue The parent `GridLayout` value, or `12`.
+   */
   cols?: number
+  /**
+   * The height of one drawn row in pixels.
+   *
+   * @defaultValue The parent `GridLayout` value, or `150`.
+   */
   rowHeight?: number
-  margin?: readonly [number, number]
+  /**
+   * The horizontal and vertical gaps between drawn cells.
+   *
+   * @defaultValue The parent `GridLayout` value, or `[10, 10]`.
+   */
+  gap?: readonly [number, number]
+  /**
+   * The horizontal and vertical padding around the drawn grid.
+   *
+   * @defaultValue The parent `GridLayout` value, or `[0, 0]`.
+   */
+  containerPadding?: readonly [number, number]
+  /**
+   * The drawing width in pixels.
+   *
+   * @defaultValue The parent `GridLayout` width, or `0`.
+   */
   width?: number
+  /** The number of rows to draw; when omitted, the background fills the available height. */
   rows?: number
+  /**
+   * The grid-line color.
+   *
+   * @defaultValue `'rgba(0,0,0,0.1)'`
+   */
   color?: string
+  /**
+   * The non-negative grid-line width in pixels.
+   *
+   * @defaultValue `1`
+   */
   strokeWidth?: number
 }
 
@@ -23,9 +61,13 @@ const layout = inject(LAYOUT_KEY, null)
 
 const resolvedCols = computed(() => props.cols ?? layout?.colNum ?? 12)
 const resolvedRowHeight = computed(() => props.rowHeight ?? layout?.rowHeight ?? 150)
-const resolvedMargin = computed<[number, number]>(() => {
-  const margin = props.margin ?? layout?.margin ?? [10, 10]
-  return [margin[0], margin[1]]
+const resolvedGap = computed<[number, number]>(() => {
+  const gap = props.gap ?? layout?.gap ?? [10, 10]
+  return [gap[0], gap[1]]
+})
+const resolvedContainerPadding = computed<[number, number]>(() => {
+  const padding = props.containerPadding ?? layout?.containerPadding ?? [0, 0]
+  return [padding[0], padding[1]]
 })
 const resolvedWidth = computed(() => props.width ?? layout?.width ?? 0)
 
@@ -45,18 +87,24 @@ const geometry = computed(() => {
     const cellDims = calcGridCellDimensions({
       containerWidth: width,
       cols: resolvedCols.value,
-      margin: resolvedMargin.value,
+      gap: resolvedGap.value,
+      containerPadding: resolvedContainerPadding.value,
       rowHeight: resolvedRowHeight.value,
     })
-    const patternWidth = cellDims.cellWidth + cellDims.marginX
-    const patternHeight = cellDims.cellHeight + cellDims.marginY
-    const positionX = cellDims.cellWidth + cellDims.marginX * 1.5
-    const positionY = cellDims.cellHeight + cellDims.marginY * 1.5
+    const patternWidth = cellDims.cellWidth + cellDims.gapX
+    const patternHeight = cellDims.cellHeight + cellDims.gapY
+    const positionX = resolvedContainerPadding.value[0] + cellDims.cellWidth + cellDims.gapX / 2
+    const positionY = resolvedContainerPadding.value[1] + cellDims.cellHeight + cellDims.gapY / 2
     const rows =
       typeof props.rows === 'number' && Number.isFinite(props.rows) && props.rows > 0
         ? props.rows
         : null
-    const height = rows === null ? '100%' : patternHeight * rows + cellDims.marginY
+    const height =
+      rows === null
+        ? '100%'
+        : resolvedContainerPadding.value[1] * 2 +
+          cellDims.cellHeight * rows +
+          cellDims.gapY * Math.max(0, rows - 1)
     if (
       !Number.isFinite(patternWidth) ||
       !Number.isFinite(patternHeight) ||

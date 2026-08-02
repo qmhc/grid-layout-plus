@@ -264,7 +264,7 @@ describe('internal layout engine port', () => {
       config({
         collisionMode: 'push',
         rowHeight: 0,
-        margin: [0, 0],
+        gap: [0, 0],
         containerPadding: [0, 0],
       }),
     )

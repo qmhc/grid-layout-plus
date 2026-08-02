@@ -36,7 +36,7 @@ const KNOWN_ITEM_KEYS = new Set([
 export interface InternalEffectiveConfig {
   readonly cols: number
   readonly rowHeight: number
-  readonly margin: readonly [number, number]
+  readonly gap: readonly [number, number]
   readonly containerPadding: readonly [number, number]
   readonly maxRows: number
   readonly compactor: Compactor
@@ -281,7 +281,7 @@ export function snapshotEffectiveConfig(value: InternalEffectiveConfig): Interna
   return {
     cols: value.cols,
     rowHeight: canonicalZero(value.rowHeight),
-    margin: readSpacing(value.margin, 'config.margin'),
+    gap: readSpacing(value.gap, 'config.gap'),
     containerPadding: readSpacing(value.containerPadding, 'config.containerPadding'),
     maxRows: value.maxRows,
     compactor: snapshotCompactor(value.compactor),
@@ -397,8 +397,8 @@ function configEqual(first: InternalEffectiveConfig, second: InternalEffectiveCo
   return (
     first.cols === second.cols &&
     first.rowHeight === second.rowHeight &&
-    first.margin[0] === second.margin[0] &&
-    first.margin[1] === second.margin[1] &&
+    first.gap[0] === second.gap[0] &&
+    first.gap[1] === second.gap[1] &&
     first.containerPadding[0] === second.containerPadding[0] &&
     first.containerPadding[1] === second.containerPadding[1] &&
     first.maxRows === second.maxRows &&
@@ -439,10 +439,10 @@ export function calculateContainerMetrics(
   if (!Number.isFinite(rowSpan)) invalid('config.rowHeight', rowSpan)
   const rowsWithPadding = paddingHeight + rowSpan
   if (!Number.isFinite(rowsWithPadding)) invalid('config.rowHeight', rowsWithPadding)
-  const marginSpan = (rows - 1) * config.margin[1]
-  if (!Number.isFinite(marginSpan)) invalid('config.margin[1]', marginSpan)
-  const height = rowsWithPadding + marginSpan
-  if (!Number.isFinite(height) || height < 0) invalid('config.margin[1]', height)
+  const gapSpan = (rows - 1) * config.gap[1]
+  if (!Number.isFinite(gapSpan)) invalid('config.gap[1]', gapSpan)
+  const height = rowsWithPadding + gapSpan
+  if (!Number.isFinite(height) || height < 0) invalid('config.gap[1]', height)
   return { rows, height: canonicalZero(height) }
 }
 
@@ -1472,8 +1472,8 @@ export function createNormalizedLayoutEngine(
 export const defaultInternalConfig: InternalEffectiveConfig = {
   cols: 12,
   rowHeight: 150,
-  margin: [10, 10],
-  containerPadding: [10, 10],
+  gap: [10, 10],
+  containerPadding: [0, 0],
   maxRows: Infinity,
   compactor: verticalCompactor,
   collisionMode: 'push',

@@ -111,20 +111,12 @@ function snapshotGeometry(value: unknown, requirePositivePitch: boolean): Geomet
   const properties = readPlainDataObject(value, {
     code: 'invalid-config',
     path: 'geometry',
-    allowedKeys: [
-      'width',
-      'cols',
-      'rowHeight',
-      'margin',
-      'containerPadding',
-      'rtl',
-      'effectiveScale',
-    ],
+    allowedKeys: ['width', 'cols', 'rowHeight', 'gap', 'containerPadding', 'rtl', 'effectiveScale'],
     requiredKeys: [
       'width',
       'cols',
       'rowHeight',
-      'margin',
+      'gap',
       'containerPadding',
       'rtl',
       'effectiveScale',
@@ -134,7 +126,7 @@ function snapshotGeometry(value: unknown, requirePositivePitch: boolean): Geomet
   const width = positiveFinite(properties.width, 'geometry.width')
   assertPositiveSafeInteger(properties.cols, 'geometry.cols')
   assertNonNegativeFinite(properties.rowHeight, 'geometry.rowHeight')
-  const margin = readPair(properties.margin, 'geometry.margin')
+  const gap = readPair(properties.gap, 'geometry.gap')
   const containerPadding = readPair(properties.containerPadding, 'geometry.containerPadding')
   assertBoolean(properties.rtl, 'geometry.rtl')
   const effectiveScale = positiveFinite(properties.effectiveScale, 'geometry.effectiveScale')
@@ -143,13 +135,13 @@ function snapshotGeometry(value: unknown, requirePositivePitch: boolean): Geomet
   const rowHeight = canonicalZero(properties.rowHeight)
   const paddingSpan = checkedFinite(2 * containerPadding[0], 'geometry.containerPadding[0]')
   checkedFinite(2 * containerPadding[1], 'geometry.containerPadding[1]')
-  const gapSpan = checkedFinite((cols - 1) * margin[0], 'geometry.margin[0]')
+  const gapSpan = checkedFinite((cols - 1) * gap[0], 'geometry.gap[0]')
   const afterPadding = checkedFinite(width - paddingSpan, 'geometry.width')
   const availableWidth = checkedFinite(afterPadding - gapSpan, 'geometry.width')
   if (availableWidth < 0) invalid('geometry.width', availableWidth)
   const cellWidth = checkedFinite(availableWidth / cols, 'geometry.width')
-  const pitchX = checkedFinite(cellWidth + margin[0], 'geometry.margin[0]')
-  const pitchY = checkedFinite(rowHeight + margin[1], 'geometry.margin[1]')
+  const pitchX = checkedFinite(cellWidth + gap[0], 'geometry.gap[0]')
+  const pitchY = checkedFinite(rowHeight + gap[1], 'geometry.gap[1]')
 
   if (requirePositivePitch && pitchX <= 0) invalid('geometry.width', pitchX)
   if (requirePositivePitch && pitchY <= 0) invalid('geometry.rowHeight', pitchY)
@@ -158,7 +150,7 @@ function snapshotGeometry(value: unknown, requirePositivePitch: boolean): Geomet
     width,
     cols,
     rowHeight,
-    margin,
+    gap,
     containerPadding,
     rtl: properties.rtl,
     effectiveScale,
@@ -210,7 +202,7 @@ function snapshotClientRect(value: unknown): ReadonlyClientRect {
 /**
  * 计算网格单元格的精确尺寸。
  *
- * cellWidth = (containerWidth - marginX * (cols + 1)) / cols
+ * cellWidth = (containerWidth - 2 * paddingX - gapX * (cols - 1)) / cols
  * cellHeight = rowHeight
  */
 export function calcGridCellDimensions(
@@ -219,25 +211,28 @@ export function calcGridCellDimensions(
   const properties = readPlainDataObject(input, {
     code: 'invalid-config',
     path: 'geometry',
-    allowedKeys: ['containerWidth', 'cols', 'margin', 'rowHeight'],
-    requiredKeys: ['containerWidth', 'cols', 'margin', 'rowHeight'],
+    allowedKeys: ['containerWidth', 'cols', 'gap', 'containerPadding', 'rowHeight'],
+    requiredKeys: ['containerWidth', 'cols', 'gap', 'containerPadding', 'rowHeight'],
   })
 
   assertNonNegativeFinite(properties.containerWidth, 'geometry.width')
   assertPositiveSafeInteger(properties.cols, 'geometry.cols')
-  const margin = readPair(properties.margin, 'geometry.margin')
+  const gap = readPair(properties.gap, 'geometry.gap')
+  const containerPadding = readPair(properties.containerPadding, 'geometry.containerPadding')
   assertNonNegativeFinite(properties.rowHeight, 'geometry.rowHeight')
 
   const containerWidth = canonicalZero(properties.containerWidth)
   const cols = properties.cols
-  const marginX = margin[0]
-  const marginY = margin[1]
+  const gapX = gap[0]
+  const gapY = gap[1]
+  const paddingX = containerPadding[0]
   const rowHeight = canonicalZero(properties.rowHeight)
 
-  const colsWithOuterMargin = cols + 1
-  const marginSpan = marginX * colsWithOuterMargin
-  if (!Number.isFinite(marginSpan)) invalid('geometry.margin[0]', marginSpan)
-  const availableWidth = containerWidth - marginSpan
+  const paddingSpan = 2 * paddingX
+  if (!Number.isFinite(paddingSpan)) invalid('geometry.containerPadding[0]', paddingSpan)
+  const gapSpan = gapX * (cols - 1)
+  if (!Number.isFinite(gapSpan)) invalid('geometry.gap[0]', gapSpan)
+  const availableWidth = containerWidth - paddingSpan - gapSpan
   if (!Number.isFinite(availableWidth)) invalid('geometry.width', availableWidth)
   const calculatedWidth = availableWidth / cols
   if (!Number.isFinite(calculatedWidth)) invalid('geometry.width', calculatedWidth)
@@ -246,8 +241,8 @@ export function calcGridCellDimensions(
   return {
     cellWidth,
     cellHeight: rowHeight,
-    marginX,
-    marginY,
+    gapX,
+    gapY,
   }
 }
 
@@ -270,10 +265,10 @@ export function gridToPixelRect(
     'geometry.containerPadding[0]',
   )
   const top = checkedFinite(geometry.containerPadding[1] + yPitch, 'geometry.containerPadding[1]')
-  const widthGap = checkedFinite((item.w - 1) * geometry.margin[0], 'geometry.margin[0]')
-  const width = checkedFinite(itemCellWidth + widthGap, 'geometry.margin[0]')
-  const heightGap = checkedFinite((item.h - 1) * geometry.margin[1], 'geometry.margin[1]')
-  const height = checkedFinite(itemRowHeight + heightGap, 'geometry.margin[1]')
+  const widthGap = checkedFinite((item.w - 1) * geometry.gap[0], 'geometry.gap[0]')
+  const width = checkedFinite(itemCellWidth + widthGap, 'geometry.gap[0]')
+  const heightGap = checkedFinite((item.h - 1) * geometry.gap[1], 'geometry.gap[1]')
+  const height = checkedFinite(itemRowHeight + heightGap, 'geometry.gap[1]')
 
   return Object.freeze({ top, inlineStart, width, height })
 }
@@ -362,8 +357,8 @@ export function pixelSizeToGridSize(
   const width = canonicalZero(properties.width)
   const height = canonicalZero(properties.height)
 
-  const widthNumerator = checkedFinite(width + geometry.margin[0], 'size.width')
-  const heightNumerator = checkedFinite(height + geometry.margin[1], 'size.height')
+  const widthNumerator = checkedFinite(width + geometry.gap[0], 'size.width')
+  const heightNumerator = checkedFinite(height + geometry.gap[1], 'size.height')
   const rawW = checkedFinite(widthNumerator / geometry.pitchX, 'geometry.width')
   const roundedW = Math.round(rawW)
   if (!Number.isSafeInteger(roundedW)) invalidDerived('geometry.width', roundedW)

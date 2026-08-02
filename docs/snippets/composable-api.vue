@@ -14,7 +14,7 @@ const { layout, addItem, moveItem, removeItem } = useGridLayout({
   layout: sourceLayout,
   cols: 6,
   rowHeight: 30,
-  margin: [8, 8],
+  gap: [8, 8],
   containerPadding: [10, 10],
 })
 

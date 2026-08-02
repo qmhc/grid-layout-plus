@@ -121,16 +121,13 @@ export type BaselineFieldAssertions = [
   Expect<Equal<ResponsiveLayout, Record<Breakpoint, Layout>>>,
   Expect<Equal<LayoutItemRequired, Pick<LayoutItem, 'i' | 'x' | 'y' | 'w' | 'h'>>>,
   Expect<
-    Equal<
-      GridCellDimensions,
-      { cellWidth: number; cellHeight: number; marginX: number; marginY: number }
-    >
+    Equal<GridCellDimensions, { cellWidth: number; cellHeight: number; gapX: number; gapY: number }>
   >,
   Expect<Equal<GridConfig['colNum'], number | undefined>>,
   Expect<Equal<GridConfig['rowHeight'], number | undefined>>,
   Expect<Equal<GridConfig['maxRows'], number | undefined>>,
   Expect<
-    Equal<GridConfig['margin'], ResponsiveValue<Breakpoint, readonly [number, number]> | undefined>
+    Equal<GridConfig['gap'], ResponsiveValue<Breakpoint, readonly [number, number]> | undefined>
   >,
   Expect<Equal<GridConfig['autoSize'], boolean | undefined>>,
   Expect<Equal<DragConfig['isDraggable'], boolean | undefined>>,
@@ -145,7 +142,7 @@ export type BaselineFieldAssertions = [
   Expect<Equal<GridLayoutProps['maxRows'], number | undefined>>,
   Expect<
     Equal<
-      GridLayoutProps['margin'],
+      GridLayoutProps['gap'],
       ResponsiveValue<Breakpoint, readonly [number, number]> | undefined
     >
   >,

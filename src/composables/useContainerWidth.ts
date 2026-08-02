@@ -5,13 +5,23 @@ import { GridLayoutValidationError } from '../core/errors'
 import type { GridLayoutRuntimeError } from './useGridLayout'
 import type { MaybeRefOrGetter, Ref } from 'vue'
 
+/** Reactive container-width state returned by {@link useContainerWidth}. */
 export interface UseContainerWidthReturn {
+  /** The resolved content-box width, or `null` before a measurement is available. */
   width: Readonly<Ref<number | null>>
+  /** Whether the width is unresolved, zero, or large enough to produce renderable geometry. */
   state: Readonly<Ref<'unresolved' | 'resolved-zero' | 'resolved'>>
 }
 
+/** Options accepted by {@link useContainerWidth}. */
 export interface UseContainerWidthOptions {
+  /** A non-negative width that takes precedence over element observation when defined. */
   explicitWidth?: MaybeRefOrGetter<number | undefined>
+  /**
+   * Receives validation and observation failures.
+   *
+   * @param error - The structured runtime error.
+   */
   onError?: (error: GridLayoutRuntimeError) => void
 }
 
@@ -108,6 +118,16 @@ function readEntryWidth(entry: ResizeObserverEntry): number {
   return Object.is(width, -0) ? 0 : width
 }
 
+/**
+ * Resolves a container width from an explicit value or its observed content box.
+ *
+ * Observation resumes when `explicitWidth` becomes `undefined` and stops when the current Vue
+ * effect scope is disposed.
+ *
+ * @param el - A ref to the element whose content-box width should be observed.
+ * @param options - Explicit-width and error-reporting options.
+ * @returns Readonly refs for the resolved width and its resolution state.
+ */
 export function useContainerWidth(
   el: Readonly<Ref<HTMLElement | null>>,
   options: Readonly<UseContainerWidthOptions> = {},

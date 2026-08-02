@@ -30,14 +30,15 @@ export interface PositionStrategy {
 export interface GridCellDimensions {
   cellWidth: number
   cellHeight: number
-  marginX: number
-  marginY: number
+  gapX: number
+  gapY: number
 }
 
 export interface CalcGridCellDimensionsInput {
   readonly containerWidth: number
   readonly cols: number
-  readonly margin: readonly [number, number]
+  readonly gap: readonly [number, number]
+  readonly containerPadding: readonly [number, number]
   readonly rowHeight: number
 }
 
@@ -45,7 +46,7 @@ export interface GridGeometry {
   width: number
   cols: number
   rowHeight: number
-  margin: readonly [number, number]
+  gap: readonly [number, number]
   containerPadding: readonly [number, number]
   rtl: boolean
   effectiveScale: number

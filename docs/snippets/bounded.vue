@@ -22,7 +22,7 @@ const layout = ref<Layout>([
     v-model:layout="layout"
     :is-bounded="bounded"
     :is-resizable="false"
-    :margin="[10, 10]"
+    :gap="[10, 10]"
     :row-height="30"
   >
     <template #item="{ item }">

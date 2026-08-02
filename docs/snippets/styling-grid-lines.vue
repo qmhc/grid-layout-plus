@@ -29,7 +29,7 @@ const layout = ref<Layout>([
   background-image:
     linear-gradient(to right, #cbd5e1 1px, transparent 1px),
     linear-gradient(to bottom, #cbd5e1 1px, transparent 1px);
-  background-position: 5px 5px;
-  background-size: calc((100% - 10px) / 12) 40px;
+  background-position: -5px -5px;
+  background-size: calc((100% + 10px) / 12) 40px;
 }
 </style>
