@@ -1,12 +1,10 @@
 /**
  * 受控 layout props 与内部布局引擎之间的同步 composable。
  *
- * 职责：观察父组件回写、接纳外部更新，并联合确认 transaction、responsive layouts 和 drop commit。
+ * 职责：观察父组件回写、接纳外部更新，并确认受控 layout transaction。
  * 边界：不生成拖入 proposal，也不处理指针手势；这些输入分别来自 drop 与 interaction composable。
- * 关键约束：props 是最终权威来源；部分 responsive 回写、过期 drop epoch 和 superseded 交互必须被隔离。
+ * 关键约束：props 是最终权威来源；部分 responsive 回写和 superseded 交互必须被隔离。
  */
-import { nextTick, toRaw } from 'vue'
-
 import {
   layoutsGeometryEqual,
   layoutsSemanticallyEqual,
@@ -15,17 +13,13 @@ import {
   snapshotUnresolvedLayout,
 } from '../../core/layout-engine'
 import { cloneLayout } from '../../helpers/common'
-import { cloneResponsiveLayouts, snapshotResponsiveLayouts } from '../../helpers/responsive'
-import { responsiveLayoutsEqual } from './responsive-model'
 
 import type { InternalEffectiveConfig, LayoutEnginePort } from '../../core/layout-engine'
 import type {
   GridLayoutRuntimeError,
   OperationRejectedPayload,
 } from '../../composables/useGridLayout'
-import type { ResponsiveConfigSnapshot } from '../../helpers/responsive'
 import type {
-  CompleteResponsiveLayouts,
   Layout,
   LayoutItem,
   LayoutOperationReason,
@@ -33,10 +27,9 @@ import type {
   PositionStrategy,
   ReadonlyLayout,
   ReadonlyLayoutItem,
-  ResponsiveLayoutsInput,
 } from '../../helpers/types'
 import type { LayoutUpdateMeta } from '../types'
-import type { DropProposalRecord, UseGridDropReturn } from './use-drop'
+import type { UseGridDropReturn } from './use-drop'
 import type { UseGridInteractionReturn } from './use-interaction'
 import type { PositionStyleBatchResult, PositionStyleMap } from './position-style-controller'
 import type {
@@ -67,22 +60,16 @@ interface UseGridLayoutSyncOptions<B extends string> {
   isDisposing(): boolean
   isResponsive(): boolean
   getLayout(): ReadonlyLayout
-  getResponsiveLayouts(): ResponsiveLayoutsInput<B>
   getCurrentLayout(): ReadonlyLayout
   getCommittedLayout(): ReadonlyLayout
   setCommittedLayout(layout: ReadonlyLayout): void
   getEngineConfig(): InternalEffectiveConfig
   setEngineConfig(config: InternalEffectiveConfig): void
   getPositionStrategy(): PositionStrategy
-  getCommittedResponsiveConfig(): ResponsiveConfigSnapshot<B> | null
-  getCommittedCompleteLayouts(): CompleteResponsiveLayouts<B> | null
-  setCommittedCompleteLayouts(layouts: CompleteResponsiveLayouts<B>): void
-  setCommittedAuthorLayouts(layouts: ResponsiveLayoutsInput<B>): void
-  setCommittedResponsiveIdentity(identity: unknown): void
   resolveEngineConfig(): InternalEffectiveConfig
   getTransactionController(): LayoutTransactionController<B>
   getInteraction(): UseGridInteractionReturn
-  getDrop(): UseGridDropReturn<B>
+  getDrop(): UseGridDropReturn
   hasSupersededInteraction(layout: ReadonlyLayout): boolean
   syncEngineLayout(layout: ReadonlyLayout): void
   evaluatePositionStyles(
@@ -117,14 +104,10 @@ interface UseGridLayoutSyncOptions<B extends string> {
   ): void
   nextEvaluationId(): number
   nextRevision(): number
-  runAsyncBoundary<T>(callback: () => T): T | undefined
-  observeResponsiveInputs(): void
 }
 
 export interface UseGridLayoutSyncReturn {
   observeLayoutProp(): void
-  tryConfirmDropCommit(observedOverride?: ReadonlyLayout): boolean
-  startDropCommitDeadline(epoch: number): void
 }
 
 /** 协调受控 layout、外部更新与 drop 提交的确认协议。 */
@@ -174,129 +157,6 @@ export function useGridLayoutSync<B extends string>(
     }
   }
 
-  function expectedDropCommitLayout(
-    observed: ReadonlyLayout,
-    proposal: DropProposalRecord<B>,
-  ): Layout | null {
-    const { insertionIndex, candidate, previewLayout } = proposal
-    if (observed.length !== previewLayout.length + 1 || insertionIndex > previewLayout.length) {
-      return null
-    }
-    const inserted = observed[insertionIndex]
-    if (!inserted || previewLayout.some(item => Object.is(item.i, inserted.i))) return null
-    const expected = cloneLayout(previewLayout)
-    expected.splice(insertionIndex, 0, { ...candidate, i: inserted.i })
-    return layoutsSemanticallyEqual(observed, expected) ? expected : null
-  }
-
-  function responsiveDropCommitMatches(
-    observed: ReadonlyLayout,
-    proposal: DropProposalRecord<B>,
-    config: InternalEffectiveConfig,
-  ): CompleteResponsiveLayouts<B> | null {
-    const breakpoint = proposal.breakpoint
-    const responsiveConfig = options.getCommittedResponsiveConfig()
-    const committedComplete = options.getCommittedCompleteLayouts()
-    if (
-      !options.isResponsive() ||
-      breakpoint === null ||
-      breakpoint !== options.state.lastBreakpoint ||
-      !responsiveConfig ||
-      !committedComplete
-    ) {
-      return null
-    }
-    const expected = cloneResponsiveLayouts(committedComplete)
-    expected[breakpoint] = cloneLayout(observed)
-    try {
-      const responsive = snapshotResponsiveLayouts(
-        toRaw(options.getResponsiveLayouts()),
-        responsiveConfig,
-        config,
-      )
-      return responsiveLayoutsEqual(responsive, expected, responsiveConfig) ? expected : null
-    } catch {
-      return null
-    }
-  }
-
-  /**
-   * 使用父组件最新回写的 layout 确认 drop commit。
-   * Responsive 模式还要求当前 breakpoint 的 responsiveLayouts 同步包含插入项。
-   */
-  function tryConfirmDropCommit(observedOverride?: ReadonlyLayout): boolean {
-    const drop = options.getDrop()
-    const pending = drop.getPendingCommit()
-    if (!pending || !drop.isPendingCurrent(pending)) return false
-    const proposal = pending.proposal
-
-    let observed: Layout
-    let nextConfig: InternalEffectiveConfig
-    try {
-      nextConfig = options.resolveEngineConfig()
-      observed = observedOverride
-        ? cloneLayout(observedOverride)
-        : snapshotStrictLayout(options.getLayout(), nextConfig)
-    } catch {
-      return false
-    }
-    const expected = expectedDropCommitLayout(observed, proposal)
-    if (!expected) return false
-    const responsiveLayouts = options.isResponsive()
-      ? responsiveDropCommitMatches(expected, proposal, nextConfig)
-      : null
-    if (options.isResponsive() && !responsiveLayouts) return false
-
-    const styleEvaluation = options.evaluatePositionStyles(
-      expected,
-      options.getPositionStrategy(),
-      options.state.width,
-      nextConfig,
-    )
-    if (!styleEvaluation.ok) return false
-    const replaced = options.engine.replaceExternal(expected, nextConfig)
-    if (replaced.status === 'rejected' || !drop.completePendingCommit(pending)) {
-      return false
-    }
-    options.setEngineConfig(nextConfig)
-    options.setCommittedLayout(expected)
-    options.syncEngineLayout(expected)
-    options.commitPositionStyles(styleEvaluation.styles, styleEvaluation.ready)
-    const responsiveConfig = options.getCommittedResponsiveConfig()
-    if (responsiveLayouts && proposal.breakpoint !== null && responsiveConfig) {
-      options.setCommittedCompleteLayouts(responsiveLayouts)
-      options.setCommittedAuthorLayouts(responsiveLayouts)
-      options.setCommittedResponsiveIdentity(toRaw(options.getResponsiveLayouts()))
-      options.state.layouts = cloneResponsiveLayouts(responsiveLayouts)
-    }
-    options.syncItemEngineConfig()
-    options.updateHeight()
-    options.emitLayoutUpdated(expected, options.nextRevision(), 'drop-commit')
-    options.validateRegisteredItems()
-    return true
-  }
-
-  function startDropCommitDeadline(epoch: number): void {
-    const drop = options.getDrop()
-    if (tryConfirmDropCommit()) return
-    nextTick(() => {
-      options.runAsyncBoundary(() => {
-        if (!drop.isPendingEpoch(epoch)) return
-        if (tryConfirmDropCommit()) return
-        nextTick(() => {
-          options.runAsyncBoundary(() => {
-            if (!drop.isPendingEpoch(epoch)) return
-            if (!tryConfirmDropCommit()) {
-              const deferred = drop.takeDeferredObservations()
-              if (deferred.layout) observeLayoutProp()
-              if (deferred.responsiveLayouts) options.observeResponsiveInputs()
-            }
-          })
-        })
-      })
-    })
-  }
-
   function acceptExternalLayout(
     observed: ReadonlyLayout,
     pending: PendingLayoutTransaction<B> | null,
@@ -312,7 +172,9 @@ export function useGridLayoutSync<B extends string>(
     )
     const transactionController = options.getTransactionController()
     if (!styleEvaluation.ok) {
-      if (pending) transactionController.abandon(pending, true)
+      if (pending && transactionController.abandon(pending, true)) {
+        pending.settlement?.rejected('external-update')
+      }
       options.rejectPositionStyles(
         styleEvaluation,
         {
@@ -328,7 +190,9 @@ export function useGridLayoutSync<B extends string>(
       )
       return
     }
-    if (pending) transactionController.abandon(pending, true)
+    if (pending && transactionController.abandon(pending, true)) {
+      pending.settlement?.rejected('external-update')
+    }
     const replaced = options.engine.replaceExternal(observed, nextConfig, {
       deferHorizontalBounds: options.isResponsive() && options.state.width === null,
     })
@@ -361,22 +225,14 @@ export function useGridLayoutSync<B extends string>(
   }
 
   /**
-   * 受控 layout 的唯一观察入口。处理顺序不能随意调整：drop 确认优先，
-   * 其次是 pending transaction，最后才把差异视为普通外部更新。
+   * 受控 layout 的唯一观察入口。优先确认 pending transaction，
+   * 其余差异才作为普通外部更新。
    */
   function observeLayoutProp(): void {
     if (options.isDisposing()) return
     const observed = snapshotObservedLayout()
     if (!observed) return
     const drop = options.getDrop()
-    if (drop.getPendingCommit()) {
-      if (tryConfirmDropCommit(observed)) return
-      if (options.isResponsive()) {
-        drop.deferLayoutObservation()
-        return
-      }
-      drop.invalidatePendingCommit()
-    }
     if (drop.hasProposal()) drop.invalidateProposal()
 
     const transactionController = options.getTransactionController()
@@ -458,5 +314,5 @@ export function useGridLayoutSync<B extends string>(
     acceptExternalLayout(observed, null)
   }
 
-  return { observeLayoutProp, tryConfirmDropCommit, startDropCommitDeadline }
+  return { observeLayoutProp }
 }

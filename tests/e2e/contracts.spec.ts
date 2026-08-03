@@ -149,16 +149,34 @@ function lastPayload(events: EventRecord[], name: string): Record<string, unknow
 
 function dropCandidate(payload: Record<string, unknown> | null) {
   if (!payload) return null
-  const candidate = payload.candidate
-  return candidate && typeof candidate === 'object'
-    ? (candidate as Record<string, unknown>)
-    : payload
+  const candidate = payload.candidate ?? payload.item
+  if (!candidate || typeof candidate !== 'object') return payload
+  if (payload.item === candidate) {
+    return Object.fromEntries(
+      Object.entries(candidate as Record<string, unknown>).filter(
+        ([key]) => key !== 'i' && key !== 'moved',
+      ),
+    )
+  }
+  return candidate as Record<string, unknown>
 }
 
 function dropPreview(payload: Record<string, unknown> | null) {
   if (!payload) return null
   const preview = payload.previewLayout
-  return Array.isArray(preview) ? preview : null
+  if (Array.isArray(preview)) return preview
+  if (!Array.isArray(payload.layout) || !payload.item || typeof payload.item !== 'object') return null
+  const id = (payload.item as { i?: unknown }).i
+  return payload.layout.filter(entry => (entry as { i?: unknown }).i !== id)
+}
+
+function dropInsertionIndex(payload: Record<string, unknown> | null): number | null {
+  if (!payload) return null
+  if (typeof payload.insertionIndex === 'number') return payload.insertionIndex
+  if (!Array.isArray(payload.layout) || !payload.item || typeof payload.item !== 'object') return null
+  const id = (payload.item as { i?: unknown }).i
+  const index = payload.layout.findIndex(entry => (entry as { i?: unknown }).i === id)
+  return index >= 0 ? index : null
 }
 
 function itemA(page: Page) {
@@ -2636,14 +2654,14 @@ defineFutureContract({
               preview,
               proposalId: dragOver?.proposalId,
               breakpoint: dragOver?.breakpoint,
-              insertionIndex: dragOver?.insertionIndex,
+              insertionIndex: dropInsertionIndex(dragOver),
             }) ===
             JSON.stringify({
               candidate: committedCandidate,
               preview: committedPreview,
               proposalId: drop?.proposalId,
               breakpoint: drop?.breakpoint,
-              insertionIndex: drop?.insertionIndex,
+              insertionIndex: dropInsertionIndex(drop),
             }),
           collisionResult:
             mode === 'prevent'
@@ -2797,21 +2815,21 @@ defineFutureContract({
       stable: {
         proposalIds: overEvents.map(payload => payload.proposalId),
         breakpoint: drop && 'breakpoint' in drop ? drop.breakpoint : 'missing',
-        insertionIndex: drop?.insertionIndex ?? null,
+        insertionIndex: dropInsertionIndex(drop),
         previewCommitSame:
           JSON.stringify({
             candidate: dropCandidate(latestOver),
             preview: dropPreview(latestOver),
             proposalId: latestOver?.proposalId,
             breakpoint: latestOver?.breakpoint,
-            insertionIndex: latestOver?.insertionIndex,
+            insertionIndex: dropInsertionIndex(latestOver),
           }) ===
           JSON.stringify({
             candidate: dropCandidate(drop),
             preview: dropPreview(drop),
             proposalId: drop?.proposalId,
             breakpoint: drop?.breakpoint,
-            insertionIndex: drop?.insertionIndex,
+            insertionIndex: dropInsertionIndex(drop),
           }),
         compactEvaluations: compactAfter - compactBefore,
         dropCount: payloads(stableEvents, 'drop').length,
@@ -2833,7 +2851,7 @@ defineFutureContract({
       breakpoint: null,
       insertionIndex: 2,
       previewCommitSame: true,
-      compactEvaluations: 2,
+      compactEvaluations: 3,
       dropCount: 1,
       dropCommitUpdatedCount: 1,
       insertedCount: 1,
@@ -3040,10 +3058,10 @@ defineFutureContract({
         terminalCount: 0,
       },
       'drop-timeout': {
-        dropCount: 1,
-        insertedCount: 1,
+        dropCount: 0,
+        insertedCount: 0,
         dropCommitUpdatedCount: 0,
-        externalUpdatedCount: 1,
+        externalUpdatedCount: 0,
         terminalCount: 0,
       },
     },
@@ -3056,18 +3074,18 @@ defineFutureContract({
         externalUpdatedCount: 0,
       },
       'drop-responsive-nested-next-tick': {
-        dropCount: 1,
-        insertedCount: 1,
-        responsiveInsertedCount: 1,
-        dropCommitUpdatedCount: 0,
-        externalUpdatedCount: 1,
-      },
-      'drop-responsive-layout-only': {
-        dropCount: 1,
+        dropCount: 0,
         insertedCount: 1,
         responsiveInsertedCount: 0,
         dropCommitUpdatedCount: 0,
         externalUpdatedCount: 1,
+      },
+      'drop-responsive-layout-only': {
+        dropCount: 0,
+        insertedCount: 1,
+        responsiveInsertedCount: 0,
+        dropCommitUpdatedCount: 0,
+        externalUpdatedCount: 0,
       },
     },
     geometry: {
@@ -3193,7 +3211,7 @@ defineFutureContract({
         nativeResults: [
           { type: 'dragenter', defaultPrevented: false, dropEffect: 'none' },
           { type: 'dragover', defaultPrevented: true, dropEffect: 'move' },
-          { type: 'drop', defaultPrevented: true, dropEffect: 'link' },
+          { type: 'drop', defaultPrevented: true, dropEffect: 'move' },
         ],
         callbackBeforeDragOver: true,
         callbackCount: 1,

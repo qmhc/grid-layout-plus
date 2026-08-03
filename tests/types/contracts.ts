@@ -12,6 +12,9 @@ import type { Ref } from 'vue'
 import type {
   CompactMinPositions,
   CompleteResponsiveLayouts,
+  DropCommitResult,
+  DropConfig,
+  DropCreateItemContext,
   GridDragState,
   GridInteractionCandidate,
   GridInteractionStart,
@@ -25,6 +28,7 @@ import type {
   GridLayoutRuntimeError,
   GridLayoutSlots,
   GridResizeState,
+  GridTransferResult,
   InteractionCancelReason,
   InteractionCommandResult,
   InteractionTerminalBase,
@@ -37,8 +41,10 @@ import type {
   LayoutUpdateMeta,
   OperationRejectedPayload,
   ReadonlyLayout,
+  ReadonlyLayoutItem,
   RejectedLayoutOperationResult,
   ResponsiveLayoutsInput,
+  TransferConfig,
   UseContainerWidthOptions,
   UseContainerWidthReturn,
   UseGridLayoutOptions,
@@ -88,6 +94,7 @@ const props: GridLayoutProps<BusinessBreakpoint> = {
     mobile: [8, 8],
     desktop: [24, 24],
   },
+  transferConfig: { group: 'dashboard' },
 }
 const removedSpacingProp: GridLayoutProps = {
   layout,
@@ -237,6 +244,10 @@ emitLayout('update:layout', readonlyLayout, {
 emitLayout('update:layout', readonlyLayout, {
   revision: 2,
   source: 'auto-height',
+})
+emitLayout('update:layout', readonlyLayout, {
+  revision: 3,
+  source: 'transfer',
 })
 emitLayout('breakpoint-changed', 'mobile', readonlyLayout, {
   revision: 2,
@@ -393,6 +404,39 @@ type PhaseTwoAComposableExports = [
 
 export type { PhaseTwoAComposableExports }
 
+declare const dropContext: DropCreateItemContext<BusinessBreakpoint>
+const dropConfig: DropConfig<BusinessBreakpoint> = {
+  createItem(context) {
+    context satisfies DropCreateItemContext<BusinessBreakpoint>
+    return { i: 'created', x: 0, y: 0, w: 1, h: 1 }
+  },
+}
+dropConfig.createItem(dropContext) satisfies ReadonlyLayoutItem | false
+declare const dropCommit: DropCommitResult<BusinessBreakpoint>
+dropCommit.status satisfies 'committed'
+dropCommit.item satisfies ReadonlyLayoutItem
+dropCommit.layout satisfies ReadonlyLayout
+dropCommit.revision satisfies number
+
+const rejectedDropConfig: DropConfig = {
+  createItem: () => false,
+}
+rejectedDropConfig satisfies DropConfig
+
+// @ts-expect-error v2 外部拖入必须由应用创建完整 item
+const missingDropFactory: DropConfig = {}
+void missingDropFactory
+
+const transferConfig: TransferConfig = { group: 'dashboard' }
+transferConfig.group satisfies string
+declare const transferResult: GridTransferResult
+transferResult.item satisfies ReadonlyLayoutItem
+transferResult.sourceLayout satisfies ReadonlyLayout
+transferResult.targetLayout satisfies ReadonlyLayout
+transferResult.sourceBreakpoint satisfies string | null
+transferResult.targetBreakpoint satisfies string | null
+emitLayout('transfer', transferResult, new Event('dragend'))
+
 declare const interactionToken: GridInteractionToken
 interactionToken satisfies string
 declare const layoutChangeReason: LayoutChangeReason
@@ -408,6 +452,7 @@ cancelReason satisfies
   | 'geometry-error'
   | 'extension-error'
   | 'extension-invalid-result'
+  | 'transferred'
 
 const validationError = new GridLayoutValidationError('invalid', {
   code: 'invalid-layout',

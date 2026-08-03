@@ -33,7 +33,8 @@ Use this page to locate a public v2 symbol. Import components, composables, and 
 | `GridLayoutExpose`, `LayoutTransactionReceipt`                                                    | [Methods](./methods) and [transaction receipts](./contracts#layouttransactionreceipt)                     |
 | `GridLayoutSlots`, `GridLayoutSlotScope`                                                          | [Slots](./properties#slots)                                                                               |
 | `GridConfig`, `DragConfig`, `ResizeConfig`                                                        | [Grouped configuration](./properties#grid-config)                                                         |
-| `DropConfig`, `DropCandidate`, `DropDragOverInput`, `DropDragOverContext`, `DropEvaluationResult` | [Drop types](./properties#drop-types) and [drop events](./events#drop-drag-over)                          |
+| `DropConfig`, `DropCandidate`, `DropDragOverInput`, `DropDragOverContext`, `DropEvaluationResult`, `DropCreateItemContext`, `DropCommitResult` | [Drop types](./properties#drop-types) and [drop events](./events#drop-drag-over) |
+| `TransferConfig`, `GridTransferResult` | [Transfer types](./properties#transfer-types) and [`transfer`](./events#transfer) |
 | `LayoutUpdateMeta`, `ResponsiveWidthState`, `WidthChangedPayload`                                 | [Events](./events)                                                                                        |
 | `InteractionStartPayload`, `InteractionChangePayload`                                             | [Interaction events](./events#interaction-start-interaction-change-interaction-end)                       |
 

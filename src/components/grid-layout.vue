@@ -36,7 +36,12 @@ import {
 } from '../core/layout-engine'
 import { transformStrategy } from '../core/position-strategies'
 import { InteractionTransactionBuffer } from '../core/transaction-buffer'
-import { snapshotCompactor, snapshotDropConfig, snapshotPositionStrategy } from '../core/validation'
+import {
+  snapshotCompactor,
+  snapshotDropConfig,
+  snapshotPositionStrategy,
+  snapshotTransferConfig,
+} from '../core/validation'
 import { useGridCommands } from './grid-layout/use-commands'
 import { useGridConfig } from './grid-layout/use-config'
 import { useGridDrop } from './grid-layout/use-drop'
@@ -47,6 +52,7 @@ import { createGridPositionStyleController } from './grid-layout/position-style-
 import { useGridResponsive } from './grid-layout/use-responsive'
 import { useGridWidth } from './grid-layout/use-width'
 import { useGridAutoHeight } from './grid-layout/use-auto-height'
+import { useGridTransfer } from './grid-layout/use-transfer'
 import { createLayoutTransactionController } from './grid-layout/transaction-controller'
 import {
   createCurrentResponsiveTransaction,
@@ -78,9 +84,10 @@ import type {
   GridLayoutRuntimeError,
   OperationRejectedPayload,
 } from '../composables/useGridLayout'
-import type { DropConfigSnapshot } from '../core/validation'
+import type { DropConfigSnapshot, TransferConfigSnapshot } from '../core/validation'
 import type { UseGridConfigReturn } from './grid-layout/use-config'
 import type { UseGridDropReturn } from './grid-layout/use-drop'
+import type { UseGridCommandsReturn } from './grid-layout/use-commands'
 import type { GridItemRegistry } from './grid-layout/item-registry'
 import type { UseGridLayoutSyncReturn } from './grid-layout/use-layout-sync'
 import type { UseGridResponsiveReturn } from './grid-layout/use-responsive'
@@ -167,10 +174,14 @@ function snapshotEffectiveDropConfig(): DropConfigSnapshot {
     isDroppable: props.isDroppable ?? grouped.isDroppable ?? false,
     dropItem: flatDropItem ?? grouped.dropItem ?? Object.freeze({ w: 1, h: 1 }),
     ...(grouped.onDragOver ? { onDragOver: grouped.onDragOver } : {}),
+    ...(grouped.createItem ? { createItem: grouped.createItem } : {}),
   })
 }
 
 const appliedDropConfig = shallowRef(snapshotEffectiveDropConfig())
+const appliedTransferConfig = shallowRef<TransferConfigSnapshot | null>(
+  snapshotTransferConfig(toRaw(props.transferConfig), toRaw),
+)
 const effectiveIsDroppable = computed(() => appliedDropConfig.value.isDroppable ?? false)
 const effectiveDropItem = computed<Readonly<{ w: number; h: number }>>(
   () =>
@@ -273,6 +284,8 @@ const state = reactive({
   originalLayout: null! as Layout,
   // 外部拖入占位符状态
   dropPlaceholder: null as { x: number; y: number; w: number; h: number } | null,
+  // 跨网格目标占位符状态
+  transferPlaceholder: null as { x: number; y: number; w: number; h: number } | null,
   counters: {
     revision: 0,
     evaluationId: 0,
@@ -431,7 +444,8 @@ emitter.on('dragEvent', (...args: Parameters<typeof dragEventHandler>) => {
 const transactionControllerRef: {
   current: LayoutTransactionController<Breakpoint> | null
 } = { current: null }
-const dropRef: { current: UseGridDropReturn<Breakpoint> | null } = { current: null }
+const dropRef: { current: UseGridDropReturn | null } = { current: null }
+const commandsRef: { current: UseGridCommandsReturn | null } = { current: null }
 const itemRegistryRef: { current: GridItemRegistry | null } = { current: null }
 const responsiveRef: { current: UseGridResponsiveReturn<Breakpoint> | null } = {
   current: null,
@@ -445,9 +459,14 @@ function getTransactionController(): LayoutTransactionController<Breakpoint> {
   return transactionControllerRef.current
 }
 
-function getDrop(): UseGridDropReturn<Breakpoint> {
+function getDrop(): UseGridDropReturn {
   if (!dropRef.current) throw new Error('Drop composable is unavailable')
   return dropRef.current
+}
+
+function getCommands(): UseGridCommandsReturn {
+  if (!commandsRef.current) throw new Error('Grid commands are unavailable')
+  return commandsRef.current
 }
 
 function getItemRegistry(): GridItemRegistry {
@@ -503,7 +522,6 @@ const interaction = useGridInteraction<Breakpoint>({
   emitInteractionEnd: payload => emit('interaction-end', payload),
   emitLayoutUpdated: (layout, revision) => emitLayoutUpdated(layout, revision, 'interaction'),
   invalidateDropProposal: () => getDrop().invalidateProposal(),
-  invalidatePendingDropCommit: () => getDrop().invalidatePendingCommit(),
   emitCompact: () => emitter.emit('compact'),
   updateHeight,
   applyDeferredEngineConfig: () => getConfig().applyEngineConfig(),
@@ -519,7 +537,7 @@ const cancelPendingFrame = interaction.cancelPendingFrame
 const cancelInteraction = interaction.cancel
 const rememberFocusedDescendant = interaction.rememberFocusedDescendant
 const rememberPointerFocus = interaction.rememberPointerFocus
-const dragEvent = interaction.dragEvent
+const interactionDragEvent = interaction.dragEvent
 const resizeEvent = interaction.resizeEvent
 
 const transactionController = createLayoutTransactionController<Breakpoint>({
@@ -617,15 +635,39 @@ const drop = useGridDrop<Breakpoint>({
   },
   onOperationRejected: payload => emit('operation-rejected', payload),
   onDragOver: (context, event) => emit('drop-drag-over', context, event),
-  onDrop: (result, event, epoch) => {
-    emit('drop', result, event)
-    getLayoutSync().startDropCommitDeadline(epoch)
+  onCommitRequest: (item, result, event) => {
+    getCommands().submit(
+      { type: 'add', item },
+      {
+        source: 'drop-commit',
+        operation: 'drop',
+        nativeEvent: event,
+        settlement: {
+          committed: (layout, revision) => {
+            const committedItem = layout.find(candidate => Object.is(candidate.i, item.i))
+            if (!committedItem) return
+            emit(
+              'drop',
+              {
+                status: 'committed',
+                proposalId: result.proposalId,
+                breakpoint: result.breakpoint,
+                item: cloneLayout([committedItem])[0],
+                layout: cloneLayout(layout),
+                revision,
+              },
+              event,
+            )
+          },
+          rejected: () => undefined,
+        },
+      },
+    )
   },
   onDragLeave: event => emit('drop-drag-leave', event),
 })
 dropRef.current = drop
 const invalidateDropProposal = drop.invalidateProposal
-const invalidatePendingDropCommit = drop.invalidatePendingCommit
 const finishDropSession = drop.finishSession
 const handleDragEnter = drop.handleDragEnter
 const handleDragOver = drop.handleDragOver
@@ -698,7 +740,6 @@ const responsive = useGridResponsive<Breakpoint>({
   getTransactionController,
   getInteraction: () => interaction,
   getDrop,
-  tryConfirmDropCommit: () => getLayoutSync().tryConfirmDropCommit(),
   isUnavailable: () => disposing || sealedError !== null,
   runAsyncBoundary,
   observeLayoutProp: () => getLayoutSync().observeLayoutProp(),
@@ -745,7 +786,6 @@ const width = useGridWidth<Breakpoint>({
   getInteraction: () => interaction,
   getResponsive,
   invalidateDropProposal: () => drop.invalidateProposal(),
-  invalidatePendingDropCommit: () => drop.invalidatePendingCommit(),
   evaluatePositionStyles: evaluatePositionStyleBatch,
   primePositionStyles: positionStyleController.prime,
   disablePositionInteractions,
@@ -782,7 +822,6 @@ const config = useGridConfig<Breakpoint>({
   getInteraction: () => interaction,
   getTransactionController,
   invalidateDropProposal: () => drop.invalidateProposal(),
-  invalidatePendingDropCommit: () => drop.invalidatePendingCommit(),
   evaluatePositionStyles: evaluatePositionStyleBatch,
   commitPositionStyles: (styles, ready) => commitPositionStyleMap(styles, ready, true),
   disablePositionInteractions,
@@ -834,6 +873,7 @@ const commands = useGridCommands<Breakpoint>({
   rejectPositionStyles: rejectPositionStyleBatch,
   emitOperationRejected,
 })
+commandsRef.current = commands
 const setLayout = commands.setLayout
 const moveItem = commands.moveItem
 const resizeItem = commands.resizeItem
@@ -842,13 +882,40 @@ const removeItem = commands.removeItem
 const bringToFront = commands.bringToFront
 const sendToBack = commands.sendToBack
 
+const transfer = useGridTransfer<Breakpoint>({
+  state,
+  engine,
+  isUnavailable: () => disposing || sealedError !== null,
+  hasActiveInteraction: interaction.hasActive,
+  getRoot: () => wrapper.value,
+  getConfig: () => appliedTransferConfig.value,
+  getEngineConfig: () => appliedEngineConfig.value,
+  getPositionStrategy: () => appliedPositionStrategy.value,
+  getCommittedLayout: () => committedLayout,
+  getDirection: () => (layoutUsesRtl() ? 'rtl' : 'ltr'),
+  evaluatePositionStyles: evaluatePositionStyleBatch,
+  syncPreviewLayout: syncEngineLayout,
+  commitPreviewStyles: (styles, ready) => commitPositionStyleMap(styles, ready, false),
+  restorePreview: () => {
+    if (interaction.hasActive()) return
+    syncEngineLayout(committedLayout)
+    restoreCommittedPositionStyleMap()
+    updateHeight()
+  },
+  clearExternalDrop: () => finishDropSession(),
+  updateHeight,
+  suspendSource: interaction.suspendForTransfer,
+  finishSource: (reason, event) => interaction.finishTransfer(reason, event),
+  submit: (command, options) => commands.submit(command, options),
+  emitCommitted: (result, event) => emit('transfer', result, event),
+})
+
 const layoutSync = useGridLayoutSync<Breakpoint>({
   state,
   engine,
   isDisposing: () => disposing,
   isResponsive: () => responsiveMode.value,
   getLayout: () => props.layout,
-  getResponsiveLayouts: () => props.responsiveLayouts,
   getCurrentLayout: () => currentLayout.value,
   getCommittedLayout: () => committedLayout,
   setCommittedLayout: layout => {
@@ -860,17 +927,6 @@ const layoutSync = useGridLayoutSync<Breakpoint>({
     appliedEngineConfig.value = config
   },
   getPositionStrategy: () => appliedPositionStrategy.value,
-  getCommittedResponsiveConfig: () => committedResponsiveConfig,
-  getCommittedCompleteLayouts: () => committedCompleteLayouts,
-  setCommittedCompleteLayouts: layouts => {
-    committedCompleteLayouts = layouts
-  },
-  setCommittedAuthorLayouts: layouts => {
-    committedAuthorLayouts = layouts
-  },
-  setCommittedResponsiveIdentity: identity => {
-    committedResponsivePropIdentity = identity
-  },
   resolveEngineConfig,
   getTransactionController,
   getInteraction: () => interaction,
@@ -888,8 +944,6 @@ const layoutSync = useGridLayoutSync<Breakpoint>({
   emitLayoutUpdated,
   nextEvaluationId,
   nextRevision,
-  runAsyncBoundary,
-  observeResponsiveInputs: () => responsive.observeInputs(),
 })
 layoutSyncRef.current = layoutSync
 const observeLayoutProp = layoutSync.observeLayoutProp
@@ -938,6 +992,7 @@ function sealCounter(error: GridLayoutValidationError, emitRuntime: boolean): vo
   transactionController.disposePending()
   interactionBuffers.finishTerminal()
   state.dropPlaceholder = null
+  state.transferPlaceholder = null
   clearInteractionView()
   if (emitRuntime) {
     emit('error', {
@@ -1119,6 +1174,7 @@ onBeforeMount(() => {
 
 onMounted(() => {
   mounted = true
+  transfer.register()
   emit('layout-mounted', cloneLayout(currentLayout.value))
   if (initialLayoutNormalized && !responsiveMode.value) {
     const revision = nextRevision()
@@ -1143,10 +1199,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  transfer.unregister()
   disposing = true
   mounted = false
   finishDropSession(false)
-  invalidatePendingDropCommit()
   cancelPendingFrame()
   interactionBuffers.finishTerminal()
   discardPendingObservedWidth()
@@ -1190,6 +1246,30 @@ function dragEventHandler(
 ) {
   dragEvent(eventType, i, x, y, h, w, nativeEvent)
   if (eventType === 'dragend') nextTick(() => autoHeight.refresh())
+}
+
+/** 在本地 interaction 与 document 级跨网格会话之间路由原生拖拽阶段。 */
+function dragEvent(
+  eventType: string,
+  i: number | string,
+  x: number,
+  y: number,
+  h: number,
+  w: number,
+  nativeEvent?: Event,
+): void {
+  if (eventType === 'dragstart') {
+    if (nativeEvent && transfer.isBusy()) {
+      getItem(i)?.resetInteractionState('drag')
+      return
+    }
+    interactionDragEvent(eventType, i, x, y, h, w, nativeEvent)
+    if (nativeEvent && interaction.isActive('drag', i)) transfer.start(i, nativeEvent)
+    return
+  }
+  if (eventType === 'dragmove' && nativeEvent && transfer.move(nativeEvent)) return
+  if (eventType === 'dragend' && nativeEvent && transfer.end(nativeEvent)) return
+  interactionDragEvent(eventType, i, x, y, h, w, nativeEvent)
 }
 
 function syncItemEngineConfig(): void {
@@ -1331,11 +1411,28 @@ watch(
         return
       }
       invalidateDropProposal()
-      invalidatePendingDropCommit()
       appliedDropConfig.value = snapshot
     })
   },
   { flush: 'post' },
+)
+watch(
+  () => props.transferConfig,
+  value => {
+    runAsyncBoundary(() => {
+      let snapshot: TransferConfigSnapshot | null
+      try {
+        snapshot = snapshotTransferConfig(toRaw(value), toRaw)
+      } catch (error) {
+        emitRuntimeError(error, null, { source: 'config' })
+        return
+      }
+      transfer.cancel()
+      transfer.clearPreview()
+      appliedTransferConfig.value = snapshot
+    })
+  },
+  { deep: true, flush: 'post' },
 )
 watch(
   () => props.isMirrored,
@@ -1539,7 +1636,6 @@ function derivedGeometryIsFinite(width: number): boolean {
 function handleDirectionChange(): void {
   if (disposing || sealedError) return
   invalidateDropProposal()
-  invalidatePendingDropCommit()
   const evaluation = evaluatePositionStyleBatch(
     committedLayout,
     appliedPositionStrategy.value,
@@ -1626,6 +1722,18 @@ updateHeight()
       :w="state.dropPlaceholder.w"
       :h="state.dropPlaceholder.h"
       :i="'__drop__'"
+      aria-hidden="true"
+      decorative
+      internal
+    ></GridItem>
+    <GridItem
+      v-if="state.transferPlaceholder"
+      class="vgl-item--placeholder"
+      :x="state.transferPlaceholder.x"
+      :y="state.transferPlaceholder.y"
+      :w="state.transferPlaceholder.w"
+      :h="state.transferPlaceholder.h"
+      :i="'__transfer__'"
       aria-hidden="true"
       decorative
       internal

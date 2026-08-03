@@ -91,16 +91,19 @@ describe('外部拖入 proposal', () => {
     wrapper.unmount()
   })
 
-  it('drop 事件触发 drop 自定义事件', async () => {
+  it('drop 通过 createItem 提案，受控 layout 确认后才触发 drop', async () => {
     const wrapper = mount(GridLayout, {
       props: {
         layout: baseLayout,
         width: 1200,
         isDroppable: true,
-        dropItem: { w: 1, h: 1 },
+        dropConfig: {
+          createItem: () => ({ i: 'created', x: 99, y: 99, w: 9, h: 9 }),
+        },
         colNum: 12,
         rowHeight: 150,
         gap: [10, 10],
+        'onUpdate:layout': layout => wrapper.setProps({ layout }),
       },
       attachTo: document.body,
     })
@@ -118,18 +121,16 @@ describe('外部拖入 proposal', () => {
     // 然后触发 drop
     const dropEvent = createDragEvent('drop', { clientX: 100, clientY: 100 })
     layoutEl.element.dispatchEvent(dropEvent)
-    await nextTick()
+    await settle()
 
     const emitted = wrapper.emitted('drop')
-    expect(emitted).toBeDefined()
-    expect(emitted!.length).toBeGreaterThanOrEqual(1)
+    expect(emitted).toHaveLength(1)
+    expect(wrapper.emitted('update:layout')).toHaveLength(1)
 
     const [result] = emitted![0] as any[]
-    expect(result.status).toBe('accepted')
-    expect(typeof result.candidate.x).toBe('number')
-    expect(typeof result.candidate.y).toBe('number')
-    expect(typeof result.candidate.w).toBe('number')
-    expect(typeof result.candidate.h).toBe('number')
+    expect(result.status).toBe('committed')
+    expect(result.item).toMatchObject({ i: 'created', w: 1, h: 1 })
+    expect(result.layout.some((item: { i: string }) => item.i === 'created')).toBe(true)
 
     wrapper.unmount()
   })
@@ -174,6 +175,9 @@ describe('外部拖入 proposal', () => {
         layout: baseLayout,
         width: 1200,
         isDroppable: true,
+        dropConfig: {
+          createItem: () => ({ i: 'created', x: 0, y: 0, w: 1, h: 1 }),
+        },
         dropItem: { w: 1, h: 1 },
       },
       attachTo: document.body,
@@ -256,7 +260,11 @@ describe('DropConfig 与 proposal 边界', () => {
         layout: baseLayout,
         width: 1200,
         isDroppable: true,
-        dropConfig: { onDragOver: callback },
+        dropConfig: {
+          onDragOver: callback,
+          createItem: () => ({ i: 'created', x: 0, y: 0, w: 1, h: 1 }),
+        },
+        'onUpdate:layout': layout => wrapper.setProps({ layout }),
       },
       attachTo: document.body,
     })
@@ -277,6 +285,7 @@ describe('DropConfig 与 proposal 边界', () => {
     layout.dispatchEvent(dropped)
     expect(dropped.defaultPrevented).toBe(true)
     expect(dropped.dataTransfer?.dropEffect).toBe('copy')
+    await settle()
     expect(wrapper.emitted('drop')).toHaveLength(1)
 
     await wrapper.setProps({
@@ -626,7 +635,11 @@ describe('DropConfig 与 proposal 边界', () => {
         layout,
         width: 1200,
         isDroppable: true,
-        dropConfig: { onDragOver: callback },
+        dropConfig: {
+          onDragOver: callback,
+          createItem: () => ({ i: 'created', x: 0, y: 0, w: 1, h: 1 }),
+        },
+        'onUpdate:layout': next => wrapper.setProps({ layout: next }),
       },
     })
     await settle()
@@ -654,20 +667,21 @@ describe('DropConfig 与 proposal 边界', () => {
 
     const dropEvent = createDragEvent('drop', { clientX: 1000, clientY: 100 })
     root.dispatchEvent(dropEvent)
-    await nextTick()
+    await settle()
 
     const result = wrapper.emitted('drop')?.at(-1)?.[0] as any
-    expect(result.candidate.x).not.toBe(998)
-    expect(result.previewLayout[0].metadata.nested.value).toBe('layout-original')
-    expect(result.candidate).not.toBe(context.candidate)
-    expect(result.previewLayout).not.toBe(context.previewLayout)
-    expect(result.previewLayout[0]).not.toBe(context.previewLayout[0])
+    expect(result.item.i).toBe('created')
+    expect(result.item.x).not.toBe(998)
+    expect(result.layout[0].metadata.nested.value).toBe('layout-original')
+    expect(result.item).not.toBe(context.candidate)
+    expect(result.layout).not.toBe(context.previewLayout)
+    expect(result.layout[0]).not.toBe(context.previewLayout[0])
     expect(Object.isFrozen(result)).toBe(false)
-    expect(Object.isFrozen(result.candidate)).toBe(false)
-    expect(Object.isFrozen(result.previewLayout)).toBe(false)
+    expect(Object.isFrozen(result.item)).toBe(false)
+    expect(Object.isFrozen(result.layout)).toBe(false)
 
-    result.candidate.x = 997
-    result.previewLayout[0].metadata.nested.value = 'result-mutated'
+    result.item.x = 997
+    result.layout[0].metadata.nested.value = 'result-mutated'
     await settle()
     root.dispatchEvent(createDragEvent('dragover', { clientX: 1000, clientY: 100 }))
     await nextTick()
@@ -675,9 +689,154 @@ describe('DropConfig 与 proposal 边界', () => {
     const nextContext = wrapper.emitted('drop-drag-over')?.at(-1)?.[0] as any
     expect(nextContext.candidate.x).not.toBe(997)
     expect(nextContext.previewLayout[0].metadata.nested.value).toBe('layout-original')
-    expect(nextContext.candidate).not.toBe(result.candidate)
-    expect(nextContext.previewLayout[0]).not.toBe(result.previewLayout[0])
+    expect(nextContext.candidate).not.toBe(result.item)
+    expect(nextContext.previewLayout[0]).not.toBe(result.layout[0])
 
+    wrapper.unmount()
+  })
+
+  it.each([
+    {
+      name: '缺少 createItem',
+      dropConfig: {},
+      reason: 'invalid-input',
+      errorCode: undefined,
+    },
+    {
+      name: 'createItem 主动拒绝',
+      dropConfig: { createItem: () => false },
+      reason: 'callback-rejected',
+      errorCode: undefined,
+    },
+    {
+      name: 'createItem 抛错',
+      dropConfig: {
+        createItem: () => {
+          throw new Error('factory failed')
+        },
+      },
+      reason: 'extension-error',
+      errorCode: 'extension-error',
+    },
+    {
+      name: 'createItem 返回非法 item',
+      dropConfig: { createItem: () => ({ i: '', x: 0, y: 0, w: 1, h: 1 }) },
+      reason: 'extension-invalid-result',
+      errorCode: 'extension-invalid-result',
+    },
+  ])('$name 不提案布局且统一拒绝', async testCase => {
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: baseLayout,
+        width: 1200,
+        isDroppable: true,
+        dropConfig: testCase.dropConfig,
+      },
+    })
+    await settle()
+    const root = wrapper.find('.vgl-layout').element
+    root.dispatchEvent(createDragEvent('dragover', { clientX: 1000, clientY: 100 }))
+    root.dispatchEvent(createDragEvent('drop', { clientX: 1000, clientY: 100 }))
+    await settle()
+
+    expect(wrapper.emitted('update:layout')).toBeUndefined()
+    expect(wrapper.emitted('drop')).toBeUndefined()
+    expect(wrapper.emitted('operation-rejected')?.at(-1)?.[0]).toMatchObject({
+      operation: 'drop',
+      reason: testCase.reason,
+    })
+    if (testCase.errorCode) {
+      expect(wrapper.emitted('error')?.at(-1)?.[0]).toMatchObject({ code: testCase.errorCode })
+    } else {
+      expect(wrapper.emitted('error')).toBeUndefined()
+    }
+    wrapper.unmount()
+  })
+
+  it('createItem 使用重复 id 时由布局引擎拒绝', async () => {
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: baseLayout,
+        width: 1200,
+        isDroppable: true,
+        dropConfig: {
+          createItem: () => ({ i: '0', x: 0, y: 0, w: 1, h: 1 }),
+        },
+      },
+    })
+    await settle()
+    const root = wrapper.find('.vgl-layout').element
+    root.dispatchEvent(createDragEvent('dragover', { clientX: 1000, clientY: 100 }))
+    root.dispatchEvent(createDragEvent('drop', { clientX: 1000, clientY: 100 }))
+    await settle()
+
+    expect(wrapper.emitted('update:layout')).toBeUndefined()
+    expect(wrapper.emitted('drop')).toBeUndefined()
+    expect(wrapper.emitted('operation-rejected')?.at(-1)?.[0]).toMatchObject({
+      operation: 'drop',
+      reason: 'invalid-input',
+      id: '0',
+    })
+    wrapper.unmount()
+  })
+
+  it('createItem 的尺寸约束改变候选几何时拒绝提交', async () => {
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: baseLayout,
+        width: 1200,
+        isDroppable: true,
+        dropItem: { w: 1, h: 1 },
+        dropConfig: {
+          createItem: () => ({ i: 'created', x: 0, y: 0, w: 1, h: 1, minW: 2 }),
+        },
+      },
+    })
+    await settle()
+    const root = wrapper.find('.vgl-layout').element
+    root.dispatchEvent(createDragEvent('dragover', { clientX: 1000, clientY: 100 }))
+    root.dispatchEvent(createDragEvent('drop', { clientX: 1000, clientY: 100 }))
+    await settle()
+
+    expect(wrapper.emitted('update:layout')).toBeUndefined()
+    expect(wrapper.emitted('drop')).toBeUndefined()
+    expect(wrapper.emitted('operation-rejected')?.at(-1)?.[0]).toMatchObject({
+      operation: 'drop',
+      reason: 'extension-invalid-result',
+    })
+    expect(wrapper.emitted('error')?.at(-1)?.[0]).toMatchObject({
+      code: 'extension-invalid-result',
+      source: 'drop-config',
+      path: 'dropCreateItemResult',
+    })
+    wrapper.unmount()
+  })
+
+  it('父组件未确认自动插入时不发 drop 并回滚', async () => {
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: baseLayout,
+        width: 1200,
+        isDroppable: true,
+        dropConfig: {
+          createItem: () => ({ i: 'created', x: 0, y: 0, w: 1, h: 1 }),
+        },
+      },
+    })
+    await settle()
+    const root = wrapper.find('.vgl-layout').element
+    root.dispatchEvent(createDragEvent('dragover', { clientX: 1000, clientY: 100 }))
+    root.dispatchEvent(createDragEvent('drop', { clientX: 1000, clientY: 100 }))
+    await settle()
+
+    expect(wrapper.emitted('update:layout')).toHaveLength(1)
+    expect(wrapper.emitted('drop')).toBeUndefined()
+    expect(wrapper.emitted('operation-rejected')?.at(-1)?.[0]).toMatchObject({
+      operation: 'drop',
+      reason: 'external-not-committed',
+    })
+    expect(wrapper.props('layout')).toEqual(baseLayout)
+    expect((wrapper.vm as any).state.dropPlaceholder).toBeNull()
     wrapper.unmount()
   })
 

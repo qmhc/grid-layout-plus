@@ -210,16 +210,40 @@ type DropEvaluationResult<B extends string = DefaultBreakpoint> =
       nativeEvent: DragEvent
     }
 
+type DropCreateItemContext<B extends string = DefaultBreakpoint> = Readonly<
+  Extract<DropEvaluationResult<B>, { status: 'accepted' }>
+>
+
+interface DropCommitResult<B extends string = DefaultBreakpoint> {
+  status: 'committed'
+  proposalId: number
+  breakpoint: B | null
+  item: ReadonlyLayoutItem
+  layout: ReadonlyLayout
+  revision: number
+}
+
 interface DropConfig<B extends string = DefaultBreakpoint> {
   isDroppable?: boolean
   dropItem?: Readonly<{ w: number; h: number }>
+  createItem(context: DropCreateItemContext<B>): ReadonlyLayoutItem | false
   onDragOver?(
     context: Readonly<DropDragOverInput<B>>,
   ): false | Readonly<{ w?: number; h?: number }>
 }
 ```
 
-`candidate` intentionally has no business id. `previewLayout` contains only the normalized positions of existing items.
+`candidate` intentionally has no business id. `createItem` supplies the complete business item at release time; candidate `x`, `y`, `w`, and `h` override the factory geometry. Factory constraints that would change this accepted geometry are rejected as `extension-invalid-result`. The component proposes the insertion and emits `drop` only after the controlled Layout confirms it.
+
+### Transfer types
+
+```ts
+interface TransferConfig {
+  group: string
+}
+```
+
+Grids in the same document accept item moves only when their non-empty `group` values match.
 
 ### Geometry types
 
@@ -484,9 +508,7 @@ Use `scaledStrategy(scale)` when an ancestor is rendered with the same CSS `tran
 - type: `boolean`
 - default: `false`
 
-Enables native HTML5 drag-and-drop into the grid from external elements. Use together with [`drop-item`](#drop-item) and the [drop events](./events#drop-drag-over).
-
-`GridLayout` only evaluates and previews an external drop. It does not create a business id, insert the candidate, or emit `update:layout`. The `drop` listener must insert the accepted candidate and write back the Layout.
+Enables native HTML5 drag-and-drop into the grid from external elements. Configure [`drop-config`](#drop-config) with a required `createItem` factory. The component previews the candidate, proposes the created item through `update:layout`, and emits `drop` only after the parent confirms the controlled Layout.
 
 ### drop-item
 
@@ -560,13 +582,21 @@ A grouped configuration object for drop-related props. An explicitly provided in
 interface DropConfig<B extends string = DefaultBreakpoint> {
   isDroppable?: boolean
   dropItem?: Readonly<{ w: number; h: number }>
+  createItem(context: DropCreateItemContext<B>): ReadonlyLayoutItem | false
   onDragOver?(
     context: Readonly<DropDragOverInput<B>>,
   ): false | Readonly<{ w?: number; h?: number }>
 }
 ```
 
-`onDragOver` receives the current candidate and committed Layout. Return `false` to reject it, or return `w` and/or `h` to change its size. After a size change, the component recalculates the candidate around the same pointer before checking collisions and bounds.
+`onDragOver` receives the current candidate and committed Layout. Return `false` to reject it, or return `w` and/or `h` to change its size. `createItem` returns the complete application item or `false`; the accepted candidate geometry remains authoritative.
+
+### transfer-config
+
+- type: `TransferConfig`
+- default: `undefined`
+
+Enables move-only cross-grid dragging between grids in the same document and group. The target previews the incoming item without mutating either controlled model. On release, the source proposes removal and the target proposes insertion; both confirmations are required. A one-sided rejection triggers a compensating proposal on the confirmed side. Copy mode, nested-grid transfer, and preserving mounted component state across Teleport boundaries are not included.
 
 Programmatic layout and layer operations are documented in [Methods](./methods).
 

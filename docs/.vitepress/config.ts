@@ -153,6 +153,7 @@ export default defineConfig({
                   items: [
                     { text: 'Native Drag & Drop', link: '/example/native-drop' },
                     { text: 'Drag From Outside', link: '/example/drag-from-outside' },
+                    { text: 'Cross-grid Drag', link: '/example/cross-grid' },
                   ],
                 },
                 {
@@ -270,6 +271,7 @@ export default defineConfig({
                   items: [
                     { text: '原生拖放', link: '/zh/example/native-drop' },
                     { text: '从外部拖入', link: '/zh/example/drag-from-outside' },
+                    { text: '跨网格拖拽', link: '/zh/example/cross-grid' },
                   ],
                 },
                 {

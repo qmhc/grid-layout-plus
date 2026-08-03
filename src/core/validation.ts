@@ -14,6 +14,29 @@ export interface DropConfigSnapshot {
   readonly isDroppable?: boolean
   readonly dropItem?: Readonly<{ w: number; h: number }>
   readonly onDragOver?: (...args: unknown[]) => unknown
+  readonly createItem?: (...args: unknown[]) => unknown
+}
+
+export interface TransferConfigSnapshot {
+  readonly group: string
+}
+
+/** Creates a descriptor-safe snapshot of cross-grid transfer options. */
+export function snapshotTransferConfig(
+  value: unknown,
+  unwrap: (value: unknown) => unknown = input => input,
+  path = 'config.transferConfig',
+): TransferConfigSnapshot | null {
+  if (value === undefined || value === null) return null
+  const properties = readPlainDataObject(unwrap(value), {
+    code: 'invalid-config',
+    path,
+    allowedKeys: ['group'],
+  })
+  if (typeof properties.group !== 'string' || properties.group.trim().length === 0) {
+    throw invalid('invalid-config', `${path}.group`, properties.group)
+  }
+  return Object.freeze({ group: properties.group })
 }
 
 export function defineDataProperty(target: object, key: string, value: unknown): void {
@@ -249,13 +272,16 @@ export function snapshotDropConfig(
   const properties = readPlainDataObject(unwrap(value), {
     code: 'invalid-config',
     path,
-    allowedKeys: ['isDroppable', 'dropItem', 'onDragOver'],
+    allowedKeys: ['isDroppable', 'dropItem', 'onDragOver', 'createItem'],
   })
   if (properties.isDroppable !== undefined && typeof properties.isDroppable !== 'boolean') {
     throw invalid('invalid-config', `${path}.isDroppable`, properties.isDroppable)
   }
   if (properties.onDragOver !== undefined && typeof properties.onDragOver !== 'function') {
     throw invalid('invalid-config', `${path}.onDragOver`, properties.onDragOver)
+  }
+  if (properties.createItem !== undefined && typeof properties.createItem !== 'function') {
+    throw invalid('invalid-config', `${path}.createItem`, properties.createItem)
   }
   const dropItem =
     properties.dropItem === undefined
@@ -267,6 +293,9 @@ export function snapshotDropConfig(
     ...(properties.onDragOver === undefined
       ? {}
       : { onDragOver: properties.onDragOver as (...args: unknown[]) => unknown }),
+    ...(properties.createItem === undefined
+      ? {}
+      : { createItem: properties.createItem as (...args: unknown[]) => unknown }),
   })
 }
 

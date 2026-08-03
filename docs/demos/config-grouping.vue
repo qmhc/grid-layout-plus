@@ -18,8 +18,10 @@ const resizeConfig = reactive<ResizeConfig>({
   isResizable: true,
 })
 
+let nextDropId = 1
 const dropConfig = reactive<DropConfig>({
   isDroppable: false,
+  createItem: () => ({ i: `drop-${nextDropId++}`, x: 0, y: 0, w: 1, h: 1 }),
 })
 
 const layout = ref([
@@ -58,6 +60,7 @@ function resetConfig() {
   })
   Object.assign(dropConfig, {
     isDroppable: false,
+    createItem: () => ({ i: `drop-${nextDropId++}`, x: 0, y: 0, w: 1, h: 1 }),
   })
 }
 </script>

@@ -156,37 +156,35 @@ function dropDragOver<B extends string>(
 ): void
 ```
 
-`context.candidate` 是不含 id 的最终候选项，其中包含 `DropConfig.onDragOver` 对尺寸所做的调整。`context.previewLayout` 保存归一化后的现有栅格项，`insertionIndex` 表示候选项应插入的位置，`proposalId` 标识本次已接受的计算结果。响应式模式下，本次计算会固定使用 `breakpoint` 指定的断点。
+`context.candidate` 是不含 id 的最终候选项，其中包含 `DropConfig.onDragOver` 对尺寸所做的调整。`context.previewLayout` 保存归一化后的现有栅格项，`insertionIndex` 记录候选项在预览中的顺序，`proposalId` 标识本次已接受的计算结果。响应式模式下，本次计算会固定使用 `breakpoint` 指定的断点。
 
 ### drop
 
 外部可拖拽内容放到栅格上时发送。只有 [`is-droppable`](./properties#is-droppable) 为 `true` 时才会触发。
 
-事件结果包含最后一次有效的拖放计算。`GridLayout` 不会创建 id，也不会自动更新 Layout。
+`DropConfig.createItem` 会先创建完整业务对象，随后 `GridLayout` 发送受控 `update:layout` 提案。只有父组件确认该提案后，才会发送 `drop`。
 
 ```ts
 function drop<B extends string>(
-  result: Extract<DropEvaluationResult<B>, { status: 'accepted' }>,
+  result: DropCommitResult<B>,
   event: DragEvent,
 ): void
 ```
 
-创建唯一的业务 id，在 `insertionIndex` 处把候选项插入 `previewLayout` 的副本，再写回新的 Layout：
+在配置中创建业务对象，事件监听器只消费已提交结果：
 
 ```ts
-function handleDrop(
-  result: Extract<DropEvaluationResult, { status: 'accepted' }>,
-) {
-  const nextLayout = result.previewLayout.map(item => ({ ...item }))
-  nextLayout.splice(result.insertionIndex, 0, {
-    ...result.candidate,
-    i: createUniqueId(),
-  })
-  layout.value = nextLayout
+const dropConfig: DropConfig = {
+  isDroppable: true,
+  createItem: () => ({ i: createUniqueId(), x: 0, y: 0, w: 1, h: 1 }),
+}
+
+function handleDrop(result: DropCommitResult) {
+  console.log('committed', result.item, result.revision)
 }
 ```
 
-响应式栅格需要使用 `result.breakpoint`，在同一个 Vue 更新周期内更新对应的响应式 Layout 和当前 Layout。如果断点、配置或 Layout 变化使计算结果失效，`drop` 不会发送过期结果。
+响应式栅格沿用双受控模型事务：当前 Layout 与活动断点 Layout 都确认后才发送 `drop`。缺少工厂、工厂拒绝或抛错、重复 id、父组件未确认等情况统一通过 `operation-rejected` 报告。
 
 ### drop-drag-leave
 
@@ -195,6 +193,16 @@ function handleDrop(
 ```ts
 function dropDragLeave(event: DragEvent): void
 ```
+
+### transfer
+
+同组跨网格移动在源、目标两个受控 Layout 都提交后发送；源网格和目标网格各发送一次。
+
+```ts
+function transfer(result: GridTransferResult, event: Event): void
+```
+
+`result.item` 是目标模型实际确认的完整业务对象，包含目标父组件合并的 metadata；`sourceLayout`、`targetLayout` 分别是两端已提交模型，并带有独立 revision。由于两个栅格可能使用不同的响应式断点类型，`sourceBreakpoint` 与 `targetBreakpoint` 均为 `string | null`。目标预览和快速切换不会提案模型更新；离开目标后继续源端本地拖拽，Escape 或窗口失焦会取消跨网格移动，并回滚本次交互造成的源端变化。若只有一端确认，协调器只向该已确认端发送补偿提案，且不会发送 `transfer`。
 
 ## GridItem
 

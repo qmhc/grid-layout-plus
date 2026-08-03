@@ -88,6 +88,7 @@ interface LayoutUpdateMeta {
     | 'config'
     | 'external'
     | 'drop-commit'
+    | 'transfer'
     | 'auto-height'
 }
 ```
@@ -100,7 +101,7 @@ interface LayoutUpdateMeta {
 interface OperationRejectedPayload {
   revision: number | null
   evaluationId: number
-  operation: LayoutOperationResultBase['operation'] | 'config' | 'drop'
+  operation: LayoutOperationResultBase['operation'] | 'config' | 'drop' | 'transfer'
   reason: OperationRejectedReason
   id: LayoutItem['i'] | null
   previousLayout: ReadonlyLayout
@@ -110,7 +111,9 @@ interface OperationRejectedPayload {
 }
 ```
 
-`operation-rejected` 会报告被拒绝的组件命令、交互候选位置、受控确认、配置更新和拖放候选项。收到该事件并不表示已提交 Layout 发生了变化。
+`operation-rejected` 会报告被拒绝的组件命令、交互候选位置、受控确认、配置更新、拖放候选项，以及跨网格转移任一端的拒绝。收到该事件并不表示已提交 Layout 发生了变化。
+
+跨网格移动由协调器管理，但仍是两个独立的受控事务。只有两个 revision 都提交后才发送 `transfer`。若一端拒绝，已确认的一端会收到 `source: 'transfer'` 的补偿提案；应用仍需正常写回该提案才能完成回滚。
 
 ## InteractionTerminalPayload
 

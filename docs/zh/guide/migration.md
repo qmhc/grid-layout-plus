@@ -113,6 +113,19 @@ v2 的 `Layout` 事件参数是彼此独立的只读快照。`update:layout`、`
 
 默认值仍是 `false`。设为 `true` 时，v2 会在拖拽期间把当前栅格项保留在指针所在的候选位置；松开指针后的最终压缩仍可能移动它。升级后应重新检查占位符和最终落点。
 
+### 外部拖入与跨网格拖拽
+
+v1 的外部拖入示例会调用 `getItem()`、`dragEvent()` 等组件内部字段；这些字段在 v2 不属于公开 API。原生外部拖入应配置 `DropConfig.createItem`，组件会自动发送受控插入提案，并只在确认后发送 `drop`。请删除监听 `drop` 后把 `result.candidate` 手工插入 `previewLayout` 的逻辑。
+
+```ts
+const dropConfig: DropConfig = {
+  isDroppable: true,
+  createItem: () => ({ i: createUniqueId(), x: 0, y: 0, w: 1, h: 1 }),
+}
+```
+
+需要在多个栅格间移动时，为它们设置相同的 `transferConfig.group`，并用 `v-model:layout` 绑定两端 Layout。v2 的跨网格转移仅支持移动，并要求两个受控模型都确认。
+
 ## 已移除的 API
 
 ### GridLayout 组件引用的内部字段

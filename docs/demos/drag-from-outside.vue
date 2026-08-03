@@ -2,14 +2,13 @@
 import { computed, ref } from 'vue'
 
 import type {
+  DropCommitResult,
   DropConfig,
   DropDragOverContext,
-  DropEvaluationResult,
   Layout,
   OperationRejectedPayload,
 } from 'grid-layout-plus'
 
-type AcceptedDropResult = Extract<DropEvaluationResult, { status: 'accepted' }>
 type StatusTone = 'neutral' | 'accent' | 'success' | 'warning'
 
 interface ExternalSource {
@@ -65,6 +64,11 @@ const dropConfig: DropConfig = {
     if (!source || source.blocked) return false
     return { w: source.w, h: source.h }
   },
+  createItem() {
+    const source = activeSource.value
+    if (!source) return false
+    return { i: `external-${nextId++}`, x: 0, y: 0, w: source.w, h: source.h }
+  },
 }
 
 const statusType = computed(() => statusTypeByTone[statusTone.value])
@@ -109,21 +113,15 @@ function handleOperationRejected(payload: OperationRejectedPayload) {
   candidate.value = 'None'
 }
 
-function handleDrop(result: AcceptedDropResult) {
+function handleDrop(result: DropCommitResult) {
   const source = activeSource.value
   if (!source) return
 
-  const id = `external-${nextId++}`
-  const nextLayout = result.previewLayout.map(item => ({ ...item }))
-  nextLayout.splice(result.insertionIndex, 0, {
-    ...result.candidate,
-    i: id,
-  })
-  layout.value = nextLayout
+  const id = String(result.item.i)
   droppedInGesture = true
   status.value = `Dropped ${source.label} · ${id}`
   statusTone.value = 'success'
-  candidate.value = `${result.candidate.w} × ${result.candidate.h} at (${result.candidate.x}, ${result.candidate.y})`
+  candidate.value = `${result.item.w} × ${result.item.h} at (${result.item.x}, ${result.item.y})`
 }
 
 function handleDropDragLeave() {

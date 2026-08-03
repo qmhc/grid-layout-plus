@@ -155,6 +155,7 @@ export type InteractionCancelReason =
   | 'geometry-error'
   | 'extension-error'
   | 'extension-invalid-result'
+  | 'transferred'
 
 /** Fields shared by every terminal drag or resize payload. */
 export interface InteractionTerminalBase {
@@ -244,7 +245,7 @@ export interface OperationRejectedPayload {
   /** The id of the evaluation that rejected the operation. */
   evaluationId: number
   /** The kind of operation that was rejected. */
-  operation: LayoutOperationResultBase['operation'] | 'config' | 'drop'
+  operation: LayoutOperationResultBase['operation'] | 'config' | 'drop' | 'transfer'
   /** The rule or condition that rejected the operation. */
   reason: OperationRejectedReason
   /** The target item id, or `null` for layout-wide operations. */

@@ -2,13 +2,13 @@
 import { computed, ref } from 'vue'
 
 import type {
+  DropCommitResult,
+  DropConfig,
   DropDragOverContext,
-  DropEvaluationResult,
   Layout,
   OperationRejectedPayload,
 } from 'grid-layout-plus'
 
-type AcceptedDropResult = Extract<DropEvaluationResult, { status: 'accepted' }>
 type StatusTone = 'neutral' | 'accent' | 'success' | 'warning'
 
 function createLayout(): Layout {
@@ -28,6 +28,11 @@ const dropStatus = ref('Waiting · drag the source into the target')
 const statusTone = ref<StatusTone>('neutral')
 let nextId = 6
 let droppedInGesture = false
+const dropConfig = computed<DropConfig>(() => ({
+  isDroppable: isDroppable.value,
+  dropItem: { w: 2, h: 2 },
+  createItem: () => ({ i: String(nextId++), x: 0, y: 0, w: 2, h: 2 }),
+}))
 
 const statusTypeByTone = {
   neutral: 'default',
@@ -63,16 +68,10 @@ function handleDropDragOver(context: DropDragOverContext) {
   statusTone.value = 'accent'
 }
 
-function handleDrop(result: AcceptedDropResult) {
-  const id = String(nextId++)
-  const nextLayout = result.previewLayout.map(item => ({ ...item }))
-  nextLayout.splice(result.insertionIndex, 0, {
-    ...result.candidate,
-    i: id,
-  })
-  layout.value = nextLayout
+function handleDrop(result: DropCommitResult) {
+  const id = String(result.item.i)
   droppedInGesture = true
-  dropStatus.value = `Dropped item ${id} · (${result.candidate.x}, ${result.candidate.y})`
+  dropStatus.value = `Dropped item ${id} · (${result.item.x}, ${result.item.y})`
   statusTone.value = 'success'
 }
 
@@ -142,8 +141,7 @@ function resetDemo() {
         <GridLayout
           v-model:layout="layout"
           class="demo-grid"
-          :is-droppable="isDroppable"
-          :drop-item="{ w: 2, h: 2 }"
+          :drop-config="dropConfig"
           :row-height="30"
           @drop-drag-over="handleDropDragOver"
           @drop="handleDrop"

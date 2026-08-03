@@ -184,6 +184,27 @@ export type DropEvaluationResult<B extends string = DefaultBreakpoint> =
       nativeEvent: DragEvent
     }
 
+/** An external item factory receives the last accepted preview at release time. */
+export type DropCreateItemContext<B extends string = DefaultBreakpoint> = Readonly<
+  Extract<DropEvaluationResult<B>, { status: 'accepted' }>
+>
+
+/** Reports an external item after its controlled insertion has committed. */
+export interface DropCommitResult<B extends string = DefaultBreakpoint> {
+  /** Indicates that both controlled models accepted the insertion. */
+  status: 'committed'
+  /** The preview proposal that produced this insertion. */
+  proposalId: number
+  /** The responsive breakpoint that received the item, or `null`. */
+  breakpoint: B | null
+  /** The complete item created by the application at the committed grid geometry. */
+  item: ReadonlyLayoutItem
+  /** The normalized layout committed by the parent component. */
+  layout: ReadonlyLayout
+  /** The controlled transaction revision. */
+  revision: number
+}
+
 /**
  * Configures native HTML drag-and-drop into a `GridLayout`.
  *
@@ -203,12 +224,48 @@ export interface DropConfig<B extends string = DefaultBreakpoint> {
    */
   dropItem?: Readonly<{ w: number; h: number }>
   /**
+   * Creates the complete application item when an accepted preview is released.
+   *
+   * Candidate `x`, `y`, `w`, and `h` are authoritative and replace the corresponding values
+   * returned by this callback. Return `false` to reject the drop explicitly.
+   *
+   * @param context - The last accepted and normalized preview.
+   * @returns A complete item with a unique application id, or `false` to reject it.
+   */
+  createItem(context: DropCreateItemContext<B>): ReadonlyLayoutItem | false
+  /**
    * Reviews or resizes an external drag candidate before layout rules are applied.
    *
    * @param context - The pointer, candidate, layout, and responsive state for this evaluation.
    * @returns `false` to reject the candidate, or dimensions to override its size.
    */
   onDragOver?(context: Readonly<DropDragOverInput<B>>): false | Readonly<{ w?: number; h?: number }>
+}
+
+/** Configures item moves between `GridLayout` instances in the same document. */
+export interface TransferConfig {
+  /** Only grids with the same non-empty group accept transfers from each other. */
+  group: string
+}
+
+/** Reports a cross-grid move after both controlled layouts have committed. */
+export interface GridTransferResult {
+  /** Indicates that both the source removal and target insertion committed. */
+  status: 'committed'
+  /** The complete item at its committed target geometry. */
+  item: ReadonlyLayoutItem
+  /** The source grid layout after removal. */
+  sourceLayout: ReadonlyLayout
+  /** The target grid layout after insertion. */
+  targetLayout: ReadonlyLayout
+  /** The source grid's controlled transaction revision. */
+  sourceRevision: number
+  /** The target grid's controlled transaction revision. */
+  targetRevision: number
+  /** The active source breakpoint, or `null`. */
+  sourceBreakpoint: string | null
+  /** The active target breakpoint, or `null`. */
+  targetBreakpoint: string | null
 }
 
 /**
@@ -387,6 +444,8 @@ export interface GridLayoutProps<B extends string = DefaultBreakpoint> {
   resizeConfig?: ResizeConfig
   /** Grouped external-drop options. */
   dropConfig?: DropConfig<B>
+  /** Enables moving items between grids in the same non-empty group. */
+  transferConfig?: TransferConfig
 }
 
 /** Props accepted by the `GridItem` component. */
@@ -531,6 +590,7 @@ export interface LayoutUpdateMeta {
     | 'config'
     | 'external'
     | 'drop-commit'
+    | 'transfer'
     | 'auto-height'
 }
 
@@ -777,7 +837,7 @@ export interface GridLayoutEmits<B extends string = DefaultBreakpoint> {
    */
   (
     event: 'drop',
-    result: Extract<DropEvaluationResult<B>, { status: 'accepted' }>,
+    result: DropCommitResult<B>,
     nativeEvent: DragEvent,
   ): void
   /**
@@ -787,6 +847,12 @@ export interface GridLayoutEmits<B extends string = DefaultBreakpoint> {
    * @param nativeEvent - The native drag-leave event.
    */
   (event: 'drop-drag-leave', nativeEvent: DragEvent): void
+  /**
+   * Reports a cross-grid move after both controlled layouts commit.
+   *
+   * The source and target grids each emit this event once with the same result.
+   */
+  (event: 'transfer', result: GridTransferResult, nativeEvent: Event): void
   /**
    * Proposes a complete controlled responsive-layout map.
    *

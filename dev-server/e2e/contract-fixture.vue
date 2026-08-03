@@ -309,6 +309,7 @@ const futureProps = computed(() => ({
 const dropConfig = computed(() => ({
   isDroppable: true,
   dropItem: { w: 1, h: 1 },
+  createItem: () => ({ i: 'drop-commit', x: 0, y: 0, w: 1, h: 1 }),
   onDragOver: (...args: unknown[]) => {
     dropCallbackTrace.value.push({ args: serialize(args) })
     record('fixture-drop-callback', ...args)
@@ -434,6 +435,7 @@ function applyLayoutUpdate(nextLayout: Layout, ...rest: unknown[]) {
   }
 
   if (ackMode.value === 'sync') apply()
+  if (variant.value === 'drop-responsive-layout-only') apply()
   if (ackMode.value === 'rewrite') apply()
   if (ackMode.value === 'next-tick') void nextTick(apply)
   if (ackMode.value === 'nested-next-tick') {
@@ -463,10 +465,16 @@ function applyLayoutUpdate(nextLayout: Layout, ...rest: unknown[]) {
 
 function applyResponsiveLayouts(nextLayouts: Partial<ResponsiveLayout>, ...rest: unknown[]) {
   record('update:responsive-layouts', nextLayouts, ...rest)
-  if (ackMode.value === 'sync') {
+  const apply = () => {
     responsiveLayouts.value = Object.fromEntries(
       Object.entries(nextLayouts).map(([key, value]) => [key, value?.map(item => ({ ...item }))]),
     ) as Partial<ResponsiveLayout>
+  }
+  if (ackMode.value === 'sync') apply()
+  if (variant.value === 'drop-responsive-nested-next-tick') {
+    void nextTick(() => {
+      void nextTick(apply)
+    })
   }
 }
 
@@ -496,60 +504,6 @@ const gridListeners = {
         nativeEvent.preventDefault()
         if (nativeEvent.dataTransfer) nativeEvent.dataTransfer.dropEffect = 'link'
       }
-    }
-    if (['E2E-40', 'E2E-41', 'E2E-43', 'E2E-44', 'E2E-45'].includes(scenario.value)) {
-      const result = args[0] as {
-        candidate?: Omit<Layout[number], 'i'>
-        previewLayout?: Layout
-        insertionIndex?: number
-        breakpoint?: string | null
-        x?: number
-        y?: number
-        w?: number
-        h?: number
-      }
-      const candidate = result.candidate ?? result
-      const nextLayout = (result.previewLayout ?? layout.value).map(item => ({ ...item }))
-      const insertionIndex = result.insertionIndex ?? nextLayout.length
-      nextLayout.splice(insertionIndex, 0, {
-        i: 'drop-commit',
-        x: candidate.x ?? 0,
-        y: candidate.y ?? 0,
-        w: candidate.w ?? 1,
-        h: candidate.h ?? 1,
-      })
-      const apply = () => {
-        layout.value = nextLayout
-      }
-      if (variant.value.startsWith('drop-responsive-')) {
-        const breakpoint = result.breakpoint
-        const nextResponsiveLayouts = Object.fromEntries(
-          Object.entries(responsiveLayouts.value).map(([key, value]) => [
-            key,
-            value?.map(item => ({ ...item })),
-          ]),
-        ) as Partial<ResponsiveLayout>
-        if (breakpoint) nextResponsiveLayouts[breakpoint] = nextLayout.map(item => ({ ...item }))
-        const applyResponsive = () => {
-          responsiveLayouts.value = nextResponsiveLayouts
-        }
-        if (variant.value === 'drop-responsive-sync') {
-          apply()
-          applyResponsive()
-        } else if (variant.value === 'drop-responsive-nested-next-tick') {
-          void nextTick(() => {
-            void nextTick(() => {
-              apply()
-              applyResponsive()
-            })
-          })
-        } else if (variant.value === 'drop-responsive-layout-only') {
-          apply()
-        }
-        return
-      }
-      if (scenario.value !== 'E2E-45' || ackMode.value === 'sync') apply()
-      else window.setTimeout(apply, 0)
     }
   },
   'drop-drag-leave': (...args: unknown[]) => record('drop-drag-leave', ...args),

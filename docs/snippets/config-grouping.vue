@@ -12,7 +12,11 @@ const gridConfig = reactive<GridConfig>({
 })
 const dragConfig = reactive<DragConfig>({ isDraggable: true, dragThreshold: 8 })
 const resizeConfig = reactive<ResizeConfig>({ isResizable: true })
-const dropConfig = reactive<DropConfig>({ isDroppable: false })
+let nextDropId = 1
+const dropConfig = reactive<DropConfig>({
+  isDroppable: false,
+  createItem: () => ({ i: `drop-${nextDropId++}`, x: 0, y: 0, w: 1, h: 1 }),
+})
 
 const layout = ref<Layout>([
   { x: 0, y: 0, w: 3, h: 2, i: 'a' },

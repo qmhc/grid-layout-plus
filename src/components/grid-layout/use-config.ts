@@ -66,7 +66,6 @@ interface UseGridConfigOptions<B extends string> {
   getInteraction(): UseGridInteractionReturn
   getTransactionController(): LayoutTransactionController<B>
   invalidateDropProposal(): void
-  invalidatePendingDropCommit(): void
   evaluatePositionStyles(
     layout: ReadonlyLayout,
     strategy: PositionStrategy,
@@ -185,7 +184,6 @@ export function useGridConfig<B extends string>(
     > = 'config-changed',
   ): LayoutOperationResult {
     options.invalidateDropProposal()
-    options.invalidatePendingDropCommit()
     const committedLayout = options.getCommittedLayout()
     if (options.isDisposing()) {
       return {
@@ -334,7 +332,6 @@ export function useGridConfig<B extends string>(
   /** 切换定位策略前先对完整 committed layout 批量求值，失败时保留旧策略与旧样式。 */
   function applyPositionStrategy(strategy: PositionStrategy): void {
     options.invalidateDropProposal()
-    options.invalidatePendingDropCommit()
     const rawStrategy = toRaw(strategy)
     if (Object.is(rawStrategy, positionStrategyInput)) return
 

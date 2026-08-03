@@ -33,7 +33,8 @@ description: 按任务查找 Grid Layout Plus v2 的组件、组合式函数、�
 | `GridLayoutExpose`、`LayoutTransactionReceipt`                                                    | [方法](./methods)与[事务回执](./contracts#layouttransactionreceipt)                        |
 | `GridLayoutSlots`、`GridLayoutSlotScope`                                                          | [插槽](./properties#插槽)                                                                  |
 | `GridConfig`、`DragConfig`、`ResizeConfig`                                                        | [分组配置](./properties#grid-config)                                                       |
-| `DropConfig`、`DropCandidate`、`DropDragOverInput`、`DropDragOverContext`、`DropEvaluationResult` | [Drop 类型](./properties#drop-类型)与[拖放事件](./events#drop-drag-over)                   |
+| `DropConfig`、`DropCandidate`、`DropDragOverInput`、`DropDragOverContext`、`DropEvaluationResult`、`DropCreateItemContext`、`DropCommitResult` | [Drop 类型](./properties#drop-类型)与[拖放事件](./events#drop-drag-over) |
+| `TransferConfig`、`GridTransferResult` | [Transfer 类型](./properties#transfer-类型)与 [`transfer`](./events#transfer) |
 | `LayoutUpdateMeta`、`ResponsiveWidthState`、`WidthChangedPayload`                                 | [事件](./events)                                                                           |
 | `InteractionStartPayload`、`InteractionChangePayload`                                             | [交互事件](./events#interaction-start-interaction-change-interaction-end)                  |
 

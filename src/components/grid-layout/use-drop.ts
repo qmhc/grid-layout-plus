@@ -1,9 +1,8 @@
 /**
  * 外部元素拖入 GridLayout 的原生 DragEvent 会话 composable。
  *
- * 职责：维护 drag session、占位 proposal、预览布局以及等待父组件回写的 pending commit。
- * 边界：不决定受控 layout 是否完成提交；该确认由 layout-sync composable 根据 props 联合判断。
- * 关键约束：proposal 和 pending commit 都带有 epoch，过期的异步事件不能覆盖当前拖入会话。
+ * 职责：维护 drag session、占位 proposal 和预览布局，并在松手时创建完整 item。
+ * 边界：受控 layout 的提案与确认由通用 transaction controller 管理。
  */
 import { toRaw } from 'vue'
 
@@ -18,7 +17,7 @@ import type {
 } from '../../composables/useGridLayout'
 import type { InternalEffectiveConfig, LayoutEnginePort } from '../../core/layout-engine'
 import type { DropConfigSnapshot } from '../../core/validation'
-import type { PositionStrategy, ReadonlyLayout } from '../../helpers/types'
+import type { PositionStrategy, ReadonlyLayout, ReadonlyLayoutItem } from '../../helpers/types'
 import type {
   DropCandidate,
   DropDragOverContext,
@@ -36,17 +35,6 @@ export interface DropProposalRecord<B extends string> {
   readonly candidate: DropCandidate
   readonly previewLayout: ReadonlyLayout
   readonly insertionIndex: number
-}
-
-/** 已触发 drop 事件、正在等待父组件回写受控 layout 的提交记录。 */
-export interface PendingDropCommit<B extends string> {
-  readonly proposal: DropProposalRecord<B>
-  readonly epoch: number
-}
-
-export interface DeferredDropObservations {
-  readonly layout: boolean
-  readonly responsiveLayouts: boolean
 }
 
 interface DropPlaceholderState<B extends string> {
@@ -82,15 +70,15 @@ interface UseGridDropOptions<B extends string> {
   emitRuntimeError(error: unknown, overrides: Partial<GridLayoutRuntimeError>): void
   onOperationRejected(payload: OperationRejectedPayload): void
   onDragOver(context: DropDragOverContext<B>, event: DragEvent): void
-  onDrop(
+  onCommitRequest(
+    item: ReadonlyLayoutItem,
     result: Extract<DropEvaluationResult<B>, { status: 'accepted' }>,
     event: DragEvent,
-    epoch: number,
   ): void
   onDragLeave(event: DragEvent): void
 }
 
-export interface UseGridDropReturn<B extends string> {
+export interface UseGridDropReturn {
   handleDragEnter(event: DragEvent): void
   handleDragOver(event: DragEvent): void
   handleDrop(event: DragEvent): void
@@ -98,18 +86,19 @@ export interface UseGridDropReturn<B extends string> {
   finishSession(restore?: boolean): void
   invalidateProposal(restore?: boolean): void
   hasProposal(): boolean
-  getPendingCommit(): PendingDropCommit<B> | null
-  isPendingCurrent(pending: PendingDropCommit<B>): boolean
-  isPendingEpoch(epoch: number): boolean
-  completePendingCommit(pending: PendingDropCommit<B>): boolean
-  invalidatePendingCommit(): void
-  deferLayoutObservation(): void
-  deferResponsiveLayoutsObservation(): void
-  takeDeferredObservations(): DeferredDropObservations
 }
 
 function cloneDropCandidate(candidate: DropCandidate): DropCandidate {
   return { ...candidate }
+}
+
+function hasDropGeometry(item: ReadonlyLayoutItem, candidate: DropCandidate): boolean {
+  return (
+    item.x === candidate.x &&
+    item.y === candidate.y &&
+    item.w === candidate.w &&
+    item.h === candidate.h
+  )
 }
 
 function setDropEffect(event: DragEvent, effect: 'none' | 'copy'): void {
@@ -141,18 +130,14 @@ function validateDropSize(value: Readonly<{ w: unknown; h: unknown }>): {
   return { w: value.w, h: value.h }
 }
 
-/** 管理外部拖入的 DOM session、proposal 预览及受控提交等待状态。 */
+/** 管理外部拖入的 DOM session、proposal 预览及 item 创建。 */
 export function useGridDrop<B extends string>(
   options: UseGridDropOptions<B>,
-): UseGridDropReturn<B> {
+): UseGridDropReturn {
   let proposalSequence = 0
   let sessionSequence = 0
   let sessionId: number | null = null
   let currentProposal: DropProposalRecord<B> | null = null
-  let pendingCommit: PendingDropCommit<B> | null = null
-  let deferredLayoutObservation = false
-  let deferredResponsiveLayoutsObservation = false
-  let commitEpoch = 0
   let enterDepth = 0
   let leaveFrame = 0
   let sessionListenersAttached = false
@@ -172,13 +157,6 @@ export function useGridDrop<B extends string>(
     currentProposal = null
     options.state.dropPlaceholder = null
     if (restore && hadProposal) options.restorePreview()
-  }
-
-  function invalidatePendingCommit(): void {
-    pendingCommit = null
-    deferredLayoutObservation = false
-    deferredResponsiveLayoutsObservation = false
-    commitEpoch += 1
   }
 
   function handleSessionCancel(): void {
@@ -313,7 +291,7 @@ export function useGridDrop<B extends string>(
   }
 
   function emitDropRejected(
-    reason: Exclude<OperationRejectedReason, 'callback-rejected'>,
+    reason: OperationRejectedReason,
     event: DragEvent,
     candidate: DropCandidate | null,
     error?: unknown,
@@ -582,16 +560,94 @@ export function useGridDrop<B extends string>(
       insertionIndex: proposal.insertionIndex,
       nativeEvent: event,
     }
+    const createItem = options.getDropConfig().createItem
+    if (!createItem) {
+      emitDropRejected('invalid-input', event, proposal.candidate)
+      finishSession(false)
+      return
+    }
+
+    let created: unknown
+    try {
+      created = createItem({
+        ...result,
+        candidate: cloneDropCandidate(result.candidate),
+        previewLayout: cloneLayout(result.previewLayout),
+      })
+    } catch (cause) {
+      emitDropRejected(
+        'extension-error',
+        event,
+        proposal.candidate,
+        new GridLayoutExtensionError('Drop item factory failed', {
+          code: 'extension-error',
+          source: 'drop-config',
+          path: 'config.dropConfig.createItem',
+          cause,
+        }),
+      )
+      finishSession(false)
+      return
+    }
+    if (created === false) {
+      emitDropRejected('callback-rejected', event, proposal.candidate)
+      finishSession(false)
+      return
+    }
+
+    let item: ReadonlyLayoutItem
+    try {
+      const snapshot = cloneLayout([toRaw(created) as ReadonlyLayoutItem])[0]
+      item = {
+        ...snapshot,
+        x: proposal.candidate.x,
+        y: proposal.candidate.y,
+        w: proposal.candidate.w,
+        h: proposal.candidate.h,
+      }
+    } catch (cause) {
+      emitDropRejected(
+        'extension-invalid-result',
+        event,
+        proposal.candidate,
+        new GridLayoutExtensionError('Invalid Drop item factory result', {
+          code: 'extension-invalid-result',
+          source: 'drop-config',
+          path: 'dropCreateItemResult',
+          cause,
+        }),
+      )
+      finishSession(false)
+      return
+    }
+
+    const verification = options.engine.evaluate({ type: 'add', item })
+    const verifiedItem =
+      verification.result.status === 'rejected'
+        ? null
+        : verification.result.layout.find(candidate => Object.is(candidate.i, item.i))
+    options.engine.rollback(verification)
+    if (verification.result.status !== 'rejected' && (!verifiedItem || !hasDropGeometry(verifiedItem, proposal.candidate))) {
+      emitDropRejected(
+        'extension-invalid-result',
+        event,
+        proposal.candidate,
+        new GridLayoutExtensionError('Drop item factory constraints changed accepted geometry', {
+          code: 'extension-invalid-result',
+          source: 'drop-config',
+          path: 'dropCreateItemResult',
+          cause: item,
+        }),
+      )
+      finishSession(false)
+      return
+    }
+
     invalidateProposal()
-    const epoch = commitEpoch + 1
-    commitEpoch = epoch
-    pendingCommit = { proposal, epoch }
-    deferredLayoutObservation = false
-    deferredResponsiveLayoutsObservation = false
     sessionId = null
     enterDepth = 0
     detachSessionListeners()
-    options.onDrop(result, event, epoch)
+    options.onCommitRequest(item, result, event)
   }
 
   function leaveRoot(event: DragEvent): void {
@@ -623,40 +679,6 @@ export function useGridDrop<B extends string>(
     })
   }
 
-  function getPendingCommit(): PendingDropCommit<B> | null {
-    return pendingCommit
-  }
-
-  function isPendingCurrent(pending: PendingDropCommit<B>): boolean {
-    return (
-      pendingCommit === pending &&
-      pending.epoch === commitEpoch &&
-      pending.proposal.proposalId === proposalSequence
-    )
-  }
-
-  function isPendingEpoch(epoch: number): boolean {
-    return pendingCommit !== null && epoch === commitEpoch
-  }
-
-  function completePendingCommit(pending: PendingDropCommit<B>): boolean {
-    if (!isPendingCurrent(pending)) return false
-    pendingCommit = null
-    deferredLayoutObservation = false
-    deferredResponsiveLayoutsObservation = false
-    commitEpoch += 1
-    return true
-  }
-
-  function takeDeferredObservations(): DeferredDropObservations {
-    const deferred = {
-      layout: deferredLayoutObservation,
-      responsiveLayouts: deferredResponsiveLayoutsObservation,
-    }
-    invalidatePendingCommit()
-    return deferred
-  }
-
   return {
     handleDragEnter,
     handleDragOver,
@@ -665,17 +687,5 @@ export function useGridDrop<B extends string>(
     finishSession,
     invalidateProposal,
     hasProposal: () => currentProposal !== null,
-    getPendingCommit,
-    isPendingCurrent,
-    isPendingEpoch,
-    completePendingCommit,
-    invalidatePendingCommit,
-    deferLayoutObservation: () => {
-      deferredLayoutObservation = true
-    },
-    deferResponsiveLayoutsObservation: () => {
-      deferredResponsiveLayoutsObservation = true
-    },
-    takeDeferredObservations,
   }
 }

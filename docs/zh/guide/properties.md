@@ -210,16 +210,40 @@ type DropEvaluationResult<B extends string = DefaultBreakpoint> =
       nativeEvent: DragEvent
     }
 
+type DropCreateItemContext<B extends string = DefaultBreakpoint> = Readonly<
+  Extract<DropEvaluationResult<B>, { status: 'accepted' }>
+>
+
+interface DropCommitResult<B extends string = DefaultBreakpoint> {
+  status: 'committed'
+  proposalId: number
+  breakpoint: B | null
+  item: ReadonlyLayoutItem
+  layout: ReadonlyLayout
+  revision: number
+}
+
 interface DropConfig<B extends string = DefaultBreakpoint> {
   isDroppable?: boolean
   dropItem?: Readonly<{ w: number; h: number }>
+  createItem(context: DropCreateItemContext<B>): ReadonlyLayoutItem | false
   onDragOver?(
     context: Readonly<DropDragOverInput<B>>,
   ): false | Readonly<{ w?: number; h?: number }>
 }
 ```
 
-`candidate` 不包含业务 id。`previewLayout` 只保存现有栅格项归一化后的位置。
+`candidate` 不包含业务 id。松手时由 `createItem` 提供完整业务对象；候选项的 `x`、`y`、`w`、`h` 会覆盖工厂返回的几何信息。若工厂约束会改变这组已接受几何，组件会以 `extension-invalid-result` 拒绝。组件自动提案插入，并只在受控 Layout 确认后发送 `drop`。
+
+### Transfer 类型
+
+```ts
+interface TransferConfig {
+  group: string
+}
+```
+
+同一 document 内，只有非空 `group` 相同的栅格才会互相接收移动。
 
 ### 几何类型
 
@@ -483,9 +507,7 @@ import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout
 - 类型：`boolean`
 - 默认值：`false`
 
-允许通过原生 HTML5 拖放将外部元素放入栅格。需配合 [`drop-item`](#drop-item) 和 [拖放事件](./events#drop-drag-over) 使用。
-
-`GridLayout` 只负责计算和预览外部拖入，不创建业务 id、不插入候选项，也不发送 `update:layout`。`drop` 监听器需要插入已接受的候选项并写回 Layout。
+允许通过原生 HTML5 拖放将外部元素放入栅格。必须在 [`drop-config`](#drop-config) 中配置 `createItem` 工厂。组件会预览候选项，通过 `update:layout` 提案插入业务对象，并只在父组件确认受控 Layout 后发送 `drop`。
 
 ### drop-item
 
@@ -559,13 +581,21 @@ interface ResizeConfig {
 interface DropConfig<B extends string = DefaultBreakpoint> {
   isDroppable?: boolean
   dropItem?: Readonly<{ w: number; h: number }>
+  createItem(context: DropCreateItemContext<B>): ReadonlyLayoutItem | false
   onDragOver?(
     context: Readonly<DropDragOverInput<B>>,
   ): false | Readonly<{ w?: number; h?: number }>
 }
 ```
 
-`onDragOver` 接收当前候选项和已提交的 Layout。返回 `false` 可以拒绝候选项；返回 `w` 和/或 `h` 可以修改尺寸。尺寸变化后，组件会围绕同一个指针重新计算候选位置，再检查碰撞和边界。
+`onDragOver` 接收当前候选项和已提交的 Layout。返回 `false` 可以拒绝候选项；返回 `w` 和/或 `h` 可以修改尺寸。`createItem` 返回完整业务对象或 `false`；最终仍以已接受候选项的几何信息为准。
+
+### transfer-config
+
+- 类型：`TransferConfig`
+- 默认值：`undefined`
+
+启用同一 document、同一 group 内的跨网格移动。目标网格只显示预览，不直接修改任一受控模型；松手后，源网格提案删除、目标网格提案新增，双方都确认才会提交。若只有一端确认，组件会向已确认的一端发送补偿提案。当前不包含复制模式、嵌套网格转移，以及跨 Teleport 保留已挂载组件状态。
 
 编程式布局操作和层级操作见[方法](./methods)。
 

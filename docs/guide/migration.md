@@ -151,6 +151,19 @@ The default remains `false`. With `true`, v2 keeps the active item at the candid
 position under the pointer while dragging, but the final compaction after release may
 still move it. Recheck the placeholder and final position after upgrading.
 
+### External and cross-grid drag
+
+The v1 external-drag demo called internal component fields such as `getItem()` and `dragEvent()`. Those fields are not public in v2. Configure native drop with `DropConfig.createItem`; the component creates a controlled insertion proposal and emits `drop` only after confirmation. Remove listeners that splice `result.candidate` into `previewLayout` manually.
+
+```ts
+const dropConfig: DropConfig = {
+  isDroppable: true,
+  createItem: () => ({ i: createUniqueId(), x: 0, y: 0, w: 1, h: 1 }),
+}
+```
+
+For moves between grids, give both grids the same `transferConfig.group` and bind both Layouts with `v-model:layout`. Cross-grid transfer is move-only in v2 and requires both controlled models to confirm.
+
 ## Removed APIs
 
 ### Internal fields on the GridLayout component ref

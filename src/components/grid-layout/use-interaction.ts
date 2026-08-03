@@ -116,7 +116,6 @@ interface UseGridInteractionOptions<B extends string> {
   emitInteractionEnd(payload: InteractionTerminalPayload): void
   emitLayoutUpdated(layout: ReadonlyLayout, revision: number): void
   invalidateDropProposal(): void
-  invalidatePendingDropCommit(): void
   emitCompact(): void
   updateHeight(): void
   applyDeferredEngineConfig(): void
@@ -147,6 +146,8 @@ export interface UseGridInteractionReturn {
   clearView(): void
   cancelPendingFrame(): void
   cancel(token?: unknown): boolean
+  suspendForTransfer(): void
+  finishTransfer(reason: 'transferred' | 'cancelled', nativeEvent: Event | null): void
   emitChange(result: LayoutOperationResult, revision: number, nativeEvent: Event | null): void
   rememberFocusedDescendant(event: FocusEvent): void
   rememberPointerFocus(): void
@@ -328,6 +329,24 @@ export function useGridInteraction<B extends string>(
     }
   }
 
+  /** 回滚源网格的暂态预览，同时保留原生拖拽会话供离开目标后继续。 */
+  function suspendForTransfer(): void {
+    const pending = options.getTransactionController().getPending()
+    if (pending?.interaction) options.getTransactionController().abandon(pending, true)
+    cancelPendingFrame()
+    clearView()
+    options.syncEngineLayout(options.getCommittedLayout())
+    options.restoreCommittedPositionStyles()
+    options.updateHeight()
+  }
+
+  /** 以跨网格终态关闭源网格的内部 drag interaction。 */
+  function finishTransfer(reason: 'transferred' | 'cancelled', nativeEvent: Event | null): void {
+    if (activeInteraction?.type !== 'drag') return
+    suspendForTransfer()
+    finish('cancelled', reason, { nativeEvent })
+  }
+
   function cancelForConfig(
     reason: Extract<InteractionCancelReason, 'config-changed' | 'disabled'>,
   ): void {
@@ -353,7 +372,6 @@ export function useGridInteraction<B extends string>(
       return false
     }
     options.invalidateDropProposal()
-    options.invalidatePendingDropCommit()
     const previousLayout = cloneLayout(options.getCommittedLayout())
     const oldItem = previousLayout.find(item => Object.is(item.i, id))!
     const root = options.getRoot()
@@ -646,6 +664,8 @@ export function useGridInteraction<B extends string>(
     clearView,
     cancelPendingFrame,
     cancel,
+    suspendForTransfer,
+    finishTransfer,
     emitChange,
     rememberFocusedDescendant: event => {
       pointerFocusedElement = event.target instanceof HTMLElement ? event.target : null

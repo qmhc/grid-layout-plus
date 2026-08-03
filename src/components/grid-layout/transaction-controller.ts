@@ -38,13 +38,20 @@ export interface PendingLayoutTransaction<B extends string> {
   revision: number
   expectedLayout: Layout
   baseLayout: Layout
-  operation: LayoutOperationResult['operation'] | 'config'
+  operation: OperationRejectedPayload['operation']
   source: LayoutUpdateMeta['source']
   interaction: boolean
   metadataDirty: boolean
   deadlineStarted: boolean
   positionStyles: PositionStyleMap
   responsive: PendingResponsiveTransaction<B> | null
+  settlement: LayoutTransactionSettlement | null
+}
+
+/** 内部工作流在受控事务终止时获取一次性通知。 */
+export interface LayoutTransactionSettlement {
+  committed(layout: ReadonlyLayout, revision: number): void
+  rejected(reason: LayoutOperationReason): void
 }
 
 interface ActiveTransactionInteraction {
@@ -134,6 +141,7 @@ export interface LayoutTransactionController<B extends string> {
     evaluatedStyles?: PositionStyleMap,
     responsive?: PendingResponsiveTransaction<B> | null,
     revisionOverride?: number | null,
+    settlement?: LayoutTransactionSettlement | null,
   ): LayoutTransactionReceipt
   mergeMetadata(pending: PendingLayoutTransaction<B>, observed: ReadonlyLayout): void
   tryConfirmResponsive(pending: PendingLayoutTransaction<B>, observed: ReadonlyLayout): void
@@ -211,6 +219,7 @@ export function createLayoutTransactionController<B extends string>(
         revision: pending.revision,
         operation: pending.operation,
       })
+      pending.settlement?.rejected('superseded')
       return
     }
 
@@ -237,6 +246,7 @@ export function createLayoutTransactionController<B extends string>(
       options.interactionBuffer.clearSuperseded()
       if (responsive?.readyAfter) options.emitReadyOnce()
     }
+    pending.settlement?.committed(options.getCommittedLayout(), pending.revision)
   }
 
   function mergeMetadata(pending: PendingLayoutTransaction<B>, observed: ReadonlyLayout): void {
@@ -287,6 +297,7 @@ export function createLayoutTransactionController<B extends string>(
       previousLayout: pending.baseLayout,
       layout: committedLayout,
     })
+    pending.settlement?.rejected('external-not-committed')
 
     if (pending.interaction && options.getActiveInteraction()) {
       options.finishInteraction('cancelled', 'external-not-committed', {
@@ -330,6 +341,7 @@ export function createLayoutTransactionController<B extends string>(
       previousLayout: pending.baseLayout,
       layout: options.getCommittedLayout(),
     })
+    pending.settlement?.rejected('superseded')
   }
 
   /** 创建新的唯一 pending transaction，并使之前未完成的非交互事务失效。 */
@@ -342,6 +354,7 @@ export function createLayoutTransactionController<B extends string>(
     evaluatedStyles: PositionStyleMap = options.getDefaultPositionStyles(),
     responsive: PendingResponsiveTransaction<B> | null = null,
     revisionOverride: number | null = null,
+    settlement: LayoutTransactionSettlement | null = null,
   ): LayoutTransactionReceipt {
     responsive ??= options.createResponsiveTransaction(evaluation.result)
     if (pendingTransaction) {
@@ -369,6 +382,7 @@ export function createLayoutTransactionController<B extends string>(
       deadlineStarted: false,
       positionStyles: new Map(evaluatedStyles),
       responsive,
+      settlement,
     }
     pendingTransaction = pending
     if (options.getActiveInteraction()) options.updateActiveInteraction(revision, nativeEvent)
@@ -423,6 +437,7 @@ export function createLayoutTransactionController<B extends string>(
       previousLayout: pending.baseLayout,
       layout: options.getCommittedLayout(),
     })
+    pending.settlement?.rejected('external-update')
     return true
   }
 
@@ -432,6 +447,15 @@ export function createLayoutTransactionController<B extends string>(
     if (!pending) return
     options.engine.rollback(pending.evaluation)
     pendingTransaction = null
+    if (pending.operation === 'transfer') {
+      options.emitOperationRejected(pending.evaluation.result, 'cancelled', {
+        revision: pending.revision,
+        operation: 'transfer',
+        previousLayout: pending.baseLayout,
+        layout: options.getCommittedLayout(),
+      })
+    }
+    pending.settlement?.rejected('cancelled')
   }
 
   return {

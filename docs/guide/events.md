@@ -156,37 +156,35 @@ function dropDragOver<B extends string>(
 ): void
 ```
 
-`context.candidate` is the final candidate without an id, including any size change made by `DropConfig.onDragOver`. `context.previewLayout` contains the normalized existing items. `insertionIndex` is where the caller must insert the candidate, and `proposalId` identifies this accepted evaluation. In responsive mode, `breakpoint` is fixed for the lifetime of this evaluation.
+`context.candidate` is the final candidate without an id, including any size change made by `DropConfig.onDragOver`. `context.previewLayout` contains the normalized existing items. `insertionIndex` records the candidate's preview ordering, and `proposalId` identifies this accepted evaluation. In responsive mode, `breakpoint` is fixed for the lifetime of this evaluation.
 
 ### drop
 
 Emitted when an external draggable element is dropped on the grid. This event requires [`is-droppable`](./properties#is-droppable) to be `true`.
 
-The result contains the last valid drop evaluation. `GridLayout` does not create an id or update the Layout automatically.
+`DropConfig.createItem` first creates the complete business item. `GridLayout` then emits a controlled `update:layout` proposal. The `drop` event is emitted only after the parent confirms that proposal.
 
 ```ts
 function drop<B extends string>(
-  result: Extract<DropEvaluationResult<B>, { status: 'accepted' }>,
+  result: DropCommitResult<B>,
   event: DragEvent,
 ): void
 ```
 
-Create a unique business id, insert the candidate into a copy of `previewLayout` at `insertionIndex`, and write back the new Layout:
+Create the business item in configuration and consume the committed result separately:
 
 ```ts
-function handleDrop(
-  result: Extract<DropEvaluationResult, { status: 'accepted' }>,
-) {
-  const nextLayout = result.previewLayout.map(item => ({ ...item }))
-  nextLayout.splice(result.insertionIndex, 0, {
-    ...result.candidate,
-    i: createUniqueId(),
-  })
-  layout.value = nextLayout
+const dropConfig: DropConfig = {
+  isDroppable: true,
+  createItem: () => ({ i: createUniqueId(), x: 0, y: 0, w: 1, h: 1 }),
+}
+
+function handleDrop(result: DropCommitResult) {
+  console.log('committed', result.item, result.revision)
 }
 ```
 
-For a responsive grid, use `result.breakpoint` to update the matching responsive Layout and the current Layout in the same Vue update cycle. If a breakpoint, configuration, or Layout change invalidates an evaluation, `drop` does not emit the stale result.
+Responsive grids use the ordinary dual controlled-model transaction: both the current Layout and active breakpoint layout must confirm before `drop` is emitted. Missing factories, factory rejection or errors, duplicate ids, and unconfirmed updates are reported through `operation-rejected`.
 
 ### drop-drag-leave
 
@@ -195,6 +193,16 @@ Emitted when an external draggable element leaves the grid. This event requires 
 ```ts
 function dropDragLeave(event: DragEvent): void
 ```
+
+### transfer
+
+Emitted once by both the source and target grids after a same-group cross-grid move has committed on both controlled Layouts.
+
+```ts
+function transfer(result: GridTransferResult, event: Event): void
+```
+
+`result.item` is the complete item confirmed by the target model, including metadata merged by its parent. `sourceLayout` and `targetLayout` are the committed models, with independent revisions. Because the two grids may use different responsive breakpoint types, `sourceBreakpoint` and `targetBreakpoint` are `string | null`. Target preview and fast target switching do not submit either model. Leaving the target resumes the local drag; Escape or window blur cancels the cross-grid move and rolls back source changes made by the current interaction. If only one proposal commits, the coordinator proposes compensation only on that confirmed side and does not emit `transfer`.
 
 ## GridItem
 

@@ -114,8 +114,7 @@ interface UseGridResponsiveOptions<B extends string> {
   confirmEngineEvaluation(evaluation: LayoutEngineEvaluation): LayoutOperationResult
   getTransactionController(): LayoutTransactionController<B>
   getInteraction(): UseGridInteractionReturn
-  getDrop(): UseGridDropReturn<B>
-  tryConfirmDropCommit(): boolean
+  getDrop(): UseGridDropReturn
   isUnavailable(): boolean
   runAsyncBoundary<T>(callback: () => T): T | undefined
   observeLayoutProp(): void
@@ -227,24 +226,6 @@ export function useGridResponsive<B extends string>(
         reportDormantError(error)
       }
       return
-    }
-
-    const drop = options.getDrop()
-    if (drop.getPendingCommit()) {
-      if (options.tryConfirmDropCommit()) return
-      try {
-        const observedConfig = snapshotResponsiveConfig<B>(
-          options.getBreakpoints(),
-          options.getCols(),
-        )
-        const committedConfig = options.getCommittedConfig()
-        if (committedConfig && responsiveConfigsEqual(observedConfig, committedConfig)) {
-          drop.deferResponsiveLayoutsObservation()
-          return
-        }
-      } catch {
-        // 配置错误由下方响应式配置路径统一报告。
-      }
     }
 
     const pending = options.getTransactionController().getPending()
@@ -368,7 +349,6 @@ export function useGridResponsive<B extends string>(
     if (options.state.width === null) return
     const drop = options.getDrop()
     drop.invalidateProposal()
-    drop.invalidatePendingCommit()
     readyAfter ||= options.shouldEmitReady()
 
     let prepared: PreparedResponsiveLayout<B>

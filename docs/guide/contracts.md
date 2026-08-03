@@ -88,6 +88,7 @@ interface LayoutUpdateMeta {
     | 'config'
     | 'external'
     | 'drop-commit'
+    | 'transfer'
     | 'auto-height'
 }
 ```
@@ -100,7 +101,7 @@ Use `revision` to correlate events from one transaction. In responsive mode, `up
 interface OperationRejectedPayload {
   revision: number | null
   evaluationId: number
-  operation: LayoutOperationResultBase['operation'] | 'config' | 'drop'
+  operation: LayoutOperationResultBase['operation'] | 'config' | 'drop' | 'transfer'
   reason: OperationRejectedReason
   id: LayoutItem['i'] | null
   previousLayout: ReadonlyLayout
@@ -110,7 +111,9 @@ interface OperationRejectedPayload {
 }
 ```
 
-`operation-rejected` reports rejected component commands, interaction candidates, controlled confirmations, configuration changes, and drop candidates. Receiving this payload does not mean the committed Layout has changed.
+`operation-rejected` reports rejected component commands, interaction candidates, controlled confirmations, configuration changes, drop candidates, and either side of a cross-grid transfer. Receiving this payload does not mean the committed Layout has changed.
+
+Cross-grid moves are coordinated but remain two controlled transactions. The `transfer` event is emitted only after both revisions commit. If one side rejects, the confirmed side receives a compensating `source: 'transfer'` proposal; applications must continue writing back those proposals to complete rollback.
 
 ## InteractionTerminalPayload
 

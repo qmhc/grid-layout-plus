@@ -53,7 +53,6 @@ interface UseGridWidthOptions<B extends string> {
   getInteraction(): UseGridInteractionReturn
   getResponsive(): UseGridResponsiveReturn<B>
   invalidateDropProposal(): void
-  invalidatePendingDropCommit(): void
   evaluatePositionStyles(
     layout: ReadonlyLayout,
     strategy: PositionStrategy,
@@ -173,7 +172,6 @@ export function useGridWidth<B extends string>(
   function process(value: number | null, initial = false, force = false): void {
     if (!initial && !force && Object.is(value, options.state.width)) return
     options.invalidateDropProposal()
-    options.invalidatePendingDropCommit()
     if (value === null) {
       if (options.getInteraction().hasActive()) {
         options.getInteraction().cancelForConfig('config-changed')

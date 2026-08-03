@@ -34,6 +34,7 @@ Start with [Basic Usage](./basic) if this is your first visit. Otherwise, pick t
 
 - [Native Drag & Drop](./native-drop) — Add a fixed-size item with native drag events.
 - [Drag From Outside](./drag-from-outside) — Set item sizes and drop rules for each source.
+- [Cross-grid Drag](./cross-grid) — Move complete items between controlled grids.
 
 ## Styling
 
