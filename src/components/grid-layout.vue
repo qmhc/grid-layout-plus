@@ -642,40 +642,38 @@ const drop = useGridDrop<Breakpoint>({
     updateHeight()
   },
   updateHeight,
+  prepareCommitEvaluation: () => getTransactionController().supersedeNonInteraction(),
   nextEvaluationId,
   emitRuntimeError: (error, overrides) => {
     emitRuntimeError(error, null, overrides)
   },
   onOperationRejected: payload => emit('operation-rejected', payload),
   onDragOver: (context, event) => emit('drop-drag-over', context, event),
-  onCommitRequest: (item, result, event) => {
-    getCommands().submit(
-      { type: 'add', item },
-      {
-        source: 'drop-commit',
-        operation: 'drop',
-        nativeEvent: event,
-        settlement: {
-          committed: (layout, revision) => {
-            const committedItem = layout.find(candidate => Object.is(candidate.i, item.i))
-            if (!committedItem) return
-            emit(
-              'drop',
-              {
-                status: 'committed',
-                proposalId: result.proposalId,
-                breakpoint: result.breakpoint,
-                item: cloneLayout([committedItem])[0],
-                layout: cloneLayout(layout),
-                revision,
-              },
-              event,
-            )
-          },
-          rejected: () => undefined,
+  onCommitRequest: (item, result, event, evaluation) => {
+    getCommands().submitPrepared(evaluation, {
+      source: 'drop-commit',
+      operation: 'drop',
+      nativeEvent: event,
+      settlement: {
+        committed: (layout, revision) => {
+          const committedItem = layout.find(candidate => Object.is(candidate.i, item.i))
+          if (!committedItem) return
+          emit(
+            'drop',
+            {
+              status: 'committed',
+              proposalId: result.proposalId,
+              breakpoint: result.breakpoint,
+              item: cloneLayout([committedItem])[0],
+              layout: cloneLayout(layout),
+              revision,
+            },
+            event,
+          )
         },
+        rejected: () => undefined,
       },
-    )
+    })
   },
   onDragLeave: event => emit('drop-drag-leave', event),
 })

@@ -15,7 +15,11 @@ import type {
   GridLayoutRuntimeError,
   OperationRejectedReason,
 } from '../../composables/useGridLayout'
-import type { InternalEffectiveConfig, LayoutEnginePort } from '../../core/layout-engine'
+import type {
+  InternalEffectiveConfig,
+  LayoutEngineEvaluation,
+  LayoutEnginePort,
+} from '../../core/layout-engine'
 import type { DropConfigSnapshot } from '../../core/validation'
 import type { PositionStrategy, ReadonlyLayout, ReadonlyLayoutItem } from '../../helpers/types'
 import type {
@@ -66,6 +70,7 @@ interface UseGridDropOptions<B extends string> {
   commitPreviewStyles(styles: PositionStyleMap, ready: boolean): void
   restorePreview(): void
   updateHeight(): void
+  prepareCommitEvaluation(): void
   nextEvaluationId(): number
   emitRuntimeError(error: unknown, overrides: Partial<GridLayoutRuntimeError>): void
   onOperationRejected(payload: OperationRejectedPayload): void
@@ -74,6 +79,7 @@ interface UseGridDropOptions<B extends string> {
     item: ReadonlyLayoutItem,
     result: Extract<DropEvaluationResult<B>, { status: 'accepted' }>,
     event: DragEvent,
+    evaluation: LayoutEngineEvaluation,
   ): void
   onDragLeave(event: DragEvent): void
 }
@@ -131,9 +137,7 @@ function validateDropSize(value: Readonly<{ w: unknown; h: unknown }>): {
 }
 
 /** 管理外部拖入的 DOM session、proposal 预览及 item 创建。 */
-export function useGridDrop<B extends string>(
-  options: UseGridDropOptions<B>,
-): UseGridDropReturn {
+export function useGridDrop<B extends string>(options: UseGridDropOptions<B>): UseGridDropReturn {
   let proposalSequence = 0
   let sessionSequence = 0
   let sessionId: number | null = null
@@ -621,13 +625,17 @@ export function useGridDrop<B extends string>(
       return
     }
 
+    options.prepareCommitEvaluation()
     const verification = options.engine.evaluate({ type: 'add', item })
     const verifiedItem =
       verification.result.status === 'rejected'
         ? null
         : verification.result.layout.find(candidate => Object.is(candidate.i, item.i))
-    options.engine.rollback(verification)
-    if (verification.result.status !== 'rejected' && (!verifiedItem || !hasDropGeometry(verifiedItem, proposal.candidate))) {
+    if (
+      verification.result.status !== 'rejected' &&
+      (!verifiedItem || !hasDropGeometry(verifiedItem, proposal.candidate))
+    ) {
+      options.engine.rollback(verification)
       emitDropRejected(
         'extension-invalid-result',
         event,
@@ -647,7 +655,7 @@ export function useGridDrop<B extends string>(
     sessionId = null
     enterDepth = 0
     detachSessionListeners()
-    options.onCommitRequest(item, result, event)
+    options.onCommitRequest(item, result, event, verification)
   }
 
   function leaveRoot(event: DragEvent): void {

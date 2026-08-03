@@ -11,6 +11,7 @@ import { cloneLayoutOperationResult } from './transaction-controller'
 import type {
   InternalEffectiveConfig,
   InternalLayoutCommand,
+  LayoutEngineEvaluation,
   LayoutEnginePort,
 } from '../../core/layout-engine'
 import type {
@@ -72,6 +73,10 @@ interface UseGridCommandsOptions<B extends string> {
 
 export interface UseGridCommandsReturn {
   submit(command: InternalLayoutCommand, submitOptions?: SubmitOptions): LayoutTransactionReceipt
+  submitPrepared(
+    evaluation: LayoutEngineEvaluation,
+    submitOptions?: SubmitOptions,
+  ): LayoutTransactionReceipt
   setLayout(layout: ReadonlyLayout): LayoutTransactionReceipt
   moveItem(id: LayoutItem['i'], x: number, y: number): LayoutTransactionReceipt
   resizeItem(id: LayoutItem['i'], w: number, h: number): LayoutTransactionReceipt
@@ -86,9 +91,7 @@ export interface UseGridCommandsReturn {
 export function useGridCommands<B extends string>(
   options: UseGridCommandsOptions<B>,
 ): UseGridCommandsReturn {
-  function commandOperation(
-    command: InternalLayoutCommand,
-  ): LayoutOperationResult['operation'] {
+  function commandOperation(command: InternalLayoutCommand): LayoutOperationResult['operation'] {
     if (command.type === 'config') return 'set'
     if (command.type === 'auto-resize') return 'resize'
     return command.type
@@ -110,80 +113,86 @@ export function useGridCommands<B extends string>(
       : null
   }
 
-  /** 所有公开命令共享的提交入口，保证拒绝事件、样式预检和事务回执语义一致。 */
-  function submit(
-    command: InternalLayoutCommand,
-    submitOptions: SubmitOptions = {},
-  ): LayoutTransactionReceipt {
-    return options.runSynchronousBoundary(() => {
-      const committedLayout = options.getCommittedLayout()
-      if (options.isDisposing()) {
-        const result: LayoutOperationResult = {
-          operation: commandOperation(command),
-          id: 'id' in command ? command.id : null,
-          previousLayout: cloneLayout(committedLayout),
-          layout: cloneLayout(committedLayout),
-          candidate: null,
-          status: 'rejected',
-          reason: 'cancelled',
-        }
-        if (submitOptions.operation === 'transfer') {
-          options.emitOperationRejected(result, 'cancelled', {
-            candidate: null,
-            operation: 'transfer',
-            nativeEvent: submitOptions.nativeEvent,
-          })
-        }
-        submitOptions.settlement?.rejected('cancelled')
-        return cloneLayoutOperationResult(result) as LayoutTransactionReceipt
+  function rejectUnavailable(
+    operation: LayoutOperationResult['operation'],
+    disposingId: LayoutItem['i'] | null,
+    disabledId: LayoutItem['i'] | null,
+    submitOptions: SubmitOptions,
+  ): LayoutTransactionReceipt | null {
+    const committedLayout = options.getCommittedLayout()
+    if (options.isDisposing()) {
+      const result: LayoutOperationResult = {
+        operation,
+        id: disposingId,
+        previousLayout: cloneLayout(committedLayout),
+        layout: cloneLayout(committedLayout),
+        candidate: null,
+        status: 'rejected',
+        reason: 'cancelled',
       }
-      if (!options.isResponsiveReady()) {
-        const result: LayoutOperationResult = {
-          operation: commandOperation(command),
-          id: commandId(command),
-          previousLayout: cloneLayout(committedLayout),
-          layout: cloneLayout(committedLayout),
+      if (submitOptions.operation === 'transfer') {
+        options.emitOperationRejected(result, 'cancelled', {
           candidate: null,
-          status: 'rejected',
-          reason: 'disabled',
-        }
-        options.emitOperationRejected(result, 'disabled', { candidate: null })
-        submitOptions.settlement?.rejected('disabled')
-        return cloneLayoutOperationResult(result) as LayoutTransactionReceipt
-      }
-      const transactionController = options.getTransactionController()
-      transactionController.supersedeNonInteraction()
-      const evaluation = options.engine.evaluate(command)
-      const result = evaluation.result
-      if (result.status === 'rejected') {
-        options.emitOperationRejected(result, undefined, {
-          candidate: result.candidate,
-          operation: submitOptions.operation,
+          operation: 'transfer',
           nativeEvent: submitOptions.nativeEvent,
         })
-        submitOptions.settlement?.rejected(result.reason)
-        return cloneLayoutOperationResult(result) as LayoutTransactionReceipt
       }
-      if (result.status === 'unchanged') {
-        return cloneLayoutOperationResult(result) as LayoutTransactionReceipt
+      submitOptions.settlement?.rejected('cancelled')
+      return cloneLayoutOperationResult(result) as LayoutTransactionReceipt
+    }
+    if (!options.isResponsiveReady()) {
+      const result: LayoutOperationResult = {
+        operation,
+        id: disabledId,
+        previousLayout: cloneLayout(committedLayout),
+        layout: cloneLayout(committedLayout),
+        candidate: null,
+        status: 'rejected',
+        reason: 'disabled',
       }
-      const styleEvaluation = options.evaluatePositionStyles(
-        result.layout,
-        options.getPositionStrategy(),
-        options.state.width,
-        evaluation.nextConfig,
+      options.emitOperationRejected(result, 'disabled', { candidate: null })
+      submitOptions.settlement?.rejected('disabled')
+      return cloneLayoutOperationResult(result) as LayoutTransactionReceipt
+    }
+    return null
+  }
+
+  function commitEvaluation(
+    evaluation: LayoutEngineEvaluation,
+    submitOptions: SubmitOptions,
+  ): LayoutTransactionReceipt {
+    const result = evaluation.result
+    if (result.status === 'rejected') {
+      options.emitOperationRejected(result, undefined, {
+        candidate: result.candidate,
+        operation: submitOptions.operation,
+        nativeEvent: submitOptions.nativeEvent,
+      })
+      submitOptions.settlement?.rejected(result.reason)
+      return cloneLayoutOperationResult(result) as LayoutTransactionReceipt
+    }
+    if (result.status === 'unchanged') {
+      return cloneLayoutOperationResult(result) as LayoutTransactionReceipt
+    }
+    const styleEvaluation = options.evaluatePositionStyles(
+      result.layout,
+      options.getPositionStrategy(),
+      options.state.width,
+      evaluation.nextConfig,
+    )
+    if (!styleEvaluation.ok) {
+      options.engine.rollback(evaluation)
+      const rejected = cloneLayoutOperationResult(
+        options.rejectPositionStyles(styleEvaluation, result, result.operation),
+      ) as LayoutTransactionReceipt
+      submitOptions.settlement?.rejected(
+        rejected.status === 'rejected' ? rejected.reason : 'extension-invalid-result',
       )
-      if (!styleEvaluation.ok) {
-        options.engine.rollback(evaluation)
-        const rejected = cloneLayoutOperationResult(
-          options.rejectPositionStyles(styleEvaluation, result, result.operation),
-        ) as LayoutTransactionReceipt
-        submitOptions.settlement?.rejected(
-          rejected.status === 'rejected' ? rejected.reason : 'extension-invalid-result',
-        )
-        return rejected
-      }
-      return transactionController.begin(
+      return rejected
+    }
+    return options
+      .getTransactionController()
+      .begin(
         evaluation,
         submitOptions.operation ?? result.operation,
         submitOptions.source ?? 'programmatic',
@@ -194,6 +203,46 @@ export function useGridCommands<B extends string>(
         null,
         submitOptions.settlement,
       )
+  }
+
+  /** 所有公开命令共享的提交入口，保证拒绝事件、样式预检和事务回执语义一致。 */
+  function submit(
+    command: InternalLayoutCommand,
+    submitOptions: SubmitOptions = {},
+  ): LayoutTransactionReceipt {
+    return options.runSynchronousBoundary(() => {
+      const unavailable = rejectUnavailable(
+        commandOperation(command),
+        'id' in command ? command.id : null,
+        commandId(command),
+        submitOptions,
+      )
+      if (unavailable) return unavailable
+      const transactionController = options.getTransactionController()
+      transactionController.supersedeNonInteraction()
+      const evaluation = options.engine.evaluate(command)
+      return commitEvaluation(evaluation, submitOptions)
+    })
+  }
+
+  /** 消费调用方已完成业务校验的求值结果，避免同一命令重复运行布局算法。 */
+  function submitPrepared(
+    evaluation: LayoutEngineEvaluation,
+    submitOptions: SubmitOptions = {},
+  ): LayoutTransactionReceipt {
+    return options.runSynchronousBoundary(() => {
+      const unavailable = rejectUnavailable(
+        evaluation.result.operation,
+        evaluation.result.id,
+        evaluation.result.id,
+        submitOptions,
+      )
+      if (unavailable) {
+        options.engine.rollback(evaluation)
+        return unavailable
+      }
+      options.getTransactionController().supersedeNonInteraction()
+      return commitEvaluation(evaluation, submitOptions)
     })
   }
 
@@ -210,6 +259,7 @@ export function useGridCommands<B extends string>(
 
   return {
     submit,
+    submitPrepared,
     setLayout,
     moveItem,
     resizeItem,

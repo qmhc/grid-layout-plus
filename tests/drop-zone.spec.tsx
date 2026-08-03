@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
 import { GridLayout } from '../src'
+import { verticalCompactor } from '../src/core/compactors'
 import { snapshotDropConfig, snapshotDropResult } from '../src/core/validation'
 
 import type { Layout, ReadonlyLayout } from '../src/helpers/types'
@@ -132,6 +133,37 @@ describe('外部拖入 proposal', () => {
     expect(result.item).toMatchObject({ i: 'created', w: 1, h: 1 })
     expect(result.layout.some((item: { i: string }) => item.i === 'created')).toBe(true)
 
+    wrapper.unmount()
+  })
+
+  it('drop 提交复用 factory 校验结果，不重复运行布局算法', async () => {
+    const compact = vi.fn((layout: ReadonlyLayout, cols: number) =>
+      verticalCompactor.compact(layout, cols),
+    )
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: baseLayout,
+        width: 1200,
+        isDroppable: true,
+        compactor: { type: 'vertical', compact },
+        dropConfig: {
+          createItem: () => ({ i: 'created', x: 0, y: 0, w: 1, h: 1 }),
+        },
+        'onUpdate:layout': layout => wrapper.setProps({ layout }),
+      },
+      attachTo: document.body,
+    })
+    await settle()
+
+    const callsBeforeDrop = compact.mock.calls.length
+    const layoutEl = wrapper.find('.vgl-layout').element
+    layoutEl.dispatchEvent(createDragEvent('dragover', { clientX: 100, clientY: 100 }))
+    await nextTick()
+    layoutEl.dispatchEvent(createDragEvent('drop', { clientX: 100, clientY: 100 }))
+    await settle()
+
+    expect(compact.mock.calls.length - callsBeforeDrop).toBe(2)
+    expect(wrapper.emitted('drop')).toHaveLength(1)
     wrapper.unmount()
   })
 
