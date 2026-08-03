@@ -12,7 +12,9 @@ interface Manifest {
   version?: string
 }
 
-const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as Manifest
+const pkg = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf-8'),
+) as Manifest
 
 const externalPkgs = ['@vue'].concat(
   Object.keys(pkg.dependencies || {}),
@@ -34,16 +36,19 @@ export default defineConfig({
     outDir: 'es',
     sourcemap: true,
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: resolve(import.meta.dirname, 'src/index.ts'),
     },
     rollupOptions: {
-      input: [resolve(__dirname, 'src/index.ts'), resolve(__dirname, 'src/core.ts')],
+      input: [
+        resolve(import.meta.dirname, 'src/index.ts'),
+        resolve(import.meta.dirname, 'src/core.ts'),
+      ],
       external,
       output: [
         {
           format: 'cjs',
           preserveModules: true,
-          preserveModulesRoot: resolve(__dirname, 'src'),
+          preserveModulesRoot: resolve(import.meta.dirname, 'src'),
           dir: 'lib',
           entryFileNames: '[name].cjs',
           chunkFileNames: '[name]-[hash].cjs',
@@ -51,7 +56,7 @@ export default defineConfig({
         {
           format: 'es',
           preserveModules: true,
-          preserveModulesRoot: resolve(__dirname, 'src'),
+          preserveModulesRoot: resolve(import.meta.dirname, 'src'),
           dir: 'es',
           entryFileNames: '[name].mjs',
         },

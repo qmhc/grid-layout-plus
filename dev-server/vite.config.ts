@@ -79,7 +79,7 @@ export default defineConfig(async () => {
     },
     resolve: {
       alias: {
-        'grid-layout-plus': resolve(__dirname, '../src'),
+        'grid-layout-plus': resolve(import.meta.dirname, '../src'),
       },
     },
     plugins: [contractSsrFixturePlugin(), vue()],

@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { defineConfig } from 'vitepress'
 import autoprefixer from 'autoprefixer'
 
-import { writeLlmsBundles } from './llms'
+import { writeLlmsBundles } from './llms.ts'
 
 const siteUrl = 'https://grid-layout-plus.netlify.app'
 
@@ -18,7 +18,7 @@ export default defineConfig({
     logLevel: process.env.NODE_ENV === 'production' ? 'error' : undefined,
     resolve: {
       alias: {
-        'grid-layout-plus': resolve(__dirname, '../../src'),
+        'grid-layout-plus': resolve(import.meta.dirname, '../../src'),
       },
     },
     css: {
@@ -58,7 +58,7 @@ export default defineConfig({
     ])
   },
   async buildEnd(siteConfig) {
-    await writeLlmsBundles(resolve(__dirname, '..'), siteConfig.outDir)
+    await writeLlmsBundles(resolve(import.meta.dirname, '..'), siteConfig.outDir)
   },
   themeConfig: {
     logo: '/grid-layout-plus.svg',

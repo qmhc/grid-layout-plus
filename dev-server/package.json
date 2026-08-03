@@ -1,5 +1,6 @@
 {
   "name": "grid-layout-plus-dev-server",
+  "type": "module",
   "private": true,
   "scripts": {
     "serve": "vite"
