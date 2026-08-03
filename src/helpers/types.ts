@@ -42,6 +42,9 @@ export interface CalcGridCellDimensionsInput {
   readonly rowHeight: number
 }
 
+/** Identifies an edge or corner that can start pointer resizing. */
+export type ResizeHandleAxis = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
+
 export interface GridGeometry {
   width: number
   cols: number
@@ -85,6 +88,15 @@ export interface LayoutItem extends LayoutItemRequired {
   static?: boolean
   isDraggable?: boolean
   isResizable?: boolean
+  /**
+   * Resize handles enabled for this item.
+   *
+   * Overrides `GridLayout.resizeConfig.handles` when defined. An empty array disables pointer
+   * resize handles without disabling programmatic resize operations.
+   *
+   * @defaultValue `undefined`
+   */
+  resizeHandles?: readonly ResizeHandleAxis[]
   /**
    * Whether this item's row height follows its rendered content.
    *

@@ -22,6 +22,8 @@ interface LayoutItemRequired {
 ### LayoutItem
 
 ```ts
+type ResizeHandleAxis = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
+
 interface LayoutItem extends LayoutItemRequired {
   minW?: number,
   minH?: number,
@@ -31,6 +33,7 @@ interface LayoutItem extends LayoutItemRequired {
   static?: boolean,
   isDraggable?: boolean,
   isResizable?: boolean,
+  resizeHandles?: readonly ResizeHandleAxis[],
   autoHeight?: boolean,
   zIndex?: number
 }
@@ -160,6 +163,7 @@ interface DragConfig {
 ```ts
 interface ResizeConfig {
   isResizable?: boolean
+  handles?: readonly ResizeHandleAxis[]
 }
 ```
 
@@ -567,8 +571,27 @@ interface DragConfig {
 ```ts
 interface ResizeConfig {
   isResizable?: boolean
+  handles?: readonly ResizeHandleAxis[]
 }
 ```
+
+`handles` 用于选择显示指针缩放手柄的边和角，支持 `n`、`ne`、`e`、`se`、`s`、`sw`、
+`w` 和 `nw`。为保持向后兼容，默认值为 `['se']`；重复方向只保留第一次出现的位置。
+
+在 `LayoutItem.resizeHandles` 中设置方向，可以覆盖该栅格项的网格级配置。空数组会隐藏该项
+的所有指针缩放手柄，但不会改变编程式缩放 API。两处配置更新都会响应式生效；如果对应栅格项
+正在缩放，组件会先取消当前交互，再重新绑定手柄。
+
+自定义手柄视觉时，已配置方向仍是唯一依据。使用 [`resize-handle` 插槽](#插槽)替换每个已渲染
+方向的视觉内容；插槽本身不会增加或移除手柄。
+
+方向以实际渲染的网格为准：RTL 或镜像模式下，east 与 west 会交换显示侧。开启内容驱动的
+`autoHeight` 时，指针缩放不能设置高度，因此纯 north 和 south 手柄不会显示；斜角手柄仍可用于
+修改宽度。
+
+从 north 或 west 缩放时，active item 的对侧边或对角会在指针操作中保持锚定。在 `push` 碰撞
+模式下，placeholder 和周围栅格项会独立于该指针几何，预览配置的压缩器所生成的终态 Layout。
+释放指针后，active item 会落到 placeholder，且不会再次压缩或重新排布周围栅格项。
 
 ### drop-config
 
@@ -601,7 +624,7 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 
 ## GridItem
 
-`GridItem` 必须位于 `GridLayout` 内。它通过 `i` 属性关联对应的 `LayoutItem`；几何信息、约束、静态状态、单项拖拽和缩放开关以及层级顺序都由父级 Layout 维护。
+`GridItem` 必须位于 `GridLayout` 内。它通过 `i` 属性关联对应的 `LayoutItem`；几何信息、约束、静态状态、单项拖拽和缩放开关、缩放手柄以及层级顺序都由父级 Layout 维护。
 
 ### i
 
@@ -667,14 +690,19 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 - 类型：`Readonly<Record<string, unknown>>`
 - 默认值：`{}`
 
-传递给 [interact.js 拖拽配置](https://interactjs.io/docs/draggable/) 的对象。
+传递给 [interact.js 拖拽配置](https://interactjs.io/docs/draggable/) 的受校验选项。支持
+`lockAxis`、`startAxis`、`mouseButtons`、`hold` 和 `autoScroll`。
 
 ### resize-option
 
 - 类型：`Readonly<Record<string, unknown>>`
 - 默认值：`{}`
 
-传递给 [interact.js 缩放配置](https://interactjs.io/docs/resizable/) 的对象。
+传递给 [interact.js 缩放配置](https://interactjs.io/docs/resizable/) 的受校验选项。支持
+`mouseButtons`、`hold` 和 `autoScroll`。
+
+该选项不接受 `edges`。请通过 `resizeConfig.handles` 或 `LayoutItem.resizeHandles` 配置方向，
+并通过 [`resize-handle` 插槽](#插槽)定制渲染视觉。
 
 ### drag-threshold
 
@@ -718,4 +746,41 @@ interface GridLayoutSlotScope {
 }
 ```
 
-两种方式见[渲染栅格项](./usage#渲染栅格项)。
+`resize-handle` 插槽用于定制每个已启用指针缩放手柄内部的视觉内容：
+
+```ts
+interface GridItemResizeHandleSlotScope {
+  readonly axis: ResizeHandleAxis
+  readonly direction: ResizeHandleAxis
+}
+
+interface GridLayoutResizeHandleSlotScope extends GridItemResizeHandleSlotScope {
+  readonly item: ReadonlyLayoutItem
+  readonly index: number
+}
+```
+
+`axis` 是 `resizeConfig.handles` 或 `LayoutItem.resizeHandles` 选中的配置方向；`direction` 是经过
+RTL 或镜像渲染后的物理方向。自定义箭头或图标需要指向实际显示侧时应使用 `direction`。在从左
+到右的布局中，两者相同。
+
+Grid Layout Plus 继续管理外层手柄元素、定位、指针命中区域、光标和缩放绑定。插槽内容只承担
+指针视觉。返回空内容不会禁用该方向；需要禁用时应从 `handles` 中移除。被 `autoHeight` 省略的
+方向不会渲染，也不会调用插槽。
+
+通过 `item` 插槽让 `GridLayout` 创建栅格项时，在 `GridLayout` 上提供同级的
+`resize-handle` 插槽：
+
+```vue
+<GridLayout v-model:layout="layout" :resize-config="{ handles: ['n', 'e', 'se'] }">
+  <template #item="{ item }">{{ item.i }}</template>
+  <template #resize-handle="{ item, axis, direction }">
+    <CustomHandle :item="item" :axis="axis" :direction="direction" />
+  </template>
+</GridLayout>
+```
+
+通过默认插槽手动渲染 `GridItem` 时，应在各个 `GridItem` 上直接提供同名插槽；其作用域只包含
+`axis` 和 `direction`。
+
+两种栅格项渲染方式见[渲染栅格项](./usage#渲染栅格项)，完整插槽实现见[自定义缩放手柄示例](../example/custom-resize-handles)。

@@ -3,10 +3,12 @@ import { mount, shallowMount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, ref } from 'vue'
 
 import { GridItem, GridLayout } from '../src'
+import { noCompactor } from '../src/core/compactors'
 import { scaledStrategy } from '../src/core/position-strategies'
 import { GridLayoutValidationError } from '../src/core/errors'
 import { snapshotInteractOption } from '../src/helpers/interact-options'
 
+import type { GridLayoutResizeHandleSlotScope } from '../src/components/types'
 import type { Layout } from '../src/helpers/types'
 
 const interactMock = vi.hoisted(() => {
@@ -155,6 +157,24 @@ describe('GridItem interaction', () => {
     return { type, target, clientX, clientY } as MouseEvent
   }
 
+  function resizeEvent(
+    type: string,
+    target: HTMLElement,
+    handle: HTMLElement,
+    clientX: number,
+    clientY: number,
+    edges: Partial<Record<'top' | 'right' | 'bottom' | 'left', boolean>>,
+  ) {
+    return {
+      type,
+      target,
+      clientX,
+      clientY,
+      edges,
+      originalEvent: { target: handle },
+    } as unknown as MouseEvent
+  }
+
   async function mountManualHost(options: {
     layout: Layout
     id: string
@@ -266,6 +286,53 @@ describe('GridItem interaction', () => {
     disabledWrapper.unmount()
   })
 
+  it('resize-config 渲染八方向手柄并绑定四条边', async () => {
+    const handles = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const
+    const { wrapper, item, interactable } = await mountItem({
+      isResizable: true,
+      resizeConfig: { handles },
+    })
+
+    expect(
+      item
+        .findAll('.vgl-item__resizer')
+        .map(handle =>
+          handles.find(axis => handle.classes().includes(`vgl-item__resizer--${axis}`)),
+        ),
+    ).toEqual(handles)
+    const resizeOptions = interactable.resizable.mock.calls
+      .map((args: unknown[]) => args[0])
+      .find((value: any) => value?.edges?.top)
+    expect(resizeOptions.edges).toEqual({
+      top: '.vgl-item__resizer--n, .vgl-item__resizer--ne, .vgl-item__resizer--nw',
+      bottom: '.vgl-item__resizer--se, .vgl-item__resizer--s, .vgl-item__resizer--sw',
+      left: '.vgl-item__resizer--sw, .vgl-item__resizer--w, .vgl-item__resizer--nw',
+      right: '.vgl-item__resizer--ne, .vgl-item__resizer--e, .vgl-item__resizer--se',
+    })
+    wrapper.unmount()
+  })
+
+  it('LayoutItem.resizeHandles 覆盖布局默认值，空数组移除指针手柄', async () => {
+    const configured = await mountItem({
+      isResizable: true,
+      resizeConfig: { handles: ['n', 'e', 's', 'w'] },
+      layout: [{ x: 0, y: 0, w: 1, h: 1, i: 'item', resizeHandles: ['w', 'nw'] }],
+    })
+    expect(configured.item.findAll('.vgl-item__resizer').map(handle => handle.classes())).toEqual([
+      expect.arrayContaining(['vgl-item__resizer--w']),
+      expect.arrayContaining(['vgl-item__resizer--nw']),
+    ])
+    configured.wrapper.unmount()
+
+    const disabled = await mountItem({
+      isResizable: true,
+      layout: [{ x: 0, y: 0, w: 1, h: 1, i: 'item', resizeHandles: [] }],
+    })
+    expect(disabled.item.find('.vgl-item__resizer').exists()).toBe(false)
+    expect(disabled.interactable.resizable).toHaveBeenCalledWith({ enabled: false })
+    disabled.wrapper.unmount()
+  })
+
   it('auto-height 项的手工缩放只启用水平方向', async () => {
     const { wrapper, item, interactable } = await mountItem({
       autoHeight: true,
@@ -283,11 +350,128 @@ describe('GridItem interaction', () => {
     wrapper.unmount()
   })
 
+  it('auto-height 忽略纯垂直手柄并保留斜角的水平分量', async () => {
+    const { wrapper, item, interactable } = await mountItem({
+      autoHeight: true,
+      isResizable: true,
+      resizeConfig: { handles: ['n', 'ne', 's', 'sw'] },
+    })
+
+    expect(item.find('.vgl-item__resizer--n').exists()).toBe(false)
+    expect(item.find('.vgl-item__resizer--s').exists()).toBe(false)
+    expect(item.find('.vgl-item__resizer--ne').exists()).toBe(true)
+    expect(item.find('.vgl-item__resizer--sw').exists()).toBe(true)
+    const resizeOptions = interactable.resizable.mock.calls
+      .map((args: unknown[]) => args[0])
+      .find((value: any) => value?.edges?.right)
+    expect(resizeOptions.edges).toEqual({
+      top: false,
+      bottom: false,
+      left: '.vgl-item__resizer--sw',
+      right: '.vgl-item__resizer--ne',
+    })
+    wrapper.unmount()
+  })
+
+  it('nw 手柄把位置与尺寸作为同一个 resize 候选提交', async () => {
+    const { wrapper, item, interactable } = await mountItem({
+      isResizable: true,
+      compactor: noCompactor,
+      width: 1200,
+      layout: [{ x: 2, y: 2, w: 2, h: 2, i: 'item', resizeHandles: ['nw'] }],
+    })
+    const handle = item.find<HTMLElement>('.vgl-item__resizer--nw')
+    const listener = interactable.listeners.get('resizestart')!
+
+    listener(
+      resizeEvent('resizestart', item.element, handle.element, 300, 220, {
+        top: true,
+        left: true,
+      }),
+    )
+    await nextTick()
+    expect(wrapper.emitted('interaction-start')?.at(-1)?.[0]).toMatchObject({
+      type: 'resize',
+      id: 'item',
+    })
+    listener(
+      resizeEvent('resizemove', item.element, handle.element, 200, 180, {
+        top: true,
+        left: true,
+      }),
+    )
+    await nextTick()
+
+    await vi.waitFor(() => {
+      const proposal = wrapper.emitted('update:layout')?.at(-1)?.[0] as Layout | undefined
+      expect(proposal?.find(entry => entry.i === 'item')).toMatchObject({
+        x: 1,
+        y: 1,
+        w: 3,
+        h: 3,
+      })
+    })
+    wrapper.unmount()
+  })
+
   it('RTL 模式下为 se 手柄启用镜像样式类', async () => {
     document.documentElement.dir = 'rtl'
     const { wrapper, item } = await mountItem({ isResizable: true })
 
     expect(item.find('.vgl-item__resizer--se').classes()).toContain('vgl-item__resizer--rtl')
+
+    wrapper.unmount()
+  })
+
+  it('resize-handle slot 按启用方向渲染并暴露 RTL 后的实际方向', async () => {
+    document.documentElement.dir = 'rtl'
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: [{ x: 0, y: 0, w: 1, h: 1, i: 'item', resizeHandles: ['n', 'e'] }],
+        colNum: 12,
+        rowHeight: 30,
+        width: 1200,
+        isResizable: true,
+      },
+      slots: {
+        item: ({ item }: { item: { i: string | number } }) => h('span', String(item.i)),
+        'resize-handle': ({ item, index, axis, direction }: GridLayoutResizeHandleSlotScope) =>
+          h('span', {
+            class: 'custom-resize-handle',
+            'data-item': item.i,
+            'data-index': index,
+            'data-axis': axis,
+            'data-direction': direction,
+          }),
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    await nextTick()
+
+    const item = wrapper
+      .findAll<HTMLElement>('.vgl-item')
+      .find(element => !element.classes().includes('vgl-item--placeholder'))!
+    const handles = item.findAll<HTMLElement>('.vgl-item__resizer')
+
+    expect(handles).toHaveLength(2)
+    expect(handles.every(handle => handle.classes().includes('vgl-item__resizer--custom'))).toBe(
+      true,
+    )
+    expect(
+      handles.map(handle => {
+        const visual = handle.find<HTMLElement>('.custom-resize-handle')
+        return {
+          axis: visual.attributes('data-axis'),
+          direction: visual.attributes('data-direction'),
+          item: visual.attributes('data-item'),
+          index: visual.attributes('data-index'),
+        }
+      }),
+    ).toEqual([
+      { axis: 'n', direction: 'n', item: 'item', index: '0' },
+      { axis: 'e', direction: 'w', item: 'item', index: '0' },
+    ])
 
     wrapper.unmount()
   })

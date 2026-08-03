@@ -15,7 +15,9 @@ aside: false
 
 ## 交互约束
 
-- [拖拽和缩放手柄](./drag-resize-handler) — 将交互限制在指定手柄上。
+- [移动手柄](./drag-resize-handler) — 限制指针移动的起始区域，并排除交互控件。
+- [多方向缩放](./multi-direction-resize) — 从任意边或角缩放，并覆盖单个栅格项的方向。
+- [自定义缩放手柄](./custom-resize-handles) — 替换手柄视觉，同时保留已配置方向和内置缩放交互。
 - [栅格项限制在容器内](./bounded) — 防止栅格项越过栅格边界。
 - [拖拽阈值](./drag-threshold) — 调整开始拖拽前所需的移动距离。
 - [阻止碰撞](./prevent-collision) — 拒绝与其他栅格项重叠的位置。

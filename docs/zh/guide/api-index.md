@@ -9,40 +9,41 @@ description: 按任务查找 Grid Layout Plus v2 的组件、组合式函数、�
 
 ## 按任务选择 API
 
-| 任务                     | 首选 API                                                                                         | 继续阅读                                     |
-| ------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------- |
-| 渲染可交互的 Vue 栅格    | [`GridLayout`](./properties#gridlayout) 和 [`GridItem`](./properties#griditem)                   | [用法](./usage)                              |
-| 在栅格项后绘制栅格背景   | [`GridBackground`](./properties#gridbackground)                                                  | [栅格背景示例](../example/grid-background)   |
-| 通过代码修改已渲染的栅格 | [`GridLayoutExpose`](./methods#方法参考)                                                         | [操作契约](./contracts)                      |
-| 构建自定义渲染层         | [`useGridLayout`](./composables#usegridlayout)                                                   | [组合式 API 示例](../example/composable-api) |
-| 不使用组件管理响应式状态 | [`useResponsiveLayout`](./composables#useresponsivelayout)                                       | [响应式类型](./properties#响应式布局类型)    |
-| 观测容器宽度             | [`useContainerWidth`](./composables#usecontainerwidth)                                           | [width 属性](./properties#width)             |
-| 校验或规范化 Layout 数据 | [`validateLayout`](./core-api#validatelayout) 或 [`normalizeLayout`](./core-api#normalizelayout) | [Core API](./core-api)                       |
-| 处理被拒绝的操作         | [`OperationRejectedPayload`](./contracts#operationrejectedpayload)                               | [拒绝原因](./contracts#拒绝原因)             |
-| 迁移 v1 代码             | [从 v1 迁移](./migration)                                                                        | [属性](./properties)                         |
+| 任务                     | 首选 API                                                                                         | 继续阅读                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| 渲染可交互的 Vue 栅格    | [`GridLayout`](./properties#gridlayout) 和 [`GridItem`](./properties#griditem)                   | [用法](./usage)                                    |
+| 在栅格项后绘制栅格背景   | [`GridBackground`](./properties#gridbackground)                                                  | [栅格背景示例](../example/grid-background)         |
+| 定制指针缩放手柄         | [`resize-handle` 插槽](./properties#插槽)                                                        | [自定义缩放手柄](../example/custom-resize-handles) |
+| 通过代码修改已渲染的栅格 | [`GridLayoutExpose`](./methods#方法参考)                                                         | [操作契约](./contracts)                            |
+| 构建自定义渲染层         | [`useGridLayout`](./composables#usegridlayout)                                                   | [组合式 API 示例](../example/composable-api)       |
+| 不使用组件管理响应式状态 | [`useResponsiveLayout`](./composables#useresponsivelayout)                                       | [响应式类型](./properties#响应式布局类型)          |
+| 观测容器宽度             | [`useContainerWidth`](./composables#usecontainerwidth)                                           | [width 属性](./properties#width)                   |
+| 校验或规范化 Layout 数据 | [`validateLayout`](./core-api#validatelayout) 或 [`normalizeLayout`](./core-api#normalizelayout) | [Core API](./core-api)                             |
+| 处理被拒绝的操作         | [`OperationRejectedPayload`](./contracts#operationrejectedpayload)                               | [拒绝原因](./contracts#拒绝原因)                   |
+| 迁移 v1 代码             | [从 v1 迁移](./migration)                                                                        | [属性](./properties)                               |
 
 ## 组件与组件契约
 
-| 公开导出                                                                                          | 参考文档                                                                                   |
-| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `GridLayout`                                                                                      | [GridLayout 属性](./properties#gridlayout)、[事件](./events#gridlayout)和[方法](./methods) |
-| `GridItem`                                                                                        | [GridItem 属性](./properties#griditem)和[事件](./events#griditem)                          |
-| `GridBackground`                                                                                  | [GridBackground 属性](./properties#gridbackground)                                         |
-| `GridLayoutProps`、`GridItemProps`                                                                | [属性](./properties)                                                                       |
-| `GridLayoutEmits`、`GridItemEmits`                                                                | [事件](./events)                                                                           |
-| `GridLayoutExpose`、`LayoutTransactionReceipt`                                                    | [方法](./methods)与[事务回执](./contracts#layouttransactionreceipt)                        |
-| `GridLayoutSlots`、`GridLayoutSlotScope`                                                          | [插槽](./properties#插槽)                                                                  |
-| `GridConfig`、`DragConfig`、`ResizeConfig`                                                        | [分组配置](./properties#grid-config)                                                       |
-| `DropConfig`、`DropCandidate`、`DropDragOverInput`、`DropDragOverContext`、`DropEvaluationResult`、`DropCreateItemContext`、`DropCommitResult` | [Drop 类型](./properties#drop-类型)与[拖放事件](./events#drop-drag-over) |
-| `TransferConfig`、`GridTransferResult` | [Transfer 类型](./properties#transfer-类型)与 [`transfer`](./events#transfer) |
-| `LayoutUpdateMeta`、`ResponsiveWidthState`、`WidthChangedPayload`                                 | [事件](./events)                                                                           |
-| `InteractionStartPayload`、`InteractionChangePayload`                                             | [交互事件](./events#interaction-start-interaction-change-interaction-end)                  |
+| 公开导出                                                                                                                                       | 参考文档                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `GridLayout`                                                                                                                                   | [GridLayout 属性](./properties#gridlayout)、[事件](./events#gridlayout)和[方法](./methods) |
+| `GridItem`                                                                                                                                     | [GridItem 属性](./properties#griditem)和[事件](./events#griditem)                          |
+| `GridBackground`                                                                                                                               | [GridBackground 属性](./properties#gridbackground)                                         |
+| `GridLayoutProps`、`GridItemProps`                                                                                                             | [属性](./properties)                                                                       |
+| `GridLayoutEmits`、`GridItemEmits`                                                                                                             | [事件](./events)                                                                           |
+| `GridLayoutExpose`、`LayoutTransactionReceipt`                                                                                                 | [方法](./methods)与[事务回执](./contracts#layouttransactionreceipt)                        |
+| `GridItemSlots`、`GridItemResizeHandleSlotScope`、`GridLayoutSlots`、`GridLayoutSlotScope`、`GridLayoutResizeHandleSlotScope`                  | [插槽](./properties#插槽)                                                                  |
+| `GridConfig`、`DragConfig`、`ResizeConfig`                                                                                                     | [分组配置](./properties#grid-config)                                                       |
+| `DropConfig`、`DropCandidate`、`DropDragOverInput`、`DropDragOverContext`、`DropEvaluationResult`、`DropCreateItemContext`、`DropCommitResult` | [Drop 类型](./properties#drop-类型)与[拖放事件](./events#drop-drag-over)                   |
+| `TransferConfig`、`GridTransferResult`                                                                                                         | [Transfer 类型](./properties#transfer-类型)与 [`transfer`](./events#transfer)              |
+| `LayoutUpdateMeta`、`ResponsiveWidthState`、`WidthChangedPayload`                                                                              | [事件](./events)                                                                           |
+| `InteractionStartPayload`、`InteractionChangePayload`                                                                                          | [交互事件](./events#interaction-start-interaction-change-interaction-end)                  |
 
 ## 布局与扩展类型
 
 | 公开导出                                                                                                                                        | 参考文档                                                   |
 | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `LayoutItemRequired`、`LayoutItem`、`ReadonlyLayoutItem`、`Layout`、`ReadonlyLayout`                                                            | [布局类型](./properties#类型)                              |
+| `LayoutItemRequired`、`LayoutItem`、`ReadonlyLayoutItem`、`Layout`、`ReadonlyLayout`、`ResizeHandleAxis`                                        | [布局类型](./properties#类型)                              |
 | `DefaultBreakpoint`、`Breakpoints`                                                                                                              | [断点类型](./properties#defaultbreakpoint-与-breakpoints)  |
 | `ResponsiveValue`、`ResponsiveLayoutsInput`、`CompleteResponsiveLayouts`                                                                        | [响应式布局类型](./properties#响应式布局类型)              |
 | `Breakpoint`、`ResponsiveLayout`                                                                                                                | [废弃的兼容别名](./migration#已废弃的-api)                 |

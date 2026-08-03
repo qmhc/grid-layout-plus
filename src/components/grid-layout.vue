@@ -40,6 +40,7 @@ import {
   snapshotCompactor,
   snapshotDropConfig,
   snapshotPositionStrategy,
+  snapshotResizeHandles,
   snapshotTransferConfig,
 } from '../core/validation'
 import { useGridCommands } from './grid-layout/use-commands'
@@ -69,6 +70,7 @@ import type {
   LayoutOperationResult,
   ReadonlyLayout,
   ReadonlyLayoutItem,
+  ResizeHandleAxis,
   ResponsiveLayoutsInput,
 } from '../helpers/types'
 import type { GridItemRegistration, LayoutInstance } from '../helpers/internal-types'
@@ -78,12 +80,10 @@ import type {
   GridLayoutEmits,
   GridLayoutExpose,
   GridLayoutProps,
+  GridLayoutSlots,
   LayoutUpdateMeta,
 } from './types'
-import type {
-  GridLayoutRuntimeError,
-  OperationRejectedPayload,
-} from '../composables/useGridLayout'
+import type { GridLayoutRuntimeError, OperationRejectedPayload } from '../composables/useGridLayout'
 import type { DropConfigSnapshot, TransferConfigSnapshot } from '../core/validation'
 import type { UseGridConfigReturn } from './grid-layout/use-config'
 import type { UseGridDropReturn } from './grid-layout/use-drop'
@@ -124,6 +124,7 @@ const props = withDefaults(defineProps<GridLayoutProps>(), {
 })
 
 const emit = defineEmits<GridLayoutEmits>()
+defineSlots<GridLayoutSlots>()
 
 let compactorInput = props.compactor
 const compactorSnapshot = shallowRef(snapshotCompactor(compactorInput))
@@ -137,7 +138,9 @@ const appliedPositionStrategy = shallowRef(snapshotPositionStrategy(initialPosit
  */
 
 const effectiveAutoSize = computed(() => props.autoSize ?? props.gridConfig?.autoSize ?? true)
-const effectiveAutoHeight = computed(() => props.autoHeight ?? props.gridConfig?.autoHeight ?? false)
+const effectiveAutoHeight = computed(
+  () => props.autoHeight ?? props.gridConfig?.autoHeight ?? false,
+)
 const effectiveColNum = computed(() => props.colNum ?? props.gridConfig?.colNum ?? 12)
 const effectiveRowHeight = computed(() => props.rowHeight ?? props.gridConfig?.rowHeight ?? 150)
 const effectiveMaxRows = computed(() => props.maxRows ?? props.gridConfig?.maxRows ?? Infinity)
@@ -157,6 +160,16 @@ const effectiveRestoreOnDrag = computed(
 const effectiveIsResizable = computed(
   () => props.isResizable ?? props.resizeConfig?.isResizable ?? true,
 )
+const defaultResizeHandles = Object.freeze(['se'] as ResizeHandleAxis[])
+
+function snapshotEffectiveResizeHandles(): readonly ResizeHandleAxis[] {
+  const handles = props.resizeConfig?.handles
+  return handles === undefined
+    ? defaultResizeHandles
+    : snapshotResizeHandles(toRaw(handles), 'config.resizeConfig.handles')
+}
+
+const appliedResizeHandles = shallowRef(snapshotEffectiveResizeHandles())
 function snapshotEffectiveDropConfig(): DropConfigSnapshot {
   const grouped = snapshotDropConfig(toRaw(props.dropConfig), toRaw)
   const flatDropItem =
@@ -1417,6 +1430,25 @@ watch(
   { flush: 'post' },
 )
 watch(
+  () => props.resizeConfig?.handles,
+  () => {
+    runAsyncBoundary(() => {
+      let handles: readonly ResizeHandleAxis[]
+      try {
+        handles = snapshotEffectiveResizeHandles()
+      } catch (error) {
+        emitRuntimeError(error, null, { source: 'config' })
+        return
+      }
+      if (interaction.getActive()?.type === 'resize') {
+        cancelActiveForConfig('config-changed')
+      }
+      appliedResizeHandles.value = handles
+    })
+  },
+  { deep: true, flush: 'post' },
+)
+watch(
   () => props.transferConfig,
   value => {
     runAsyncBoundary(() => {
@@ -1464,6 +1496,7 @@ provide(
     containerPadding: adapterContainerPadding,
     isDraggable: adapterIsDraggable,
     isResizable: adapterIsResizable,
+    resizeHandles: appliedResizeHandles,
     isDroppable: effectiveIsDroppable,
     dropItem: effectiveDropItem,
     dragThreshold: effectiveDragThreshold,
@@ -1699,6 +1732,15 @@ updateHeight()
           :is-dragging="interaction.isActive('drag', item.i)"
           :is-resizing="interaction.isActive('resize', item.i)"
         ></slot>
+        <template v-if="$slots['resize-handle']" #resize-handle="{ axis, direction }">
+          <slot
+            name="resize-handle"
+            :item="item"
+            :index="index"
+            :axis="axis"
+            :direction="direction"
+          ></slot>
+        </template>
       </GridItem>
     </template>
     <slot v-else-if="$slots.default"></slot>

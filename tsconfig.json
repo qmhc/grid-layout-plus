@@ -14,21 +14,9 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": false,
-    "baseUrl": ".",
-    "types": [
-      "node",
-      "vite/client"
-    ],
-    "lib": [
-      "esnext",
-      "dom"
-    ]
+    "types": ["node", "vite/client"],
+    "lib": ["esnext", "dom"]
   },
-  "include": [
-    "dev-server",
-    "src"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["dev-server", "src"],
+  "exclude": ["node_modules"]
 }

@@ -130,7 +130,9 @@ export default defineConfig({
                 {
                   text: 'Interaction constraints',
                   items: [
-                    { text: 'Drag and Resize Handles', link: '/example/drag-resize-handler' },
+                    { text: 'Move Handles', link: '/example/drag-resize-handler' },
+                    { text: 'Multi-direction Resize', link: '/example/multi-direction-resize' },
+                    { text: 'Custom Resize Handles', link: '/example/custom-resize-handles' },
                     { text: 'Items Bounded to Container', link: '/example/bounded' },
                     { text: 'Drag Threshold', link: '/example/drag-threshold' },
                     { text: 'Prevent Collision', link: '/example/prevent-collision' },
@@ -248,7 +250,9 @@ export default defineConfig({
                 {
                   text: '交互约束',
                   items: [
-                    { text: '拖拽和缩放手柄', link: '/zh/example/drag-resize-handler' },
+                    { text: '移动手柄', link: '/zh/example/drag-resize-handler' },
+                    { text: '多方向缩放', link: '/zh/example/multi-direction-resize' },
+                    { text: '自定义缩放手柄', link: '/zh/example/custom-resize-handles' },
                     { text: '栅格项限制在容器内', link: '/zh/example/bounded' },
                     { text: '拖拽阈值', link: '/zh/example/drag-threshold' },
                     { text: '阻止碰撞', link: '/zh/example/prevent-collision' },

@@ -113,6 +113,28 @@ These mirror props remain in `GridItemProps` for compatibility but are deprecate
 `LayoutItem`. `isBounded`, drag and resize selectors, `preserveAspectRatio`, interact
 options, and `dragThreshold` remain `GridItem` props.
 
+### Custom resize handles
+
+This change affects v1 projects that supplied selector or Element values through
+`resizeOption.edges` to use application-owned DOM as resize handles.
+
+v2 separates enabled directions from visual rendering. Move the directions to
+`resizeConfig.handles` or `LayoutItem.resizeHandles`, then render the visual content with the
+`resize-handle` slot. The component retains the outer hit target and interaction binding:
+
+```vue
+<GridLayout v-model:layout="layout" :resize-config="{ handles: ['e', 's', 'se'] }">
+  <template #item="{ item }">{{ item.i }}</template>
+  <template #resize-handle="{ axis, direction }">
+    <CustomHandle :axis="axis" :direction="direction" />
+  </template>
+</GridLayout>
+```
+
+`resizeOption.edges` is not a v2 pass-through option. `axis` identifies the configured direction;
+`direction` identifies its physical direction after RTL or mirrored rendering. See [Slots](./properties#slots)
+and the [Custom Resize Handles example](../example/custom-resize-handles).
+
 ### `Layout` validation
 
 This change affects layouts containing coordinate, dimension, `i`, or constraint values

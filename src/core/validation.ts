@@ -6,6 +6,7 @@ import type {
   Layout,
   PositionStrategy,
   ReadonlyLayout,
+  ResizeHandleAxis,
 } from '../helpers/types'
 
 type DataProperties = Readonly<Record<string, unknown>>
@@ -58,6 +59,48 @@ function invalid(
     path,
     cause,
   })
+}
+
+const RESIZE_HANDLE_AXES = new Set<ResizeHandleAxis>(['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'])
+
+/** Creates a descriptor-safe, deduplicated snapshot of resize handle axes. */
+export function snapshotResizeHandles(
+  value: unknown,
+  path = 'config.resizeConfig.handles',
+  code: GridLayoutValidationCode = 'invalid-config',
+): readonly ResizeHandleAxis[] {
+  if (!Array.isArray(value)) throw invalid(code, path, value)
+
+  const lengthDescriptor = getOwnDescriptor(value, 'length', code, path)
+  const length = lengthDescriptor.value
+  if (!Number.isSafeInteger(length) || length < 0) throw invalid(code, path, length)
+
+  const allowedKeys = new Set(Array.from({ length }, (_, index) => String(index)))
+  allowedKeys.add('length')
+  for (const key of getOwnKeys(value, code, path)) {
+    if (typeof key === 'symbol') throw invalid(code, `${path}.<symbol>`, key)
+    if (!allowedKeys.has(key)) throw invalid(code, propertyPath(path, key), key)
+  }
+
+  const handles: ResizeHandleAxis[] = []
+  const seen = new Set<ResizeHandleAxis>()
+  for (let index = 0; index < length; index++) {
+    const itemPath = `${path}[${index}]`
+    const descriptor = getOwnDescriptor(value, String(index), code, itemPath)
+    if (!descriptor.enumerable || !('value' in descriptor)) {
+      throw invalid(code, itemPath, descriptor)
+    }
+    const handle = descriptor.value
+    if (typeof handle !== 'string' || !RESIZE_HANDLE_AXES.has(handle as ResizeHandleAxis)) {
+      throw invalid(code, itemPath, handle)
+    }
+    if (!seen.has(handle as ResizeHandleAxis)) {
+      seen.add(handle as ResizeHandleAxis)
+      handles.push(handle as ResizeHandleAxis)
+    }
+  }
+
+  return Object.freeze(handles)
 }
 
 export function propertyPath(parent: string, key: string): string {

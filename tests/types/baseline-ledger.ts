@@ -43,7 +43,11 @@ import type {
   GridCellDimensions,
   GridConfig,
   GridItemProps,
+  GridItemResizeHandleSlotScope,
+  GridItemSlots,
   GridLayoutProps,
+  GridLayoutResizeHandleSlotScope,
+  GridLayoutSlots,
   Layout,
   LayoutItem,
   LayoutItemRequired,
@@ -51,6 +55,7 @@ import type {
   ReadonlyLayout,
   ReadonlyLayoutItem,
   ResizeConfig,
+  ResizeHandleAxis,
   ResponsiveLayout,
   ResponsiveLayoutsInput,
   ResponsiveValue,
@@ -188,6 +193,19 @@ export type BaselineFieldAssertions = [
   Expect<Equal<GridItemProps['resizeIgnoreFrom'], string | undefined>>,
   Expect<Equal<GridItemProps['preserveAspectRatio'], boolean | undefined>>,
   Expect<Equal<GridItemProps['dragThreshold'], number | undefined>>,
+  Expect<Equal<GridItemResizeHandleSlotScope['axis'], ResizeHandleAxis>>,
+  Expect<Equal<GridItemResizeHandleSlotScope['direction'], ResizeHandleAxis>>,
+  Expect<
+    Equal<Parameters<NonNullable<GridItemSlots['resize-handle']>>[0], GridItemResizeHandleSlotScope>
+  >,
+  Expect<Equal<GridLayoutResizeHandleSlotScope['item'], ReadonlyLayoutItem>>,
+  Expect<Equal<GridLayoutResizeHandleSlotScope['index'], number>>,
+  Expect<
+    Equal<
+      Parameters<NonNullable<GridLayoutSlots['resize-handle']>>[0],
+      GridLayoutResizeHandleSlotScope
+    >
+  >,
   Expect<Equal<Compactor['type'], CompactType | undefined>>,
   Expect<Equal<Compactor['allowOverlap'], boolean | undefined>>,
   Expect<Equal<Parameters<Compactor['compact']>, [layout: ReadonlyLayout, cols: number]>>,

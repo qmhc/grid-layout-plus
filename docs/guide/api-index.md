@@ -9,40 +9,41 @@ Use this page to locate a public v2 symbol. Import components, composables, and 
 
 ## Choose an API by task
 
-| Task                                       | Start with                                                                                       | Read next                                             |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| Render an interactive Vue grid             | [`GridLayout`](./properties#gridlayout) and [`GridItem`](./properties#griditem)                  | [Usage](./usage)                                      |
-| Add a visual grid behind items             | [`GridBackground`](./properties#gridbackground)                                                  | [Grid Background example](../example/grid-background) |
-| Change a rendered grid from code           | [`GridLayoutExpose`](./methods#method-reference)                                                 | [Operation contracts](./contracts)                    |
-| Build a custom renderer                    | [`useGridLayout`](./composables#usegridlayout)                                                   | [Composable example](../example/composable-api)       |
-| Manage responsive state without components | [`useResponsiveLayout`](./composables#useresponsivelayout)                                       | [Responsive types](./properties#responsive-layouts)   |
-| Observe the container width                | [`useContainerWidth`](./composables#usecontainerwidth)                                           | [Width property](./properties#width)                  |
-| Validate or normalize Layout data          | [`validateLayout`](./core-api#validatelayout) or [`normalizeLayout`](./core-api#normalizelayout) | [Core API](./core-api)                                |
-| Handle a rejected operation                | [`OperationRejectedPayload`](./contracts#operationrejectedpayload)                               | [Rejection reasons](./contracts#rejection-reasons)    |
-| Migrate v1 code                            | [Migration from v1](./migration)                                                                 | [Properties](./properties)                            |
+| Task                                       | Start with                                                                                       | Read next                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| Render an interactive Vue grid             | [`GridLayout`](./properties#gridlayout) and [`GridItem`](./properties#griditem)                  | [Usage](./usage)                                          |
+| Add a visual grid behind items             | [`GridBackground`](./properties#gridbackground)                                                  | [Grid Background example](../example/grid-background)     |
+| Customize pointer resize handles           | [`resize-handle` slot](./properties#slots)                                                       | [Custom Resize Handles](../example/custom-resize-handles) |
+| Change a rendered grid from code           | [`GridLayoutExpose`](./methods#method-reference)                                                 | [Operation contracts](./contracts)                        |
+| Build a custom renderer                    | [`useGridLayout`](./composables#usegridlayout)                                                   | [Composable example](../example/composable-api)           |
+| Manage responsive state without components | [`useResponsiveLayout`](./composables#useresponsivelayout)                                       | [Responsive types](./properties#responsive-layouts)       |
+| Observe the container width                | [`useContainerWidth`](./composables#usecontainerwidth)                                           | [Width property](./properties#width)                      |
+| Validate or normalize Layout data          | [`validateLayout`](./core-api#validatelayout) or [`normalizeLayout`](./core-api#normalizelayout) | [Core API](./core-api)                                    |
+| Handle a rejected operation                | [`OperationRejectedPayload`](./contracts#operationrejectedpayload)                               | [Rejection reasons](./contracts#rejection-reasons)        |
+| Migrate v1 code                            | [Migration from v1](./migration)                                                                 | [Properties](./properties)                                |
 
 ## Components and component contracts
 
-| Public export                                                                                     | Reference                                                                                                 |
-| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `GridLayout`                                                                                      | [GridLayout properties](./properties#gridlayout), [events](./events#gridlayout), and [methods](./methods) |
-| `GridItem`                                                                                        | [GridItem properties](./properties#griditem) and [events](./events#griditem)                              |
-| `GridBackground`                                                                                  | [GridBackground properties](./properties#gridbackground)                                                  |
-| `GridLayoutProps`, `GridItemProps`                                                                | [Properties](./properties)                                                                                |
-| `GridLayoutEmits`, `GridItemEmits`                                                                | [Events](./events)                                                                                        |
-| `GridLayoutExpose`, `LayoutTransactionReceipt`                                                    | [Methods](./methods) and [transaction receipts](./contracts#layouttransactionreceipt)                     |
-| `GridLayoutSlots`, `GridLayoutSlotScope`                                                          | [Slots](./properties#slots)                                                                               |
-| `GridConfig`, `DragConfig`, `ResizeConfig`                                                        | [Grouped configuration](./properties#grid-config)                                                         |
-| `DropConfig`, `DropCandidate`, `DropDragOverInput`, `DropDragOverContext`, `DropEvaluationResult`, `DropCreateItemContext`, `DropCommitResult` | [Drop types](./properties#drop-types) and [drop events](./events#drop-drag-over) |
-| `TransferConfig`, `GridTransferResult` | [Transfer types](./properties#transfer-types) and [`transfer`](./events#transfer) |
-| `LayoutUpdateMeta`, `ResponsiveWidthState`, `WidthChangedPayload`                                 | [Events](./events)                                                                                        |
-| `InteractionStartPayload`, `InteractionChangePayload`                                             | [Interaction events](./events#interaction-start-interaction-change-interaction-end)                       |
+| Public export                                                                                                                                  | Reference                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `GridLayout`                                                                                                                                   | [GridLayout properties](./properties#gridlayout), [events](./events#gridlayout), and [methods](./methods) |
+| `GridItem`                                                                                                                                     | [GridItem properties](./properties#griditem) and [events](./events#griditem)                              |
+| `GridBackground`                                                                                                                               | [GridBackground properties](./properties#gridbackground)                                                  |
+| `GridLayoutProps`, `GridItemProps`                                                                                                             | [Properties](./properties)                                                                                |
+| `GridLayoutEmits`, `GridItemEmits`                                                                                                             | [Events](./events)                                                                                        |
+| `GridLayoutExpose`, `LayoutTransactionReceipt`                                                                                                 | [Methods](./methods) and [transaction receipts](./contracts#layouttransactionreceipt)                     |
+| `GridItemSlots`, `GridItemResizeHandleSlotScope`, `GridLayoutSlots`, `GridLayoutSlotScope`, `GridLayoutResizeHandleSlotScope`                  | [Slots](./properties#slots)                                                                               |
+| `GridConfig`, `DragConfig`, `ResizeConfig`                                                                                                     | [Grouped configuration](./properties#grid-config)                                                         |
+| `DropConfig`, `DropCandidate`, `DropDragOverInput`, `DropDragOverContext`, `DropEvaluationResult`, `DropCreateItemContext`, `DropCommitResult` | [Drop types](./properties#drop-types) and [drop events](./events#drop-drag-over)                          |
+| `TransferConfig`, `GridTransferResult`                                                                                                         | [Transfer types](./properties#transfer-types) and [`transfer`](./events#transfer)                         |
+| `LayoutUpdateMeta`, `ResponsiveWidthState`, `WidthChangedPayload`                                                                              | [Events](./events)                                                                                        |
+| `InteractionStartPayload`, `InteractionChangePayload`                                                                                          | [Interaction events](./events#interaction-start-interaction-change-interaction-end)                       |
 
 ## Layout and extension types
 
 | Public export                                                                                                                                   | Reference                                                          |
 | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `LayoutItemRequired`, `LayoutItem`, `ReadonlyLayoutItem`, `Layout`, `ReadonlyLayout`                                                            | [Layout types](./properties#types)                                 |
+| `LayoutItemRequired`, `LayoutItem`, `ReadonlyLayoutItem`, `Layout`, `ReadonlyLayout`, `ResizeHandleAxis`                                        | [Layout types](./properties#types)                                 |
 | `DefaultBreakpoint`, `Breakpoints`                                                                                                              | [Breakpoint types](./properties#defaultbreakpoint-and-breakpoints) |
 | `ResponsiveValue`, `ResponsiveLayoutsInput`, `CompleteResponsiveLayouts`                                                                        | [Responsive layout types](./properties#responsive-layouts)         |
 | `Breakpoint`, `ResponsiveLayout`                                                                                                                | [Deprecated compatibility aliases](./migration#deprecated-apis)    |

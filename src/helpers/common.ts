@@ -6,6 +6,7 @@ import {
   getPrototype,
   propertyPath,
   readPlainDataObject,
+  snapshotResizeHandles,
 } from '../core/validation'
 
 import type { InjectionKey } from 'vue'
@@ -34,6 +35,7 @@ const KNOWN_LAYOUT_ITEM_KEYS = new Set([
   'static',
   'isDraggable',
   'isResizable',
+  'resizeHandles',
   'autoHeight',
   'zIndex',
 ])
@@ -207,6 +209,10 @@ function cloneLayoutItemAt(
   assertOptionalBoolean(properties.isDraggable, `${path}.isDraggable`)
   assertOptionalBoolean(properties.isResizable, `${path}.isResizable`)
   assertOptionalBoolean(properties.autoHeight, `${path}.autoHeight`)
+  const resizeHandles =
+    properties.resizeHandles === undefined
+      ? undefined
+      : snapshotResizeHandles(properties.resizeHandles, `${path}.resizeHandles`, 'invalid-layout')
 
   if (properties.zIndex !== undefined) {
     assertSafeInteger(properties.zIndex, `${path}.zIndex`, { allowNegative: true })
@@ -226,9 +232,11 @@ function cloneLayoutItemAt(
     const itemPath = propertyPath(path, key)
     const itemValue = properties[key]
     const resultValue = KNOWN_LAYOUT_ITEM_KEYS.has(key)
-      ? (key === 'x' || key === 'y' || key === 'zIndex') && typeof itemValue === 'number'
-        ? canonicalZero(itemValue)
-        : itemValue
+      ? key === 'resizeHandles'
+        ? resizeHandles
+        : (key === 'x' || key === 'y' || key === 'zIndex') && typeof itemValue === 'number'
+          ? canonicalZero(itemValue)
+          : itemValue
       : cloneMetadataValue(itemValue, itemPath, ancestors)
     defineDataProperty(result, key, resultValue)
   }

@@ -165,7 +165,8 @@ function dropPreview(payload: Record<string, unknown> | null) {
   if (!payload) return null
   const preview = payload.previewLayout
   if (Array.isArray(preview)) return preview
-  if (!Array.isArray(payload.layout) || !payload.item || typeof payload.item !== 'object') return null
+  if (!Array.isArray(payload.layout) || !payload.item || typeof payload.item !== 'object')
+    return null
   const id = (payload.item as { i?: unknown }).i
   return payload.layout.filter(entry => (entry as { i?: unknown }).i !== id)
 }
@@ -173,7 +174,8 @@ function dropPreview(payload: Record<string, unknown> | null) {
 function dropInsertionIndex(payload: Record<string, unknown> | null): number | null {
   if (!payload) return null
   if (typeof payload.insertionIndex === 'number') return payload.insertionIndex
-  if (!Array.isArray(payload.layout) || !payload.item || typeof payload.item !== 'object') return null
+  if (!Array.isArray(payload.layout) || !payload.item || typeof payload.item !== 'object')
+    return null
   const id = (payload.item as { i?: unknown }).i
   const index = payload.layout.findIndex(entry => (entry as { i?: unknown }).i === id)
   return index >= 0 ? index : null
@@ -946,6 +948,127 @@ defineFutureContract({
       disabledCanEscape: unboundedOverflow > 100,
     }
 
+    await openVariant(page, 'phase-2', 'E2E-27', 'multi-direction', ['resize-handle'])
+    const multiDirectionItem = page.locator('.vgl-layout > .vgl-item').first()
+    const multiDirectionHandlePlacement = await multiDirectionItem.evaluate(element => {
+      const item = element.getBoundingClientRect()
+      const tolerance = 6
+      return Array.from(element.querySelectorAll<HTMLElement>('.vgl-item__resizer')).every(
+        handle => {
+          const axis = Array.from(handle.classList)
+            .find(className => className.startsWith('vgl-item__resizer--'))
+            ?.replace('vgl-item__resizer--', '')
+          if (!axis || axis === 'rtl') return false
+          const rect = handle.getBoundingClientRect()
+          const centerX = rect.left + rect.width / 2
+          const centerY = rect.top + rect.height / 2
+          const horizontal = axis.includes('e')
+            ? Math.abs(centerX - item.right) <= tolerance
+            : axis.includes('w')
+              ? Math.abs(centerX - item.left) <= tolerance
+              : Math.abs(centerX - (item.left + item.right) / 2) <= tolerance
+          const vertical = axis.includes('n')
+            ? Math.abs(centerY - item.top) <= tolerance
+            : axis.includes('s')
+              ? Math.abs(centerY - item.bottom) <= tolerance
+              : Math.abs(centerY - (item.top + item.bottom) / 2) <= tolerance
+          return horizontal && vertical
+        },
+      )
+    })
+    const renderedHandles = await multiDirectionItem
+      .locator('.vgl-item__resizer')
+      .evaluateAll(elements =>
+        elements.map(element =>
+          Array.from(element.classList)
+            .find(className => className.startsWith('vgl-item__resizer--'))
+            ?.replace('vgl-item__resizer--', ''),
+        ),
+      )
+
+    const resizeTopCorner = async (axis: 'ne' | 'nw') => {
+      await openVariant(page, 'phase-2', 'E2E-27', 'multi-direction', ['resize-handle'])
+      const fixture = page.locator('[data-contract-e2e-fixture="ready"]')
+      const active = itemA(page)
+      const handle = active.locator(`.vgl-item__resizer--${axis}`)
+      const [initialBox, handleBox] = await Promise.all([
+        active.boundingBox(),
+        handle.boundingBox(),
+      ])
+      if (!initialBox || !handleBox) throw new Error(`missing ${axis} resize geometry`)
+      const startX = handleBox.x + handleBox.width / 2
+      const startY = handleBox.y + handleBox.height / 2
+      await page.mouse.move(startX, startY)
+      await page.mouse.down()
+      await page.mouse.move(startX + (axis === 'ne' ? 66 : -66), startY - 50, { steps: 4 })
+      await settleBrowser(page)
+
+      const placeholder = page.locator('.vgl-item--placeholder:visible')
+      await placeholder.evaluate(element =>
+        Promise.allSettled(element.getAnimations().map(animation => animation.finished)),
+      )
+      const [heldBox, placeholderBox, heldLayout] = await Promise.all([
+        active.boundingBox(),
+        placeholder.boundingBox(),
+        readJsonAttribute<Array<{ i: string; x: number; y: number; w: number; h: number }>>(
+          fixture,
+          'data-layout-state',
+        ),
+      ])
+      if (!heldBox || !placeholderBox) throw new Error(`missing held ${axis} resize geometry`)
+      const preview = heldLayout.find(item => item.i === 'fixture-a')
+      await page.mouse.up()
+      await settleBrowser(page)
+      await expect
+        .poll(async () => maxBoxError(await active.boundingBox(), placeholderBox))
+        .toBeLessThanOrEqual(2)
+      const terminalBox = await active.boundingBox()
+      const terminalLayout = await readJsonAttribute<
+        Array<{ i: string; x: number; y: number; w: number; h: number }>
+      >(fixture, 'data-layout-state')
+      const terminal = terminalLayout.find(item => item.i === 'fixture-a')
+      const blocker = terminalLayout.find(item => item.i === 'fixture-b')
+      const boxesMatch = (
+        first: Awaited<ReturnType<typeof active.boundingBox>>,
+        second: Awaited<ReturnType<typeof active.boundingBox>>,
+      ) =>
+        first != null &&
+        second != null &&
+        Math.abs(first.x - second.x) <= 2 &&
+        Math.abs(first.y - second.y) <= 2 &&
+        Math.abs(first.width - second.width) <= 2 &&
+        Math.abs(first.height - second.height) <= 2
+
+      return {
+        activeTracksResizeAnchor:
+          Math.abs(initialBox.y + initialBox.height - (heldBox.y + heldBox.height)) <= 2 &&
+          (axis === 'ne'
+            ? Math.abs(initialBox.x - heldBox.x) <= 2
+            : Math.abs(initialBox.x + initialBox.width - (heldBox.x + heldBox.width)) <= 2),
+        placeholderPreviewsCompactedTarget:
+          preview?.y === 0 && maxBoxError(heldBox, placeholderBox) > 2,
+        terminalMatchesPlaceholder:
+          boxesMatch(placeholderBox, terminalBox) &&
+          preview != null &&
+          terminal != null &&
+          preview.x === terminal.x &&
+          preview.y === terminal.y &&
+          preview.w === terminal.w &&
+          preview.h === terminal.h,
+        layoutStableOnRelease: JSON.stringify(heldLayout) === JSON.stringify(terminalLayout),
+        terminal: terminal ? { x: terminal.x, y: terminal.y, w: terminal.w, h: terminal.h } : null,
+        blockerPushedBelow:
+          terminal != null && blocker != null && blocker.y === terminal.y + terminal.h,
+      }
+    }
+
+    results.multiDirection = {
+      renderedHandles,
+      handlesPlacedAtExpectedEdges: multiDirectionHandlePlacement,
+      ne: await resizeTopCorner('ne'),
+      nw: await resizeTopCorner('nw'),
+    }
+
     await openVariant(page, 'phase-2', 'E2E-27', 'aspect', ['resize-handle'])
     const verticalMultiStep = await resizeItemThrough(page, [
       { deltaX: 5, deltaY: 5 },
@@ -1141,6 +1264,26 @@ defineFutureContract({
     bounded: {
       enabledStopsAtBoundary: true,
       disabledCanEscape: true,
+    },
+    multiDirection: {
+      renderedHandles: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+      handlesPlacedAtExpectedEdges: true,
+      ne: {
+        activeTracksResizeAnchor: true,
+        placeholderPreviewsCompactedTarget: true,
+        terminalMatchesPlaceholder: true,
+        layoutStableOnRelease: true,
+        terminal: { x: 4, y: 0, w: 5, h: 4 },
+        blockerPushedBelow: true,
+      },
+      nw: {
+        activeTracksResizeAnchor: true,
+        placeholderPreviewsCompactedTarget: true,
+        terminalMatchesPlaceholder: true,
+        layoutStableOnRelease: true,
+        terminal: { x: 3, y: 0, w: 5, h: 4 },
+        blockerPushedBelow: true,
+      },
     },
     aspect: {
       verticalChanged: true,

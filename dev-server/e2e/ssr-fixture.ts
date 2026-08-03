@@ -12,19 +12,21 @@ import type {
   ResponsiveLayout,
 } from '../../src/helpers/types'
 
+type SsrBreakpoint = 'lg' | 'sm' | 'xxs'
+
 export interface SsrFixtureInput {
   variant: string
   width?: number
   responsive: boolean
   layout: Layout
   responsiveLayouts: Partial<ResponsiveLayout>
-  breakpoints: Breakpoints
-  cols: Breakpoints
+  breakpoints: Breakpoints<SsrBreakpoint>
+  cols: Breakpoints<SsrBreakpoint>
   strategyFailure: boolean
 }
 
-const breakpoints: Breakpoints = { lg: 1000, sm: 600, xxs: 0 }
-const cols: Breakpoints = { lg: 12, sm: 6, xxs: 2 }
+const breakpoints: Breakpoints<SsrBreakpoint> = { lg: 1000, sm: 600, xxs: 0 }
+const cols: Breakpoints<SsrBreakpoint> = { lg: 12, sm: 6, xxs: 2 }
 
 function item(w: number, x = 0): Layout[number] {
   return { i: 'ssr-item', x, y: 0, w, h: 1 }

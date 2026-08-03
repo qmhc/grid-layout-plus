@@ -37,6 +37,7 @@ export interface LayoutInstance {
   containerPadding: readonly [number, number]
   isDraggable: boolean
   isResizable: boolean
+  resizeHandles: readonly import('./types').ResizeHandleAxis[]
   autoHeight: boolean
   isBounded: boolean
   useStyleCursor: boolean

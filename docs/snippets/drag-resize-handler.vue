@@ -12,7 +12,7 @@ const layout = ref<Layout>([
 </script>
 
 <template>
-  <GridLayout v-model:layout="layout" :row-height="30">
+  <GridLayout v-model:layout="layout" :is-resizable="false" :row-height="30">
     <GridItem
       v-for="item in layout"
       :key="item.i"

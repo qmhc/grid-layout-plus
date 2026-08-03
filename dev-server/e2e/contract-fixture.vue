@@ -136,6 +136,7 @@ const ackMode = ref<AckMode>(
                       'active',
                       'pending',
                       'legacy',
+                      'multi-direction',
                     ].includes(variant.value) ||
                     variant.value.startsWith('aspect') ||
                     scenario.value === 'E2E-33' ||
@@ -226,26 +227,38 @@ const eventLog = ref<Array<{ name: string; args: string }>>([])
 const layout = ref<Layout>([
   {
     i: 'fixture-a',
-    x: 0,
-    y: 0,
-    w: scenario.value === 'E2E-33' ? 1 : 2,
-    h: 1,
+    x: variant.value === 'multi-direction' ? 4 : 0,
+    y: variant.value === 'multi-direction' ? 4 : 0,
+    w: variant.value === 'multi-direction' ? 4 : scenario.value === 'E2E-33' ? 1 : 2,
+    h: variant.value === 'multi-direction' ? 3 : 1,
     static: variant.value === 'no-position',
+    ...(variant.value === 'multi-direction'
+      ? { resizeHandles: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const }
+      : {}),
     ...(variant.value === 'aspect-limit' ? { minW: 2, minH: 1, maxW: 4, maxH: 4 } : {}),
   },
   {
     i: 'fixture-b',
     x:
-      variant.value === 'aspect-limit'
-        ? 6
-        : scenario.value === 'E2E-33'
-          ? 1
-          : scenario.value === 'E2E-41' && variant.value.includes('rtl')
-            ? 8
-            : 2,
+      variant.value === 'multi-direction'
+        ? 4
+        : variant.value === 'aspect-limit'
+          ? 6
+          : scenario.value === 'E2E-33'
+            ? 1
+            : scenario.value === 'E2E-41' && variant.value.includes('rtl')
+              ? 8
+              : 2,
     y: 0,
-    w: variant.value === 'no-position' ? 10 : scenario.value === 'E2E-33' ? 1 : 2,
-    h: 1,
+    w:
+      variant.value === 'multi-direction'
+        ? 4
+        : variant.value === 'no-position'
+          ? 10
+          : scenario.value === 'E2E-33'
+            ? 1
+            : 2,
+    h: variant.value === 'multi-direction' ? 4 : 1,
     static: variant.value === 'no-position',
   },
 ])

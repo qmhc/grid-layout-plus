@@ -32,8 +32,8 @@ import { gridToPixelRect, pixelSizeToGridSize, pointerToGridPosition } from '../
 
 import interact from 'interactjs'
 
-import type { LayoutItem, PositionStrategy } from '../helpers/types'
-import type { GridItemEmits, GridItemProps } from './types'
+import type { LayoutItem, PositionStrategy, ResizeHandleAxis } from '../helpers/types'
+import type { GridItemEmits, GridItemProps, GridItemSlots } from './types'
 
 const props = withDefaults(defineProps<GridItemProps>(), {
   isDraggable: undefined,
@@ -61,6 +61,7 @@ const props = withDefaults(defineProps<GridItemProps>(), {
 })
 
 const emit = defineEmits<GridItemEmits>()
+defineSlots<GridItemSlots>()
 
 const injectedLayout = inject(LAYOUT_KEY)
 const injectedEmitter = inject(EMITTER_KEY)
@@ -107,6 +108,8 @@ const state = reactive({
   resizing: {
     width: -1,
     height: -1,
+    top: -1,
+    inlineStart: -1,
   },
   style: {} as Record<string, string>,
   rtl: false,
@@ -120,8 +123,6 @@ let lastY = NaN
 let lastW = NaN
 let lastH = NaN
 
-let previousW = -1
-let previousH = -1
 let previousX = -1
 let previousY = -1
 
@@ -137,14 +138,33 @@ let dragTerminalSnapshot: {
 let resizeAspectSnapshot: {
   enabled: boolean
   ratio: number
+  edges: {
+    north: boolean
+    east: boolean
+    south: boolean
+    west: boolean
+  }
+  initialX: number
+  initialY: number
+  initialW: number
+  initialH: number
+  initialTop: number
+  initialInlineStart: number
   initialWidth: number
   initialHeight: number
+  handlesSignature: string
+  rawTop: number
+  rawInlineStart: number
   rawWidth: number
   rawHeight: number
 } | null = null
 let resizeTerminalSnapshot: {
+  initialX: number
+  initialY: number
   initialW: number
   initialH: number
+  candidateX: number
+  candidateY: number
   candidateW: number
   candidateH: number
   pixelWidth: number
@@ -152,6 +172,7 @@ let resizeTerminalSnapshot: {
 } | null = null
 let dragTargetAllowed = false
 let resizeTargetAllowed = false
+let boundResizeHandlesSignature = ''
 
 // 拖拽阈值相关状态
 let dragStartPos: { x: number; y: number } | null = null
@@ -168,9 +189,18 @@ const effectiveMinW = computed(() => effectiveItem.value?.minW ?? 1)
 const effectiveMinH = computed(() => effectiveItem.value?.minH ?? 1)
 const effectiveMaxW = computed(() => effectiveItem.value?.maxW ?? Infinity)
 const effectiveMaxH = computed(() => effectiveItem.value?.maxH ?? Infinity)
+const configuredResizeHandles = computed<readonly ResizeHandleAxis[]>(
+  () => effectiveItem.value?.resizeHandles ?? layout.resizeHandles,
+)
 const effectiveAutoHeight = computed(
   () => effectiveItem.value?.autoHeight ?? props.autoHeight ?? layout.autoHeight,
 )
+const renderedResizeHandles = computed<readonly ResizeHandleAxis[]>(() => {
+  if (!effectiveAutoHeight.value) return configuredResizeHandles.value
+  return configuredResizeHandles.value.filter(
+    handle => handle.includes('e') || handle.includes('w'),
+  )
+})
 const autoHeightResizeConflict = computed(
   () => effectiveAutoHeight.value && props.preserveAspectRatio,
 )
@@ -353,15 +383,20 @@ const resizableAndNotStatic = computed(
     !props.decorative &&
     state.registered &&
     state.resizable &&
+    renderedResizeHandles.value.length > 0 &&
     !effectiveStatic.value &&
     !autoHeightResizeConflict.value,
 )
 const renderRtl = computed(() => (layout.isMirrored ? !state.rtl : state.rtl))
+const renderedResizeHandleDirection = (handle: ResizeHandleAxis): ResizeHandleAxis => {
+  if (!renderRtl.value) return handle
+  return handle.replace(/[ew]/g, direction => (direction === 'e' ? 'w' : 'e')) as ResizeHandleAxis
+}
 const draggableOrResizableAndNotStatic = computed(() => {
   return (
     !props.decorative &&
     state.registered &&
-    (state.draggable || state.resizable) &&
+    (state.draggable || resizableAndNotStatic.value) &&
     !effectiveStatic.value
   )
 })
@@ -432,6 +467,16 @@ watch(
 watch(
   () => state.resizable,
   () => {
+    nextTickOnce(tryMakeResizable)
+  },
+)
+watch(
+  () => renderedResizeHandles.value.join('|'),
+  signature => {
+    if (props.decorative) return
+    if (signature === resizeAspectSnapshot?.handlesSignature) return
+    if (signature === boundResizeHandlesSignature) return
+    layout.handleItemConfigChange(instance, 'resize')
     nextTickOnce(tryMakeResizable)
   },
 )
@@ -649,6 +694,12 @@ function createStyle() {
     }
   }
   if (state.isResizing) {
+    pos.top = state.resizing.top
+    if (renderRtl.value) {
+      pos.right = state.resizing.inlineStart
+    } else {
+      pos.left = state.resizing.inlineStart
+    }
     pos.width = state.resizing.width
     pos.height = state.resizing.height
   }
@@ -717,9 +768,15 @@ function resetInteractionState(type?: 'drag' | 'resize'): void {
     dragTerminalSnapshot = null
   }
   if (!type || type === 'resize') {
-    if (state.isResizing || state.resizing.width !== -1 || state.resizing.height !== -1) {
+    if (
+      state.isResizing ||
+      state.resizing.width !== -1 ||
+      state.resizing.height !== -1 ||
+      state.resizing.top !== -1 ||
+      state.resizing.inlineStart !== -1
+    ) {
       state.isResizing = false
-      state.resizing = { width: -1, height: -1 }
+      state.resizing = { width: -1, height: -1, top: -1, inlineStart: -1 }
       shouldRefreshStyle = true
     }
     lastW = NaN
@@ -763,44 +820,151 @@ function emitContainerResized() {
   )
 }
 
-function nextResizePixelSize(x: number, y: number): { width: number; height: number } {
+interface ResizePixelRect {
+  top: number
+  inlineStart: number
+  width: number
+  height: number
+}
+
+interface ResizeGridRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+type ResizePointerEvent = MouseEvent & {
+  edges?: Partial<Record<'top' | 'right' | 'bottom' | 'left', boolean>>
+}
+
+function resizeEdgesFromEvent(event: ResizePointerEvent) {
+  return {
+    north: event.edges?.top === true,
+    east: event.edges?.right === true,
+    south: event.edges?.bottom === true,
+    west: event.edges?.left === true,
+  }
+}
+
+function nextResizePixelRect(x: number, y: number): ResizePixelRect {
   const coreEvent = createCoreData(lastW, lastH, x, y)
   const snapshot = resizeAspectSnapshot
-  const rawWidth =
-    (snapshot?.rawWidth ?? state.resizing.width) +
-    (renderRtl.value ? -coreEvent.deltaX : coreEvent.deltaX) / transformScale.value
-  const rawHeight =
-    (snapshot?.rawHeight ?? state.resizing.height) + coreEvent.deltaY / transformScale.value
-
-  if (effectiveAutoHeight.value) {
+  if (!snapshot) {
     return {
-      width: rawWidth,
-      height: snapshot?.initialHeight ?? state.resizing.height,
+      top: state.resizing.top,
+      inlineStart: state.resizing.inlineStart,
+      width: state.resizing.width,
+      height: state.resizing.height,
     }
   }
 
-  if (!snapshot) return { width: rawWidth, height: rawHeight }
+  const inlineDelta =
+    (renderRtl.value ? -coreEvent.deltaX : coreEvent.deltaX) / transformScale.value
+  const blockDelta = coreEvent.deltaY / transformScale.value
+  let rawTop = snapshot.rawTop
+  let rawInlineStart = snapshot.rawInlineStart
+  let rawWidth = snapshot.rawWidth
+  let rawHeight = snapshot.rawHeight
+
+  if (snapshot.edges.east) rawWidth += inlineDelta
+  if (snapshot.edges.west) {
+    rawInlineStart += inlineDelta
+    rawWidth -= inlineDelta
+  }
+  if (!effectiveAutoHeight.value) {
+    if (snapshot.edges.south) rawHeight += blockDelta
+    if (snapshot.edges.north) {
+      rawTop += blockDelta
+      rawHeight -= blockDelta
+    }
+  }
+
+  snapshot.rawTop = rawTop
+  snapshot.rawInlineStart = rawInlineStart
   snapshot.rawWidth = rawWidth
   snapshot.rawHeight = rawHeight
-  if (!snapshot.enabled) return { width: rawWidth, height: rawHeight }
+  if (!snapshot.enabled) {
+    return { top: rawTop, inlineStart: rawInlineStart, width: rawWidth, height: rawHeight }
+  }
 
   const widthDelta = Math.abs(rawWidth - snapshot.initialWidth)
   const heightDelta = Math.abs(rawHeight - snapshot.initialHeight)
-  return widthDelta >= heightDelta
-    ? { width: rawWidth, height: rawWidth / snapshot.ratio }
-    : { width: rawHeight * snapshot.ratio, height: rawHeight }
+  const size =
+    widthDelta >= heightDelta
+      ? { width: rawWidth, height: rawWidth / snapshot.ratio }
+      : { width: rawHeight * snapshot.ratio, height: rawHeight }
+  return {
+    top: snapshot.edges.north
+      ? snapshot.initialTop + snapshot.initialHeight - size.height
+      : snapshot.initialTop,
+    inlineStart: snapshot.edges.west
+      ? snapshot.initialInlineStart + snapshot.initialWidth - size.width
+      : snapshot.initialInlineStart,
+    ...size,
+  }
+}
+
+function resizeGridLimits(snapshot: NonNullable<typeof resizeAspectSnapshot>) {
+  return {
+    maxW: Math.min(
+      effectiveMaxW.value,
+      snapshot.edges.west ? snapshot.initialX + snapshot.initialW : state.cols - snapshot.initialX,
+    ),
+    maxH: Math.min(
+      effectiveMaxH.value,
+      snapshot.edges.north
+        ? snapshot.initialY + snapshot.initialH
+        : state.maxRows - snapshot.initialY,
+    ),
+  }
+}
+
+function resizePixelRectToGrid(rect: ResizePixelRect): ResizeGridRect | null {
+  const snapshot = resizeAspectSnapshot
+  if (!snapshot) return null
+  const limits = resizeGridLimits(snapshot)
+  if (limits.maxW < effectiveMinW.value || limits.maxH < effectiveMinH.value) return null
+
+  const size = snapshot.enabled
+    ? selectAspectGridSize(rect.width, rect.height, snapshot.ratio, limits.maxW, limits.maxH)
+    : pixelSizeToGridSize({ width: rect.width, height: rect.height, geometry: itemGeometry() })
+  if (!size) return null
+
+  const w = clamp(size.w, effectiveMinW.value, limits.maxW)
+  const h = effectiveAutoHeight.value
+    ? snapshot.initialH
+    : clamp(size.h, effectiveMinH.value, limits.maxH)
+  return {
+    x: snapshot.edges.west ? snapshot.initialX + snapshot.initialW - w : snapshot.initialX,
+    y: snapshot.edges.north ? snapshot.initialY + snapshot.initialH - h : snapshot.initialY,
+    w,
+    h,
+  }
 }
 
 function finishResizeInteraction(item: Pick<LayoutItem, 'x' | 'y' | 'w' | 'h'> | null): void {
   const terminal = resizeTerminalSnapshot
   resizeTerminalSnapshot = null
-  if (!terminal || !item || (terminal.initialW === item.w && terminal.initialH === item.h)) {
+  if (
+    !terminal ||
+    !item ||
+    (terminal.initialX === item.x &&
+      terminal.initialY === item.y &&
+      terminal.initialW === item.w &&
+      terminal.initialH === item.h)
+  ) {
     return
   }
 
   let pixelWidth = terminal.pixelWidth
   let pixelHeight = terminal.pixelHeight
-  if (terminal.candidateW !== item.w || terminal.candidateH !== item.h) {
+  if (
+    terminal.candidateX !== item.x ||
+    terminal.candidateY !== item.y ||
+    terminal.candidateW !== item.w ||
+    terminal.candidateH !== item.h
+  ) {
     const position = calcPosition(item.x, item.y, item.w, item.h)
     pixelWidth = position.width
     pixelHeight = position.height
@@ -817,7 +981,7 @@ function finishDragInteraction(item: Pick<LayoutItem, 'x' | 'y'> | null): void {
   emit('moved', props.i, item.x, item.y)
 }
 
-function handleResize(event: MouseEvent & { edges: any }) {
+function handleResize(event: ResizePointerEvent) {
   if (effectiveStatic.value) return
 
   const type = event.type
@@ -832,15 +996,18 @@ function handleResize(event: MouseEvent & { edges: any }) {
   if (isNull(position)) return
 
   const { x, y } = position
-  const newSize = { width: 0, height: 0 }
+  const newRect: ResizePixelRect = { top: 0, inlineStart: 0, width: 0, height: 0 }
   let pos
   switch (type) {
     case 'resizestart': {
       tryMakeResizable()
-      previousW = innerW
-      previousH = innerH
       resizeTerminalSnapshot = null
       pos = calcPosition(innerX, innerY, innerW, innerH)
+      const edges = resizeEdgesFromEvent(event)
+      if (!Object.values(edges).some(Boolean)) {
+        layout.rejectItemInteraction('resize', props.i, 'invalid-input', event)
+        return
+      }
       if (
         props.preserveAspectRatio &&
         (!Number.isFinite(pos.width) ||
@@ -859,36 +1026,46 @@ function handleResize(event: MouseEvent & { edges: any }) {
       resizeAspectSnapshot = {
         enabled: props.preserveAspectRatio,
         ratio: pos.width / pos.height,
+        edges,
+        initialX: innerX,
+        initialY: innerY,
+        initialW: innerW,
+        initialH: innerH,
+        initialTop: pos.top,
+        initialInlineStart: positionInlineStart(pos),
         initialWidth: pos.width,
         initialHeight: pos.height,
+        handlesSignature: renderedResizeHandles.value.join('|'),
+        rawTop: pos.top,
+        rawInlineStart: positionInlineStart(pos),
         rawWidth: pos.width,
         rawHeight: pos.height,
       }
-      newSize.width = pos.width
-      newSize.height = pos.height
-      state.resizing = newSize
+      newRect.top = pos.top
+      newRect.inlineStart = positionInlineStart(pos)
+      newRect.width = pos.width
+      newRect.height = pos.height
+      state.resizing = newRect
       state.isResizing = true
       break
     }
     case 'resizemove': {
-      Object.assign(newSize, nextResizePixelSize(x, y))
-      state.resizing = newSize
+      Object.assign(newRect, nextResizePixelRect(x, y))
+      state.resizing = newRect
       break
     }
     case 'resizeend': {
-      Object.assign(newSize, nextResizePixelSize(x, y))
-      state.resizing = { width: -1, height: -1 }
+      Object.assign(newRect, nextResizePixelRect(x, y))
+      state.resizing = { width: -1, height: -1, top: -1, inlineStart: -1 }
       state.isResizing = false
       break
     }
   }
 
-  // Get new WH
-  pos = resizeAspectSnapshot?.enabled
-    ? selectAspectGridSize(newSize.width, newSize.height, resizeAspectSnapshot.ratio)
-    : calcWH(newSize.height, newSize.width)
+  pos = resizePixelRectToGrid(newRect)
   if (!pos) {
-    const maximumHeight = Math.min(effectiveMaxH.value, state.maxRows - innerY)
+    const snapshot = resizeAspectSnapshot
+    const maximumHeight = snapshot ? resizeGridLimits(snapshot).maxH : 0
     layout.rejectItemInteraction(
       'resize',
       props.i,
@@ -896,28 +1073,13 @@ function handleResize(event: MouseEvent & { edges: any }) {
       event,
     )
     const current = calcPosition(innerX, innerY, innerW, innerH)
-    state.resizing = { width: current.width, height: current.height }
+    state.resizing = {
+      top: current.top,
+      inlineStart: positionInlineStart(current),
+      width: current.width,
+      height: current.height,
+    }
     return
-  }
-  if (pos.w < effectiveMinW.value) {
-    pos.w = effectiveMinW.value
-  }
-  if (pos.w > effectiveMaxW.value) {
-    pos.w = effectiveMaxW.value
-  }
-  if (effectiveAutoHeight.value) pos.h = innerH
-  if (pos.h < effectiveMinH.value) {
-    pos.h = effectiveMinH.value
-  }
-  if (pos.h > effectiveMaxH.value) {
-    pos.h = effectiveMaxH.value
-  }
-
-  if (pos.h < 1) {
-    pos.h = 1
-  }
-  if (pos.w < 1) {
-    pos.w = 1
   }
 
   lastW = x
@@ -927,20 +1089,25 @@ function handleResize(event: MouseEvent & { edges: any }) {
     createStyle()
   }
 
-  if (innerW !== pos.w || innerH !== pos.h) {
-    emit('resize', props.i, pos.h, pos.w, newSize.height, newSize.width)
+  if (innerX !== pos.x || innerY !== pos.y || innerW !== pos.w || innerH !== pos.h) {
+    emit('resize', props.i, pos.h, pos.w, newRect.height, newRect.width)
   }
   if (event.type === 'resizeend') {
+    const snapshot = resizeAspectSnapshot!
     resizeTerminalSnapshot = {
-      initialW: previousW,
-      initialH: previousH,
+      initialX: snapshot.initialX,
+      initialY: snapshot.initialY,
+      initialW: snapshot.initialW,
+      initialH: snapshot.initialH,
+      candidateX: pos.x,
+      candidateY: pos.y,
       candidateW: pos.w,
       candidateH: pos.h,
-      pixelWidth: newSize.width,
-      pixelHeight: newSize.height,
+      pixelWidth: newRect.width,
+      pixelHeight: newRect.height,
     }
   }
-  emitter.emit('resizeEvent', type, props.i, innerX, innerY, pos.h, pos.w, event)
+  emitter.emit('resizeEvent', type, props.i, pos.x, pos.y, pos.h, pos.w, event)
   if (type === 'resizeend') resizeAspectSnapshot = null
 }
 
@@ -1118,6 +1285,18 @@ function calcPosition(x: number, y: number, w: number, h: number) {
   }
 }
 
+function positionInlineStart(position: ReturnType<typeof calcPosition>): number {
+  const value = renderRtl.value ? position.right : position.left
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new GridLayoutValidationError('Invalid resize inline position', {
+      code: 'invalid-config',
+      path: 'gridItem.position',
+      cause: position,
+    })
+  }
+  return value
+}
+
 function calcXY(top: number, left: number, widthOverride?: number) {
   const width =
     typeof widthOverride === 'number' && Number.isFinite(widthOverride) && widthOverride > 0
@@ -1148,26 +1327,18 @@ function clamp(num: number, lowerBound: number, upperBound: number) {
   return Math.max(Math.min(num, upperBound), lowerBound)
 }
 
-function calcWH(height: number, width: number) {
-  const size = pixelSizeToGridSize({ width, height, geometry: itemGeometry() })
-
-  const w = Math.max(Math.min(size.w, state.cols - innerX), 0)
-  const h = Math.max(Math.min(size.h, state.maxRows - innerY), 0)
-  return { w, h }
-}
-
 function selectAspectGridSize(
   targetWidth: number,
   targetHeight: number,
   ratio: number,
+  maxW: number,
+  maxH: number,
 ): { w: number; h: number } | null {
   const rounded = pixelSizeToGridSize({
     width: targetWidth,
     height: targetHeight,
     geometry: itemGeometry(),
   })
-  const maxW = Math.min(effectiveMaxW.value, state.cols - innerX)
-  const maxH = Math.min(effectiveMaxH.value, state.maxRows - innerY)
   const widths = new Set([rounded.w - 1, rounded.w, rounded.w + 1, effectiveMinW.value, maxW])
   const heights = new Set([rounded.h - 1, rounded.h, rounded.h + 1, effectiveMinH.value, maxH])
   let best:
@@ -1183,7 +1354,7 @@ function selectAspectGridSize(
     if (!Number.isSafeInteger(w) || w < effectiveMinW.value || w > maxW) continue
     for (const h of heights) {
       if (!Number.isSafeInteger(h) || h < effectiveMinH.value || h > maxH) continue
-      const rect = calcPosition(innerX, innerY, w, h)
+      const rect = calcPosition(0, 0, w, h)
       const distance = (rect.width - targetWidth) ** 2 + (rect.height - targetHeight) ** 2
       const ratioError = Math.abs(rect.width / rect.height - ratio)
       const candidate = { w, h, distance, ratioError }
@@ -1321,6 +1492,7 @@ function tryMakeDraggable() {
 
 function tryMakeResizable() {
   if (props.decorative || !state.registered || !layout.positionStyleReady) {
+    boundResizeHandlesSignature = ''
     interactObj.value?.resizable({ enabled: false })
     return
   }
@@ -1328,22 +1500,28 @@ function tryMakeResizable() {
 
   if (!interactObj.value) return
 
-  if (state.resizable && !effectiveStatic.value && !autoHeightResizeConflict.value) {
+  if (resizableAndNotStatic.value) {
     const maximum = calcPosition(
       0,
       0,
-      Math.min(effectiveMaxW.value, state.cols - innerX),
-      Math.min(effectiveMaxH.value, state.maxRows - innerY),
+      Math.min(effectiveMaxW.value, state.cols),
+      Math.min(effectiveMaxH.value, state.maxRows),
     )
     const minimum = calcPosition(0, 0, effectiveMinW.value, effectiveMinH.value)
 
     const resizerBase = `.${nh.be('resizer')}`
+    const selectorFor = (predicate: (handle: ResizeHandleAxis) => boolean) => {
+      const selectors = renderedResizeHandles.value
+        .filter(predicate)
+        .map(handle => `${resizerBase}--${handle}`)
+      return selectors.length ? selectors.join(', ') : false
+    }
     const opts: Record<string, any> = {
       edges: {
-        top: false,
-        bottom: `${resizerBase}--se`,
-        left: false,
-        right: `${resizerBase}--se`,
+        top: effectiveAutoHeight.value ? false : selectorFor(handle => handle.includes('n')),
+        bottom: effectiveAutoHeight.value ? false : selectorFor(handle => handle.includes('s')),
+        left: selectorFor(handle => handle.includes('w')),
+        right: selectorFor(handle => handle.includes('e')),
       },
       restrictSize: {
         min: {
@@ -1359,12 +1537,6 @@ function tryMakeResizable() {
     }
     if (effectiveAutoHeight.value) {
       const rendered = calcPosition(innerX, innerY, innerW, innerH)
-      opts.edges = {
-        top: false,
-        bottom: false,
-        left: false,
-        right: `${resizerBase}--se`,
-      }
       opts.restrictSize = {
         min: {
           height: rendered.height * transformScale.value,
@@ -1379,6 +1551,7 @@ function tryMakeResizable() {
     if (resizeIgnoreSelector.value) opts.ignoreFrom = resizeIgnoreSelector.value
 
     interactObj.value.resizable(opts)
+    boundResizeHandlesSignature = renderedResizeHandles.value.join('|')
     if (!resizeEventSet) {
       resizeEventSet = true
       interactObj.value.on('resizestart resizemove resizeend', event => {
@@ -1388,11 +1561,12 @@ function tryMakeResizable() {
         } else if (!resizeTargetAllowed) {
           return
         }
-        handleResize(event)
+        handleResize(event as ResizePointerEvent)
         if (event.type === 'resizeend') resizeTargetAllowed = false
       })
     }
   } else {
+    boundResizeHandlesSignature = ''
     interactObj.value.resizable({ enabled: false })
   }
 }
@@ -1432,11 +1606,25 @@ function syncAutoHeightTarget(): void {
 <template>
   <section ref="wrapper" :class="className" :style="state.style">
     <slot></slot>
-    <span
-      v-if="resizableAndNotStatic"
-      :class="[nh.be('resizer'), nh.bem('resizer', 'se'), renderRtl && nh.bem('resizer', 'rtl')]"
-      aria-hidden="true"
-      tabindex="-1"
-    ></span>
+    <template v-if="resizableAndNotStatic">
+      <span
+        v-for="handle in renderedResizeHandles"
+        :key="handle"
+        :class="[
+          nh.be('resizer'),
+          nh.bem('resizer', handle),
+          renderRtl && nh.bem('resizer', 'rtl'),
+          $slots['resize-handle'] && nh.bem('resizer', 'custom'),
+        ]"
+        aria-hidden="true"
+        tabindex="-1"
+      >
+        <slot
+          name="resize-handle"
+          :axis="handle"
+          :direction="renderedResizeHandleDirection(handle)"
+        ></slot>
+      </span>
+    </template>
   </section>
 </template>

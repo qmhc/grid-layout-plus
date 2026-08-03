@@ -22,6 +22,8 @@ interface LayoutItemRequired {
 ### LayoutItem
 
 ```ts
+type ResizeHandleAxis = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
+
 interface LayoutItem extends LayoutItemRequired {
   minW?: number,
   minH?: number,
@@ -31,6 +33,7 @@ interface LayoutItem extends LayoutItemRequired {
   static?: boolean,
   isDraggable?: boolean,
   isResizable?: boolean,
+  resizeHandles?: readonly ResizeHandleAxis[],
   autoHeight?: boolean,
   zIndex?: number
 }
@@ -160,6 +163,7 @@ interface DragConfig {
 ```ts
 interface ResizeConfig {
   isResizable?: boolean
+  handles?: readonly ResizeHandleAxis[]
 }
 ```
 
@@ -568,8 +572,31 @@ A grouped configuration object for resize-related props. An explicitly provided 
 ```ts
 interface ResizeConfig {
   isResizable?: boolean
+  handles?: readonly ResizeHandleAxis[]
 }
 ```
+
+`handles` selects the edges and corners that render pointer handles. It accepts `n`, `ne`, `e`,
+`se`, `s`, `sw`, `w`, and `nw`, and defaults to `['se']` for backward compatibility. Duplicate
+directions are ignored after their first occurrence.
+
+Set `LayoutItem.resizeHandles` to override the grid setting for one item. An empty array hides all
+pointer resize handles for that item without changing the programmatic resize API. Updates to either
+configuration take effect reactively; if the changed item is currently resizing, that interaction is
+cancelled before the handles are rebound.
+
+The enabled directions remain authoritative when handle visuals are customized. Use the
+[`resize-handle` slot](#slots) to replace the visual content for each rendered direction; the slot
+does not add or remove handles.
+
+Directions follow the rendered grid: east and west swap sides in RTL or mirrored mode. With
+content-driven `autoHeight`, pure north and south handles are omitted because pointer resizing cannot
+set the height; diagonal handles remain available for width changes.
+
+North and west resizing keeps the active item's opposite edge or corner anchored under the pointer.
+In `push` collision mode, the placeholder and surrounding items preview the configured Compactor's
+terminal Layout independently of that pointer geometry. Releasing the pointer places the active item
+at the placeholder without another compaction or surrounding-item reflow.
 
 ### drop-config
 
@@ -602,7 +629,7 @@ Programmatic layout and layer operations are documented in [Methods](./methods).
 
 ## GridItem
 
-`GridItem` must be a descendant of `GridLayout`. Its `i` prop associates it with the matching `LayoutItem`; the parent Layout owns geometry, constraints, static state, per-item drag and resize flags, and layer order.
+`GridItem` must be a descendant of `GridLayout`. Its `i` prop associates it with the matching `LayoutItem`; the parent Layout owns geometry, constraints, static state, per-item drag and resize flags, resize handles, and layer order.
 
 ### i
 
@@ -668,14 +695,18 @@ Whether the item keeps its aspect ratio while resizing.
 - type: `Readonly<Record<string, unknown>>`
 - default: `{}`
 
-Pass-through options for the grid item's [interact.js draggable configuration](https://interactjs.io/docs/draggable/).
+Validated options for the grid item's [interact.js draggable configuration](https://interactjs.io/docs/draggable/). Supported keys are `lockAxis`, `startAxis`, `mouseButtons`, `hold`, and `autoScroll`.
 
 ### resize-option
 
 - type: `Readonly<Record<string, unknown>>`
 - default: `{}`
 
-Pass-through options for the grid item's [interact.js resizable configuration](https://interactjs.io/docs/resizable/).
+Validated options for the grid item's [interact.js resizable configuration](https://interactjs.io/docs/resizable/). Supported keys are `mouseButtons`, `hold`, and `autoScroll`.
+
+This option does not accept `edges`. Configure directions with `resizeConfig.handles` or
+`LayoutItem.resizeHandles`, and customize their rendered visuals with the [`resize-handle`
+slot](#slots).
 
 ### drag-threshold
 
@@ -707,7 +738,8 @@ See the [Grid Background example](../example/grid-background) for usage.
 
 ## Slots
 
-The default slot accepts manually rendered `GridItem` components. The `item` slot lets `GridLayout` create them and exposes this scope:
+The default slot accepts manually rendered `GridItem` components. The `item` slot lets `GridLayout`
+create them and exposes this scope:
 
 ```ts
 interface GridLayoutSlotScope {
@@ -719,4 +751,43 @@ interface GridLayoutSlotScope {
 }
 ```
 
-See [Render items](./usage#render-items) for both patterns.
+The `resize-handle` slot customizes the visual content inside every enabled pointer resize handle:
+
+```ts
+interface GridItemResizeHandleSlotScope {
+  readonly axis: ResizeHandleAxis
+  readonly direction: ResizeHandleAxis
+}
+
+interface GridLayoutResizeHandleSlotScope extends GridItemResizeHandleSlotScope {
+  readonly item: ReadonlyLayoutItem
+  readonly index: number
+}
+```
+
+`axis` is the direction selected by `resizeConfig.handles` or `LayoutItem.resizeHandles`.
+`direction` is the physical direction after RTL or mirrored rendering; use it when an arrow or icon
+must point toward the rendered side. In left-to-right layouts the two values are identical.
+
+Grid Layout Plus keeps ownership of the outer handle element, its position, pointer hit area, cursor,
+and resize binding. Slot content is visual and pointer-only. Returning no content does not disable the
+direction; remove it from `handles` instead. Handles omitted by `autoHeight` are not rendered and do
+not invoke the slot.
+
+When `GridLayout` creates items through its `item` slot, provide the sibling `resize-handle` slot on
+`GridLayout`:
+
+```vue
+<GridLayout v-model:layout="layout" :resize-config="{ handles: ['n', 'e', 'se'] }">
+  <template #item="{ item }">{{ item.i }}</template>
+  <template #resize-handle="{ item, axis, direction }">
+    <CustomHandle :item="item" :axis="axis" :direction="direction" />
+  </template>
+</GridLayout>
+```
+
+When rendering `GridItem` manually in the default slot, provide the same named slot directly on each
+`GridItem`; its scope contains `axis` and `direction`.
+
+See [Render items](./usage#render-items) for both item-rendering patterns and the [Custom Resize
+Handles example](../example/custom-resize-handles) for a complete slot implementation.

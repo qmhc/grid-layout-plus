@@ -15,7 +15,9 @@ Start with [Basic Usage](./basic) if this is your first visit. Otherwise, pick t
 
 ## Interaction constraints
 
-- [Drag and Resize Handles](./drag-resize-handler) — Restrict interactions to dedicated handles.
+- [Move Handles](./drag-resize-handler) — Restrict where a pointer move can begin and exclude interactive controls.
+- [Multi-direction Resize](./multi-direction-resize) — Resize from any edge or corner and override directions per item.
+- [Custom Resize Handles](./custom-resize-handles) — Replace handle visuals while retaining the configured resize directions and built-in interaction behavior.
 - [Items Bounded to Container](./bounded) — Keep items inside the grid boundary.
 - [Drag Threshold](./drag-threshold) — Tune the distance required to begin dragging.
 - [Prevent Collision](./prevent-collision) — Reject positions that overlap another item.

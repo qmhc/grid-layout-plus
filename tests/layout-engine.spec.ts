@@ -126,6 +126,35 @@ describe('internal layout engine port', () => {
     ).toThrow(/autoHeight/)
   })
 
+  it('LayoutItem.resizeHandles 校验方向并对重复值去重', () => {
+    expect(() =>
+      createLayoutEngine(
+        [
+          {
+            i: 'item',
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+            resizeHandles: ['center'] as never,
+          },
+        ],
+        config(),
+      ),
+    ).toThrow(/resizeHandles\[0\]/)
+
+    const engine = createLayoutEngine(
+      [{ i: 'item', x: 0, y: 0, w: 1, h: 1, resizeHandles: ['n', 'n', 'se'] }],
+      config(),
+    )
+    expect(
+      engine.replaceExternal(
+        [{ i: 'item', x: 0, y: 0, w: 1, h: 1, resizeHandles: ['n', 'se'] }],
+        config(),
+      ).layout[0].resizeHandles,
+    ).toEqual(['n', 'se'])
+  })
+
   it('初始 push Layout 允许先接收碰撞输入，再在首帧前完成归一化', () => {
     const initial: Layout = [
       { i: 'first', x: 0, y: 0, w: 1, h: 2 },
@@ -407,6 +436,94 @@ describe('internal layout engine port', () => {
     expect(
       engine.evaluateInteraction(started.session, { type: 'resize', w: 2, h: 1 }).result,
     ).toMatchObject({ status: 'rejected', reason: 'cancelled' })
+  })
+
+  it('resize interaction 原子更新位置与尺寸', () => {
+    const engine = createLayoutEngine(
+      [
+        { i: 'active', x: 2, y: 2, w: 2, h: 2 },
+        { i: 'other', x: 0, y: 5, w: 1, h: 1 },
+      ],
+      config(),
+    )
+    const started = engine.beginInteraction({ type: 'resize', id: 'active' })
+    expect(started.status).toBe('accepted')
+    if (started.status !== 'accepted') return
+
+    const evaluation = engine.evaluateInteraction(started.session, {
+      type: 'resize',
+      x: 1,
+      y: 1,
+      w: 3,
+      h: 3,
+    })
+
+    expect(evaluation.result).toMatchObject({
+      status: 'accepted',
+      operation: 'resize',
+      candidate: { i: 'active', x: 1, y: 1, w: 3, h: 3 },
+    })
+  })
+
+  it('push 模式在 resize update 预览终态压缩，terminal 复用相同布局', () => {
+    const initial: Layout = [
+      { i: 'active', x: 4, y: 4, w: 4, h: 3 },
+      { i: 'blocker', x: 4, y: 0, w: 4, h: 4 },
+    ]
+    const effectiveConfig = config({
+      cols: 12,
+      collisionMode: 'push',
+      compactor: verticalCompactor,
+    })
+    const engine = createLayoutEngine(initial, effectiveConfig)
+    const started = engine.beginInteraction({ type: 'resize', id: 'active' })
+    expect(started.status).toBe('accepted')
+    if (started.status !== 'accepted') return
+
+    const update = engine.evaluateInteraction(started.session, {
+      type: 'resize',
+      x: 3,
+      y: 3,
+      w: 5,
+      h: 4,
+    })
+    expect(update.result).toMatchObject({
+      status: 'accepted',
+      candidate: { i: 'active', x: 3, y: 0, w: 5, h: 4 },
+      layout: [
+        { i: 'active', x: 3, y: 0, w: 5, h: 4 },
+        { i: 'blocker', x: 4, y: 4, w: 4, h: 4 },
+      ],
+    })
+    expect(update.result.layout[0]).not.toHaveProperty('static')
+    expect(engine.confirm(update)).toMatchObject({ status: 'accepted' })
+
+    const terminal = engine.evaluateInteraction(started.session, {
+      type: 'resize',
+      x: 3,
+      y: 3,
+      w: 5,
+      h: 4,
+      terminal: true,
+    })
+    expect(terminal.result).toMatchObject({
+      status: 'unchanged',
+      candidate: { i: 'active', x: 3, y: 0, w: 5, h: 4 },
+      layout: [
+        { i: 'active', x: 3, y: 0, w: 5, h: 4 },
+        { i: 'blocker', x: 4, y: 4, w: 4, h: 4 },
+      ],
+    })
+    expect(terminal.result.layout[0]).not.toHaveProperty('static')
+
+    const programmatic = createLayoutEngine(
+      [{ i: 'active', x: 0, y: 4, w: 1, h: 1 }],
+      effectiveConfig,
+    ).evaluate({ type: 'resize', id: 'active', w: 2, h: 2 }).result
+    expect(programmatic).toMatchObject({
+      status: 'accepted',
+      candidate: { i: 'active', x: 0, y: 0, w: 2, h: 2 },
+    })
   })
 
   it('metadata 合入保持几何、规范字段 presence 与递归隔离', () => {

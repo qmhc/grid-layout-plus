@@ -297,6 +297,25 @@
   user-select: none;
 }
 
+.demo-custom-resize-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--demo-surface);
+  background: var(--demo-accent);
+  border: 2px solid var(--demo-surface);
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 24%);
+  transform: translate(-50%, -50%);
+}
+
 .demo-shell code {
   color: var(--demo-text);
   white-space: nowrap;

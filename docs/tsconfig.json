@@ -6,7 +6,7 @@
     "strict": true,
     "jsx": "preserve",
     "importHelpers": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "noUnusedLocals": false,
     "experimentalDecorators": true,
@@ -14,24 +14,12 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": false,
-    "baseUrl": ".",
     "paths": {
       "grid-layout-plus": ["../src"]
     },
-    "types": [
-      "node",
-      "vite/client"
-    ],
-    "lib": [
-      "esnext",
-      "dom"
-    ]
+    "types": ["node", "vite/client"],
+    "lib": ["esnext", "dom"]
   },
-  "include": [
-    "**/*",
-    ".vitepress/**/*"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["../src/global.d.ts", "**/*", ".vitepress/**/*"],
+  "exclude": ["node_modules"]
 }

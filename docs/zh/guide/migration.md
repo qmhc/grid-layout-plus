@@ -91,6 +91,27 @@ v2 用压缩器和定位策略取代这三个属性：
 
 这些镜像属性为了兼容旧代码仍保留在 `GridItemProps` 中，但已标记为废弃；`GridItem` 注册到有效的父级布局后，它们不会覆盖对应的 `LayoutItem`。`isBounded`、拖拽和缩放选择器、`preserveAspectRatio`、interact 选项以及 `dragThreshold` 仍属于 `GridItem`。
 
+### 自定义缩放手柄
+
+这项变化影响通过 `resizeOption.edges` 传入选择器或 Element，把应用 DOM 作为缩放手柄的 v1
+项目。
+
+v2 将启用方向与视觉渲染分开。请把方向迁移到 `resizeConfig.handles` 或
+`LayoutItem.resizeHandles`，再使用 `resize-handle` 插槽渲染视觉内容。组件会继续管理外层命中
+区域和交互绑定：
+
+```vue
+<GridLayout v-model:layout="layout" :resize-config="{ handles: ['e', 's', 'se'] }">
+  <template #item="{ item }">{{ item.i }}</template>
+  <template #resize-handle="{ axis, direction }">
+    <CustomHandle :axis="axis" :direction="direction" />
+  </template>
+</GridLayout>
+```
+
+`resizeOption.edges` 不属于 v2 的透传选项。`axis` 表示配置方向，`direction` 表示经过 RTL 或
+镜像渲染后的物理方向。详见[插槽](./properties#插槽)和[自定义缩放手柄示例](../example/custom-resize-handles)。
+
 ### `Layout` 校验
 
 这项变化影响包含 v1 接受、但 v2 会拒绝的坐标、尺寸、`i` 或约束值的布局。

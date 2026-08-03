@@ -93,7 +93,92 @@
       border: 0 solid var(--vgl-resizer-border-color);
     }
 
-    // 右下角缩放手柄
+    &--custom {
+      &::before {
+        display: none;
+      }
+
+      > * {
+        pointer-events: none;
+      }
+    }
+
+    // 四条边的缩放手柄
+    &--n,
+    &--s {
+      left: 50%;
+      transform: translateX(-50%);
+
+      &::before {
+        right: 0;
+        left: 0;
+      }
+    }
+
+    &--n {
+      top: 0;
+      cursor: n-resize;
+
+      &::before {
+        top: 2px;
+        border-top-width: $border-width;
+      }
+    }
+
+    &--s {
+      bottom: 0;
+      cursor: s-resize;
+
+      &::before {
+        bottom: 2px;
+        border-bottom-width: $border-width;
+      }
+    }
+
+    &--e,
+    &--w {
+      top: 50%;
+      transform: translateY(-50%);
+
+      &::before {
+        top: 0;
+        bottom: 0;
+      }
+    }
+
+    &--e {
+      right: 0;
+      cursor: e-resize;
+
+      &::before {
+        right: 2px;
+        border-right-width: $border-width;
+      }
+    }
+
+    &--w {
+      left: 0;
+      cursor: w-resize;
+
+      &::before {
+        left: 2px;
+        border-left-width: $border-width;
+      }
+    }
+
+    // 四个角的缩放手柄
+    &--ne {
+      top: 0;
+      right: 0;
+      cursor: ne-resize;
+
+      &::before {
+        inset: 3px 3px 0 0;
+        border-top-width: $border-width;
+        border-right-width: $border-width;
+      }
+    }
+
     &--se {
       right: 0;
       bottom: 0;
@@ -106,31 +191,140 @@
       }
     }
 
-    // RTL 模式下右下角视觉上位于左下角
-    &--rtl#{&}--se {
-      right: auto;
+    &--sw {
+      bottom: 0;
       left: 0;
       cursor: sw-resize;
 
       &::before {
         inset: 0 0 3px 3px;
-        border-right-width: 0;
         border-bottom-width: $border-width;
         border-left-width: $border-width;
       }
     }
+
+    &--nw {
+      top: 0;
+      left: 0;
+      cursor: nw-resize;
+
+      &::before {
+        inset: 3px 0 0 3px;
+        border-top-width: $border-width;
+        border-left-width: $border-width;
+      }
+    }
+
+    // RTL / mirrored 模式下交换水平手柄的视觉位置和光标。
+    &--rtl#{&}--e,
+    &--rtl#{&}--ne,
+    &--rtl#{&}--se {
+      right: auto;
+      left: 0;
+    }
+
+    &--rtl#{&}--w,
+    &--rtl#{&}--nw,
+    &--rtl#{&}--sw {
+      right: 0;
+      left: auto;
+    }
+
+    &--rtl#{&}--e {
+      cursor: w-resize;
+
+      &::before {
+        right: auto;
+        left: 2px;
+        border-right-width: 0;
+        border-left-width: $border-width;
+      }
+    }
+
+    &--rtl#{&}--w {
+      cursor: e-resize;
+
+      &::before {
+        right: 2px;
+        left: auto;
+        border-right-width: $border-width;
+        border-left-width: 0;
+      }
+    }
+
+    &--rtl#{&}--ne {
+      cursor: nw-resize;
+
+      &::before {
+        inset: 3px 0 0 3px;
+        border-right-width: 0;
+        border-left-width: $border-width;
+      }
+    }
+
+    &--rtl#{&}--nw {
+      cursor: ne-resize;
+
+      &::before {
+        inset: 3px 3px 0 0;
+        border-right-width: $border-width;
+        border-left-width: 0;
+      }
+    }
+
+    &--rtl#{&}--se {
+      cursor: sw-resize;
+
+      &::before {
+        inset: 0 0 3px 3px;
+        border-right-width: 0;
+        border-left-width: $border-width;
+      }
+    }
+
+    &--rtl#{&}--sw {
+      cursor: se-resize;
+
+      &::before {
+        inset: 0 3px 3px 0;
+        border-right-width: $border-width;
+        border-left-width: 0;
+      }
+    }
   }
 
+  &--auto-height &__resizer--ne,
+  &--auto-height &__resizer--e,
   &--auto-height &__resizer--se {
     cursor: e-resize;
+  }
 
+  &--auto-height &__resizer--nw,
+  &--auto-height &__resizer--w,
+  &--auto-height &__resizer--sw {
+    cursor: w-resize;
+  }
+
+  &--auto-height &__resizer--ne,
+  &--auto-height &__resizer--nw,
+  &--auto-height &__resizer--se,
+  &--auto-height &__resizer--sw {
     &::before {
+      border-top-width: 0;
       border-bottom-width: 0;
     }
   }
 
-  &--auto-height &__resizer--rtl {
+  &--auto-height &__resizer--rtl#{&}__resizer--ne,
+  &--auto-height &__resizer--rtl#{&}__resizer--e,
+  &--auto-height &__resizer--rtl#{&}__resizer--se {
     cursor: w-resize;
+  }
+
+  &--auto-height &__resizer--rtl#{&}__resizer--nw,
+  &--auto-height &__resizer--rtl#{&}__resizer--w,
+  &--auto-height &__resizer--rtl#{&}__resizer--sw {
+    cursor: e-resize;
   }
 }
 

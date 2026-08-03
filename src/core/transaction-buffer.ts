@@ -152,7 +152,7 @@ export class SupersededLayoutCache {
 export interface InteractionProposal {
   type: 'drag' | 'resize'
   id: LayoutItem['i']
-  value: { x: number; y: number } | { w: number; h: number }
+  value: { x: number; y: number } | { x?: number; y?: number; w: number; h: number }
   nativeEvent: Event | null
 }
 

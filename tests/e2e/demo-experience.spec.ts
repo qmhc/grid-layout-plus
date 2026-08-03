@@ -158,11 +158,59 @@ test('auto-height demo grows, shrinks, and reflows the following item', async ({
   await page.getByRole('button', { name: 'Hide details' }).click()
   await expect.poll(() => readLayoutHeight(autoHeightState)).toBe(initialAutoRows)
   await expect
-    .poll(async () => Math.abs(((await autoItem.boundingBox())?.height ?? 0) - initialAutoBox.height))
+    .poll(async () =>
+      Math.abs(((await autoItem.boundingBox())?.height ?? 0) - initialAutoBox.height),
+    )
     .toBeLessThanOrEqual(2)
   await expect
     .poll(async () => Math.abs(((await followerItem.boundingBox())?.y ?? 0) - initialFollowerBox.y))
     .toBeLessThanOrEqual(2)
 
+  expect(errors).toEqual([])
+})
+
+test('custom resize handles follow configured axes and complete pointer resize', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const errors = collectBrowserErrors(page)
+  const response = await page.goto('/#/custom-resize-handles')
+  expect(response?.ok()).toBe(true)
+
+  await expect(
+    page.locator('[data-testid="custom-resize-handle"][data-resize-item="0"]'),
+  ).toHaveCount(8)
+  await expect(
+    page.locator('[data-testid="custom-resize-handle"][data-resize-item="1"]'),
+  ).toHaveCount(3)
+  await expect(
+    page.locator('[data-testid="custom-resize-handle"][data-resize-item="2"]'),
+  ).toHaveCount(3)
+
+  const item = page
+    .locator('.demo-grid > .vgl-item:not(.vgl-item--placeholder)')
+    .filter({ has: page.locator('[data-custom-resize-item="1"]') })
+  const southVisual = page.locator(
+    '[data-testid="custom-resize-handle"][data-resize-item="1"][data-resize-axis="s"][data-resize-direction="s"]',
+  )
+  const southHandle = southVisual.locator('..')
+  const before = await item.boundingBox()
+  const handleBox = await southHandle.boundingBox()
+  expect(before).not.toBeNull()
+  expect(handleBox).not.toBeNull()
+  if (!before || !handleBox) return
+
+  const startX = handleBox.x + handleBox.width / 2
+  const startY = handleBox.y + handleBox.height / 2
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(startX, startY - 50, { steps: 8 })
+  await expect(item).toHaveClass(/vgl-item--resizing/)
+  await page.mouse.up()
+
+  await expect
+    .poll(async () => (await item.boundingBox())?.height ?? Number.POSITIVE_INFINITY)
+    .toBeLessThan(before.height - 20)
+  await expect(page.locator('.demo-state')).toContainText('Resized item 1')
   expect(errors).toEqual([])
 })

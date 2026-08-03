@@ -15,7 +15,7 @@ function createLayout(): Layout {
 }
 
 const layout = ref(createLayout())
-const lastAction = ref('Waiting · drag only from a labeled handle')
+const lastAction = ref('Waiting · move only from a labeled handle')
 
 function handleClick(id: string) {
   lastAction.value = `Clicked item ${id} · no drag started`
@@ -29,17 +29,9 @@ function handleMoved(id: string) {
   lastAction.value = `Moved item ${id}`
 }
 
-function handleResize(id: string) {
-  lastAction.value = `Resizing item ${id}`
-}
-
-function handleResized(id: string) {
-  lastAction.value = `Resized item ${id}`
-}
-
 function resetDemo() {
   layout.value = createLayout()
-  lastAction.value = 'Reset · drag only from a labeled handle'
+  lastAction.value = 'Reset · move only from a labeled handle'
 }
 </script>
 
@@ -51,7 +43,12 @@ function resetDemo() {
       </Tag>
       <Button button-type="button" @click="resetDemo"> Reset layout </Button>
     </div>
-    <GridLayout v-model:layout="layout" class="demo-grid" :row-height="30">
+    <GridLayout
+      v-model:layout="layout"
+      class="demo-grid"
+      :is-resizable="false"
+      :row-height="30"
+    >
       <GridItem
         v-for="item in layout"
         :key="item.i"
@@ -60,8 +57,6 @@ function resetDemo() {
         drag-ignore-from=".demo-no-drag"
         @move="handleMove"
         @moved="handleMoved"
-        @resize="handleResize"
-        @resized="handleResized"
       >
         <div class="handler-item">
           <div class="demo-drag-handle" :title="`Drag item ${item.i}`">Drag item {{ item.i }}</div>

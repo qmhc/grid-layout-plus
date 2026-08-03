@@ -22,10 +22,14 @@ import type {
   GridInteractionToken,
   GridItemEmits,
   GridItemProps,
+  GridItemResizeHandleSlotScope,
+  GridItemSlots,
   GridLayoutEmits,
   GridLayoutExpose,
   GridLayoutProps,
+  GridLayoutResizeHandleSlotScope,
   GridLayoutRuntimeError,
+  GridLayoutSlotScope,
   GridLayoutSlots,
   GridResizeState,
   GridTransferResult,
@@ -43,6 +47,8 @@ import type {
   ReadonlyLayout,
   ReadonlyLayoutItem,
   RejectedLayoutOperationResult,
+  ResizeConfig,
+  ResizeHandleAxis,
   ResponsiveLayoutsInput,
   TransferConfig,
   UseContainerWidthOptions,
@@ -77,6 +83,20 @@ declare function inferBreakpoint<B extends string>(props: GridLayoutProps<B>): B
 
 const layout: Layout = [{ i: 1, x: 0, y: 0, w: 1, h: 1 }]
 layout[0].autoHeight = true
+layout[0].resizeHandles = ['nw', 'e']
+// @ts-expect-error 单项手柄配置是只读输入
+layout[0].resizeHandles.push('se')
+const resizeHandles = [
+  'n',
+  'ne',
+  'e',
+  'se',
+  's',
+  'sw',
+  'w',
+  'nw',
+] as const satisfies readonly ResizeHandleAxis[]
+const resizeConfig: ResizeConfig = { isResizable: true, handles: resizeHandles }
 const props: GridLayoutProps<BusinessBreakpoint> = {
   layout,
   autoHeight: true,
@@ -95,7 +115,10 @@ const props: GridLayoutProps<BusinessBreakpoint> = {
     desktop: [24, 24],
   },
   transferConfig: { group: 'dashboard' },
+  resizeConfig,
 }
+// @ts-expect-error 不存在 center 缩放方向
+const invalidResizeHandle: ResizeHandleAxis = 'center'
 const removedSpacingProp: GridLayoutProps = {
   layout,
   // @ts-expect-error v2 已直接移除 margin，请使用 gap
@@ -170,7 +193,7 @@ const oldMinPositions: CompactMinPositions = { 1: { y: 0 } }
 // @ts-expect-error CompactMinPositions value 不再包含 x
 const oldPositionX: number = minPositions.get(1)!.x
 
-export { oldMinPositions, oldPositionX }
+export { invalidResizeHandle, oldMinPositions, oldPositionX }
 
 declare const emitLayout: GridLayoutEmits<BusinessBreakpoint>
 declare const emitItem: GridItemEmits
@@ -271,8 +294,32 @@ const slots: GridLayoutSlots = {
     scope.item.i satisfies string | number
     return String(scope.index)
   },
+  'resize-handle': scope => {
+    scope.item.i satisfies string | number
+    scope.index satisfies number
+    scope.axis satisfies ResizeHandleAxis
+    scope.direction satisfies ResizeHandleAxis
+    return scope.axis
+  },
   default: () => null,
 }
+
+const itemSlots: GridItemSlots = {
+  default: () => null,
+  'resize-handle': scope => {
+    scope.axis satisfies ResizeHandleAxis
+    scope.direction satisfies ResizeHandleAxis
+    return scope.direction
+  },
+}
+
+declare const itemHandleScope: GridItemResizeHandleSlotScope
+declare const layoutHandleScope: GridLayoutResizeHandleSlotScope
+declare const layoutItemScope: GridLayoutSlotScope
+itemHandleScope.axis satisfies ResizeHandleAxis
+layoutHandleScope.item satisfies ReadonlyLayoutItem
+layoutItemScope.style satisfies Readonly<Record<string, string>>
+void itemSlots
 
 slots.item?.({
   item: readonlyLayout[0],
@@ -280,6 +327,12 @@ slots.item?.({
   style: { transform: 'translate3d(0px, 0px, 0)' },
   isDragging: false,
   isResizing: false,
+})
+slots['resize-handle']?.({
+  item: readonlyLayout[0],
+  index: 0,
+  axis: 'se',
+  direction: 'sw',
 })
 
 const expose: GridLayoutExpose = {

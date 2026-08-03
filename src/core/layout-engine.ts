@@ -29,6 +29,7 @@ const KNOWN_ITEM_KEYS = new Set([
   'static',
   'isDraggable',
   'isResizable',
+  'resizeHandles',
   'autoHeight',
   'zIndex',
   'moved',
@@ -55,7 +56,14 @@ export type InternalLayoutCommand =
       config?: InternalEffectiveConfig
     }>
   | Readonly<{ type: 'move'; id: LayoutItem['i']; x: number; y: number }>
-  | Readonly<{ type: 'resize'; id: LayoutItem['i']; w: number; h: number }>
+  | Readonly<{
+      type: 'resize'
+      id: LayoutItem['i']
+      x?: number
+      y?: number
+      w: number
+      h: number
+    }>
   | Readonly<{
       type: 'auto-resize'
       changes: readonly Readonly<{ id: LayoutItem['i']; h: number }>[]
@@ -72,7 +80,7 @@ export type InternalInteractionBeginCommand = Readonly<{
 
 export type InternalInteractionUpdateCommand =
   | Readonly<{ type: 'drag'; x: number; y: number; terminal?: true }>
-  | Readonly<{ type: 'resize'; w: number; h: number; terminal?: true }>
+  | Readonly<{ type: 'resize'; x?: number; y?: number; w: number; h: number; terminal?: true }>
 
 export interface InternalInteractionSession {
   readonly sessionId: number
@@ -364,10 +372,19 @@ function itemGeometryEqual(first: ReadonlyLayoutItem, second: ReadonlyLayoutItem
     'static',
     'isDraggable',
     'isResizable',
+    'resizeHandles',
     'autoHeight',
     'zIndex',
   ]) {
-    if (!Object.is(effectiveItemValue(first, key), effectiveItemValue(second, key))) return false
+    const firstValue = effectiveItemValue(first, key)
+    const secondValue = effectiveItemValue(second, key)
+    if (
+      key === 'resizeHandles'
+        ? !metadataEqual(firstValue, secondValue)
+        : !Object.is(firstValue, secondValue)
+    ) {
+      return false
+    }
   }
   return true
 }
@@ -780,6 +797,23 @@ function normalizeFullLayout(layout: ReadonlyLayout, config: InternalEffectiveCo
   }
 }
 
+/** 在压缩期间固定交互目标，并在输出中恢复调用方提供的 static presence。 */
+function normalizeWithPinnedItem(
+  layout: Layout,
+  id: LayoutItem['i'],
+  config: InternalEffectiveConfig,
+): Layout {
+  const target = layout.find(item => Object.is(item.i, id))!
+  const hadStatic = Object.hasOwn(target, 'static')
+  const originalStatic = target.static
+  target.static = true
+  const normalized = normalizeFullLayout(layout, config)
+  const normalizedTarget = normalized.find(item => Object.is(item.i, id))!
+  if (hadStatic) normalizedTarget.static = originalStatic
+  else delete normalizedTarget.static
+  return normalized
+}
+
 function isVisuallyFront(layout: ReadonlyLayout, id: LayoutItem['i']): boolean {
   const sorted = layout
     .map((item, index) => ({ item, index }))
@@ -937,9 +971,7 @@ function evaluateCommandLayout(
       }
 
       nextLayout =
-        currentConfig.collisionMode === 'overlap'
-          ? base
-          : normalizeFullLayout(base, currentConfig)
+        currentConfig.collisionMode === 'overlap' ? base : normalizeFullLayout(base, currentConfig)
     } else if (command.type === 'remove') {
       if (!validId(command.id)) throw new OperationRejection('invalid-input')
       id = command.id
@@ -987,8 +1019,17 @@ function evaluateCommandLayout(
           target.x = canonicalZero(command.x)
           target.y = canonicalZero(command.y)
         } else {
-          if (!validSafeGridValue(command.w, true) || !validSafeGridValue(command.h, true)) {
+          const movesOrigin = command.x !== undefined || command.y !== undefined
+          if (
+            !validSafeGridValue(command.w, true) ||
+            !validSafeGridValue(command.h, true) ||
+            (movesOrigin && (!validSafeGridValue(command.x) || !validSafeGridValue(command.y)))
+          ) {
             throw new OperationRejection('invalid-input')
+          }
+          if (movesOrigin) {
+            target.x = canonicalZero(command.x!)
+            target.y = canonicalZero(command.y!)
           }
           target.w = command.w
           target.h = command.h
@@ -1029,14 +1070,7 @@ function evaluateCommandLayout(
         }
         candidate = nextLayout.find(item => Object.is(item.i, id))!
         if (interactionUpdate && command.type === 'move' && currentConfig.restoreOnDrag) {
-          const target = nextLayout.find(item => Object.is(item.i, id))!
-          const hadStatic = Object.hasOwn(target, 'static')
-          const originalStatic = target.static
-          target.static = true
-          nextLayout = normalizeFullLayout(nextLayout, currentConfig)
-          const normalizedTarget = nextLayout.find(item => Object.is(item.i, id))!
-          if (hadStatic) normalizedTarget.static = originalStatic
-          else delete normalizedTarget.static
+          nextLayout = normalizeWithPinnedItem(nextLayout, id!, currentConfig)
         } else {
           nextLayout = normalizeFullLayout(nextLayout, currentConfig)
         }
@@ -1329,7 +1363,14 @@ function createLayoutEngineInternal(
       const interactionCommand: InternalLayoutCommand =
         command.type === 'drag'
           ? { type: 'move', id: record.id, x: command.x, y: command.y }
-          : { type: 'resize', id: record.id, w: command.w, h: command.h }
+          : {
+              type: 'resize',
+              id: record.id,
+              ...(command.x === undefined ? {} : { x: command.x }),
+              ...(command.y === undefined ? {} : { y: command.y }),
+              w: command.w,
+              h: command.h,
+            }
       const previousWorking = cloneLayout(record.latestWorking)
       const previousWorkingEvaluation = record.workingEvaluation
       const previousLayerIntent = record.layerIntent

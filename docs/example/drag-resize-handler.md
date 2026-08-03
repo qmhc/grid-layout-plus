@@ -3,11 +3,11 @@ aside: false
 pageClass: demo-page
 ---
 
-# Drag and Resize Handles
+# Move Handles
 
-`drag-allow-from` defines where dragging may start. `drag-ignore-from` excludes controls such as buttons and inputs. You can combine them when an item has a dedicated handle and other interactive content.
+`drag-allow-from` defines where a pointer move may start. `drag-ignore-from` excludes interactive controls such as buttons and inputs from starting that move.
 
-**Try it:** Drag from the blue handle, click the button, then resize from the corner. Each control should perform only its own action.
+**Try it:** Move an item from its blue labeled handle, then click the button inside the item. The button should keep its normal click behavior without moving the item.
 
 <DemoFrame min-height="600px">
 <ClientOnly>

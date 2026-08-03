@@ -10,6 +10,7 @@ import type {
   PositionStrategy,
   ReadonlyLayout,
   ReadonlyLayoutItem,
+  ResizeHandleAxis,
   ResponsiveLayoutsInput,
   ResponsiveValue,
 } from '../helpers/types'
@@ -102,6 +103,15 @@ export interface ResizeConfig {
    * @defaultValue `true`
    */
   isResizable?: boolean
+  /**
+   * Resize handles enabled by default for layout items.
+   *
+   * Individual `LayoutItem.resizeHandles` values take precedence. Handle visuals can be replaced
+   * with the `resize-handle` slot without changing which directions are enabled.
+   *
+   * @defaultValue `['se']`
+   */
+  handles?: readonly ResizeHandleAxis[]
 }
 
 /** A normalized external-drop candidate before the application assigns an item id. */
@@ -506,13 +516,19 @@ export interface GridItemProps {
    */
   preserveAspectRatio?: boolean
   /**
-   * Additional options passed to the Interact.js draggable configuration.
+   * Additional validated Interact.js draggable options.
+   *
+   * Supports `lockAxis`, `startAxis`, `mouseButtons`, `hold`, and `autoScroll`.
    *
    * @defaultValue `{}`
    */
   dragOption?: Readonly<Record<string, unknown>>
   /**
-   * Additional options passed to the Interact.js resizable configuration.
+   * Additional validated Interact.js resizable options.
+   *
+   * Supports `mouseButtons`, `hold`, and `autoScroll`. Configure resize directions with
+   * `ResizeConfig.handles` or `LayoutItem.resizeHandles`, and customize their visuals with the
+   * `resize-handle` slot.
    *
    * @defaultValue `{}`
    */
@@ -575,6 +591,22 @@ export interface GridItemEmits {
    * @param y - The new row coordinate.
    */
   (event: 'move' | 'moved', id: LayoutItem['i'], x: number, y: number): void
+}
+
+/** Values passed to the `GridItem` resize-handle slot. */
+export interface GridItemResizeHandleSlotScope {
+  /** The configured handle axis. */
+  readonly axis: ResizeHandleAxis
+  /** The physical direction where the handle is rendered after RTL or mirroring is applied. */
+  readonly direction: ResizeHandleAxis
+}
+
+/** Slots accepted by the `GridItem` component. */
+export interface GridItemSlots {
+  /** Renders the item's content. */
+  default?(): VNodeChild
+  /** Renders the visual content inside each enabled pointer resize handle. */
+  'resize-handle'?(scope: GridItemResizeHandleSlotScope): VNodeChild
 }
 
 /** Identifies the component transaction associated with a layout update. */
@@ -696,10 +728,20 @@ export interface GridLayoutSlotScope {
   isResizing: boolean
 }
 
+/** Values passed to the `GridLayout` resize-handle slot. */
+export interface GridLayoutResizeHandleSlotScope extends GridItemResizeHandleSlotScope {
+  /** The layout item that owns the handle. */
+  readonly item: ReadonlyLayoutItem
+  /** The item's index in layout order. */
+  readonly index: number
+}
+
 /** Slots accepted by the `GridLayout` component. */
 export interface GridLayoutSlots {
   /** Renders the content of a `GridItem` created by `GridLayout`. */
   item?(scope: GridLayoutSlotScope): VNodeChild
+  /** Renders resize-handle visuals for `GridItem` instances created by `GridLayout`. */
+  'resize-handle'?(scope: GridLayoutResizeHandleSlotScope): VNodeChild
   /** Renders manually managed `GridItem` descendants. */
   default?(): VNodeChild
 }
@@ -835,11 +877,7 @@ export interface GridLayoutEmits<B extends string = DefaultBreakpoint> {
    * @param result - The accepted drop result.
    * @param nativeEvent - The native drop event.
    */
-  (
-    event: 'drop',
-    result: DropCommitResult<B>,
-    nativeEvent: DragEvent,
-  ): void
+  (event: 'drop', result: DropCommitResult<B>, nativeEvent: DragEvent): void
   /**
    * Reports that an external drag left the grid.
    *

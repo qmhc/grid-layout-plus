@@ -408,7 +408,7 @@ export function useGridInteraction<B extends string>(
   function evaluateCandidate(
     type: 'drag' | 'resize',
     id: LayoutItem['i'],
-    next: { x: number; y: number } | { w: number; h: number },
+    next: { x: number; y: number } | { x?: number; y?: number; w: number; h: number },
     nativeEvent: Event | null,
     terminal = false,
     terminalState: { cancelReason: InteractionCancelReason | null } | null = null,
@@ -426,6 +426,8 @@ export function useGridInteraction<B extends string>(
           }
         : {
             type,
+            ...((next as { x?: number }).x === undefined ? {} : { x: (next as { x: number }).x }),
+            ...((next as { y?: number }).y === undefined ? {} : { y: (next as { y: number }).y }),
             w: (next as { w: number; h: number }).w,
             h: (next as { w: number; h: number }).h,
             ...(terminal ? { terminal: true as const } : {}),
@@ -499,7 +501,7 @@ export function useGridInteraction<B extends string>(
   function scheduleCandidate(
     type: 'drag' | 'resize',
     id: LayoutItem['i'],
-    value: { x: number; y: number } | { w: number; h: number },
+    value: { x: number; y: number } | { x?: number; y?: number; w: number; h: number },
     nativeEvent: Event | null,
   ): void {
     if (options.isUnavailable()) return
@@ -557,7 +559,7 @@ export function useGridInteraction<B extends string>(
   function finishNative(
     type: 'drag' | 'resize',
     id: LayoutItem['i'],
-    candidate: { x: number; y: number } | { w: number; h: number },
+    candidate: { x: number; y: number } | { x?: number; y?: number; w: number; h: number },
     nativeEvent: Event | null,
   ): void {
     cancelPendingFrame()
@@ -619,8 +621,8 @@ export function useGridInteraction<B extends string>(
   function resizeEvent(
     eventName: string | undefined,
     id: LayoutItem['i'],
-    _x: number,
-    _y: number,
+    x: number,
+    y: number,
     h: number,
     w: number,
     nativeEvent?: Event,
@@ -632,14 +634,14 @@ export function useGridInteraction<B extends string>(
         options.getItem(id)?.resetInteractionState('resize')
         return
       }
-      evaluateCandidate('resize', id, { w, h }, nativeEvent ?? null)
+      evaluateCandidate('resize', id, { x, y, w, h }, nativeEvent ?? null)
       return
     }
     if (eventName === 'resizemove') {
-      scheduleCandidate('resize', id, { w, h }, nativeEvent ?? null)
+      scheduleCandidate('resize', id, { x, y, w, h }, nativeEvent ?? null)
       return
     }
-    if (eventName === 'resizeend') finishNative('resize', id, { w, h }, nativeEvent ?? null)
+    if (eventName === 'resizeend') finishNative('resize', id, { x, y, w, h }, nativeEvent ?? null)
   }
 
   return {
