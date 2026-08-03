@@ -25,6 +25,28 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
     wrapper.unmount()
   })
 
+  it('autoHeight 遵循扁平 props 优先于 gridConfig 的规则', () => {
+    const wrapper = mount(GridLayout, {
+      props: {
+        layout: baseLayout,
+        autoHeight: false,
+        gridConfig: { autoHeight: true },
+      },
+    })
+
+    expect((wrapper.vm as any).effectiveConfig.autoHeight).toBe(false)
+    wrapper.unmount()
+
+    const grouped = mount(GridLayout, {
+      props: {
+        layout: baseLayout,
+        gridConfig: { autoHeight: true },
+      },
+    })
+    expect((grouped.vm as any).effectiveConfig.autoHeight).toBe(true)
+    grouped.unmount()
+  })
+
   it('扁平 props 优先级高于分组 dragConfig', () => {
     const wrapper = mount(GridLayout, {
       props: {
@@ -91,6 +113,7 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
 
     const vm = wrapper.vm as any
     expect(vm.effectiveConfig.colNum).toBe(12)
+    expect(vm.effectiveConfig.autoHeight).toBe(false)
     expect(vm.effectiveConfig.rowHeight).toBe(150)
     expect(vm.effectiveConfig.isDraggable).toBe(true)
     expect(vm.effectiveConfig.isResizable).toBe(true)

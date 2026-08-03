@@ -37,6 +37,7 @@ export interface LayoutInstance {
   containerPadding: readonly [number, number]
   isDraggable: boolean
   isResizable: boolean
+  autoHeight: boolean
   isBounded: boolean
   useStyleCursor: boolean
   maxRows: number
@@ -51,6 +52,13 @@ export interface LayoutInstance {
   increaseItem: (item: GridItemRegistration) => void
   decreaseItem: (item: GridItemRegistration) => void
   updateItem: (item: GridItemRegistration, previousId: LayoutItem['i']) => void
+  syncAutoHeightItem: (
+    item: GridItemRegistration,
+    target: HTMLElement | null,
+    enabled: boolean,
+    issue?: 'missing-content-root' | 'multiple-content-roots' | 'preserve-aspect-ratio',
+  ) => void
+  removeAutoHeightItem: (item: GridItemRegistration) => void
   getLayoutItem: (id: LayoutItem['i']) => ReadonlyLayoutItem | undefined
   getItemZIndex: (id: number | string) => number | undefined
   getPositionStyle: (id: LayoutItem['i']) => Readonly<Record<string, string>>

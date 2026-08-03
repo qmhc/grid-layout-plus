@@ -43,6 +43,8 @@ description: Find details about GridLayout updates, interaction lifecycle events
 
 Emitted whenever `GridLayout` accepts a layout update. The event carries an independent Layout snapshot, which `v-model:layout` writes to the parent. The update is committed after the component receives that value through its props.
 
+`meta.source` is `'auto-height'` when shared content observation proposed the update.
+
 ```ts
 function updateLayout(layout: ReadonlyLayout, meta: LayoutUpdateMeta): void
 ```

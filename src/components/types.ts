@@ -27,6 +27,14 @@ import type {
  */
 export interface GridConfig<B extends string = DefaultBreakpoint> {
   /**
+   * Whether item row heights follow their rendered content by default.
+   *
+   * Individual layout items may override this with `LayoutItem.autoHeight`.
+   *
+   * @defaultValue `false`
+   */
+  autoHeight?: boolean
+  /**
    * The number of grid columns.
    *
    * @defaultValue `12`
@@ -211,6 +219,15 @@ export interface DropConfig<B extends string = DefaultBreakpoint> {
  * @typeParam B - Breakpoint names used by responsive props.
  */
 export interface GridLayoutProps<B extends string = DefaultBreakpoint> {
+  /**
+   * Whether item row heights follow their rendered content by default.
+   *
+   * Individual layout items may override this with `LayoutItem.autoHeight`.
+   * The controlled layout must commit emitted height proposals.
+   *
+   * @defaultValue `false`
+   */
+  autoHeight?: boolean
   /**
    * Whether the container height follows the layout content.
    *
@@ -400,6 +417,13 @@ export interface GridItemProps {
   isDraggable?: boolean
   /** @deprecated `GridLayout` reads `isResizable` from the matching `LayoutItem`. */
   isResizable?: boolean
+  /**
+   * Whether this item's row height follows its single rendered content root.
+   *
+   * The matching `LayoutItem.autoHeight` takes precedence, followed by this prop and the parent
+   * `GridLayout.autoHeight` default.
+   */
+  autoHeight?: boolean
   /** Whether pointer dragging stays within the grid root; inherits the parent value when omitted. */
   isBounded?: boolean
   /**
@@ -500,7 +524,14 @@ export interface LayoutUpdateMeta {
   revision: number
   /** The action that produced the layout update. */
   source:
-    'interaction' | 'programmatic' | 'responsive' | 'width' | 'config' | 'external' | 'drop-commit'
+    | 'interaction'
+    | 'programmatic'
+    | 'responsive'
+    | 'width'
+    | 'config'
+    | 'external'
+    | 'drop-commit'
+    | 'auto-height'
 }
 
 /**

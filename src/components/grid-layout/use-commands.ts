@@ -74,8 +74,23 @@ export interface UseGridCommandsReturn {
 export function useGridCommands<B extends string>(
   options: UseGridCommandsOptions<B>,
 ): UseGridCommandsReturn {
+  function commandOperation(
+    command: InternalLayoutCommand,
+  ): LayoutOperationResult['operation'] {
+    if (command.type === 'config') return 'set'
+    if (command.type === 'auto-resize') return 'resize'
+    return command.type
+  }
+
   function commandId(command: InternalLayoutCommand): LayoutItem['i'] | null {
-    if (command.type === 'set' || command.type === 'config' || command.type === 'add') return null
+    if (
+      command.type === 'set' ||
+      command.type === 'config' ||
+      command.type === 'add' ||
+      command.type === 'auto-resize'
+    ) {
+      return null
+    }
     const id: unknown = command.id
     return (typeof id === 'string' && id.length > 0) ||
       (typeof id === 'number' && Number.isSafeInteger(id) && !Object.is(id, -0))
@@ -89,7 +104,7 @@ export function useGridCommands<B extends string>(
       const committedLayout = options.getCommittedLayout()
       if (options.isDisposing()) {
         return {
-          operation: command.type === 'config' ? 'set' : command.type,
+          operation: commandOperation(command),
           id: 'id' in command ? command.id : null,
           previousLayout: cloneLayout(committedLayout),
           layout: cloneLayout(committedLayout),
@@ -100,7 +115,7 @@ export function useGridCommands<B extends string>(
       }
       if (!options.isResponsiveReady()) {
         const result: LayoutOperationResult = {
-          operation: command.type === 'config' ? 'set' : command.type,
+          operation: commandOperation(command),
           id: commandId(command),
           previousLayout: cloneLayout(committedLayout),
           layout: cloneLayout(committedLayout),

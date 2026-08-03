@@ -34,6 +34,7 @@ const KNOWN_LAYOUT_ITEM_KEYS = new Set([
   'static',
   'isDraggable',
   'isResizable',
+  'autoHeight',
   'zIndex',
 ])
 
@@ -205,6 +206,7 @@ function cloneLayoutItemAt(
   assertOptionalBoolean(properties.static, `${path}.static`)
   assertOptionalBoolean(properties.isDraggable, `${path}.isDraggable`)
   assertOptionalBoolean(properties.isResizable, `${path}.isResizable`)
+  assertOptionalBoolean(properties.autoHeight, `${path}.autoHeight`)
 
   if (properties.zIndex !== undefined) {
     assertSafeInteger(properties.zIndex, `${path}.zIndex`, { allowNegative: true })

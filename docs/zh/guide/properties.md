@@ -31,6 +31,7 @@ interface LayoutItem extends LayoutItemRequired {
   static?: boolean,
   isDraggable?: boolean,
   isResizable?: boolean,
+  autoHeight?: boolean,
   zIndex?: number
 }
 ```
@@ -134,6 +135,7 @@ interface PositionStrategy {
 
 ```ts
 interface GridConfig<B extends string = DefaultBreakpoint> {
+  autoHeight?: boolean
   colNum?: number
   rowHeight?: number
   maxRows?: number
@@ -354,6 +356,34 @@ interface ReadonlyClientRect {
 
 容器高度是否跟随布局内容变化。
 
+### auto-height
+
+- 类型：`boolean`
+- 默认值：`false`
+
+栅格项的行数是否默认跟随渲染内容高度。可以在单个 `LayoutItem` 上设置 `autoHeight: true`
+或 `false` 覆盖全局值。必填的 `LayoutItem.h` 仍用于 SSR 首次渲染，也是在内容无法测量时的
+回退高度。
+
+启用后，每个 `GridItem` 必须渲染且只渲染一个内容元素。Grid Layout Plus 使用一个共享的
+`ResizeObserver` 观测该元素的 border-box，加上 `GridItem` 自身的 padding 和 border，然后按
+以下公式计算行数：
+
+```ts
+h = Math.ceil((contentHeight + gap[1]) / (rowHeight + gap[1]))
+```
+
+内容元素的 margin 不计入高度。内容隐藏或高度为零时保留当前 `h`。环境不支持
+`ResizeObserver` 时也保留当前 `h`，并发送 `source: 'auto-height'` 的 `error` 事件。
+
+同一动画帧内的测量结果会合并，并通过普通受控 `update:layout` 事务发送，且
+`meta.source === 'auto-height'`。应使用 `v-model:layout`；响应式模式还需同时使用
+`v-model:responsive-layouts`。父组件写回提案前，之前的高度仍是已提交状态。
+
+`minH`、`maxH`、`maxRows`、`collisionMode` 和当前压缩器仍然生效。静态项和禁止手工缩放的
+栅格项也可以跟随内容高度。此时指针缩放只修改宽度；与 `preserve-aspect-ratio` 同时启用会被
+报告为无效配置。
+
 ### restore-on-drag
 
 - 类型：`boolean`
@@ -480,6 +510,7 @@ import { absoluteStrategy, scaledStrategy, transformStrategy } from 'grid-layout
 
 ```ts
 interface GridConfig<B extends string = DefaultBreakpoint> {
+  autoHeight?: boolean
   colNum?: number
   rowHeight?: number
   maxRows?: number
@@ -548,6 +579,15 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 - 必填
 
 栅格项的唯一标识，必须与父级 Layout 中恰好一个 `LayoutItem.i` 匹配。
+
+### auto-height
+
+- 类型：`boolean`
+- 默认值：父级 `GridLayout.autoHeight`
+
+匹配的 `LayoutItem` 没有设置 `autoHeight` 时，用此属性启用内容驱动的行高。如果该设置属于
+需要持久化的布局数据，优先写入 Layout。内容根、测量、受控更新和缩放契约见
+[`GridLayout.auto-height`](#auto-height)。
 
 ### is-bounded
 

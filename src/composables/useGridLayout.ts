@@ -133,6 +133,7 @@ export interface GridLayoutRuntimeError {
     | 'position-strategy'
     | 'drop-config'
     | 'grid-item'
+    | 'auto-height'
   /** The invalid field path, or `null` when no field applies. */
   path: string | null
   /** The related layout revision, or `null` before a revision was allocated. */

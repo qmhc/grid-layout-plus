@@ -38,6 +38,7 @@ import type { GridItemEmits, GridItemProps } from './types'
 const props = withDefaults(defineProps<GridItemProps>(), {
   isDraggable: undefined,
   isResizable: undefined,
+  autoHeight: undefined,
   isBounded: undefined,
   static: false,
   x: 0,
@@ -167,6 +168,12 @@ const effectiveMinW = computed(() => effectiveItem.value?.minW ?? 1)
 const effectiveMinH = computed(() => effectiveItem.value?.minH ?? 1)
 const effectiveMaxW = computed(() => effectiveItem.value?.maxW ?? Infinity)
 const effectiveMaxH = computed(() => effectiveItem.value?.maxH ?? Infinity)
+const effectiveAutoHeight = computed(
+  () => effectiveItem.value?.autoHeight ?? props.autoHeight ?? layout.autoHeight,
+)
+const autoHeightResizeConflict = computed(
+  () => effectiveAutoHeight.value && props.preserveAspectRatio,
+)
 
 const instance = reactive({
   i: toRef(props, 'i'),
@@ -284,6 +291,7 @@ onMounted(() => {
   }
   state.useStyleCursor = layout.useStyleCursor
   nextTickOnce(createStyle)
+  nextTickOnce(syncAutoHeightTarget)
 
   watchEffect(() => {
     innerX = effectiveX.value
@@ -307,7 +315,10 @@ onMounted(() => {
 })
 
 onUpdated(() => {
-  if (!props.decorative) layout.updateItem(instance, props.i)
+  if (!props.decorative) {
+    layout.updateItem(instance, props.i)
+    syncAutoHeightTarget()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -326,7 +337,10 @@ onBeforeUnmount(() => {
     interactObj.value = null
   }
 
-  if (!props.decorative) layout.decreaseItem(instance)
+  if (!props.decorative) {
+    layout.removeAutoHeightItem(instance)
+    layout.decreaseItem(instance)
+  }
 })
 
 defineExpose({ state, wrapper })
@@ -335,7 +349,12 @@ const isAndroid =
   typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase().includes('android') : false
 
 const resizableAndNotStatic = computed(
-  () => !props.decorative && state.registered && state.resizable && !effectiveStatic.value,
+  () =>
+    !props.decorative &&
+    state.registered &&
+    state.resizable &&
+    !effectiveStatic.value &&
+    !autoHeightResizeConflict.value,
 )
 const renderRtl = computed(() => (layout.isMirrored ? !state.rtl : state.rtl))
 const draggableOrResizableAndNotStatic = computed(() => {
@@ -354,6 +373,7 @@ const className = computed(() => {
     [nh.b()]: true,
     [nh.bm('resizable')]: resizableAndNotStatic.value,
     [nh.bm('static')]: effectiveStatic.value,
+    [nh.bm('auto-height')]: effectiveAutoHeight.value,
     [nh.bm('resizing')]: state.isResizing,
     [nh.bm('dragging')]: state.isDragging,
     [nh.bm('transform')]: useCssTransforms.value,
@@ -367,6 +387,7 @@ watch(
   registered => {
     nextTickOnce(createStyle)
     if (registered) nextTickOnce(emitContainerResized)
+    nextTickOnce(syncAutoHeightTarget)
     nextTickOnce(tryMakeDraggable)
     nextTickOnce(tryMakeResizable)
   },
@@ -386,6 +407,11 @@ watch(
 )
 watch(effectiveStatic, () => {
   nextTickOnce(tryMakeDraggable)
+  nextTickOnce(tryMakeResizable)
+})
+watch(effectiveAutoHeight, () => {
+  layout.handleItemConfigChange(instance, 'resize')
+  nextTickOnce(syncAutoHeightTarget)
   nextTickOnce(tryMakeResizable)
 })
 watch(
@@ -428,6 +454,7 @@ watch(
   () => props.preserveAspectRatio,
   () => {
     layout.handleItemConfigChange(instance, 'resize')
+    nextTickOnce(syncAutoHeightTarget)
     nextTickOnce(tryMakeResizable)
   },
 )
@@ -745,6 +772,13 @@ function nextResizePixelSize(x: number, y: number): { width: number; height: num
   const rawHeight =
     (snapshot?.rawHeight ?? state.resizing.height) + coreEvent.deltaY / transformScale.value
 
+  if (effectiveAutoHeight.value) {
+    return {
+      width: rawWidth,
+      height: snapshot?.initialHeight ?? state.resizing.height,
+    }
+  }
+
   if (!snapshot) return { width: rawWidth, height: rawHeight }
   snapshot.rawWidth = rawWidth
   snapshot.rawHeight = rawHeight
@@ -871,6 +905,7 @@ function handleResize(event: MouseEvent & { edges: any }) {
   if (pos.w > effectiveMaxW.value) {
     pos.w = effectiveMaxW.value
   }
+  if (effectiveAutoHeight.value) pos.h = innerH
   if (pos.h < effectiveMinH.value) {
     pos.h = effectiveMinH.value
   }
@@ -1293,7 +1328,7 @@ function tryMakeResizable() {
 
   if (!interactObj.value) return
 
-  if (state.resizable && !effectiveStatic.value) {
+  if (state.resizable && !effectiveStatic.value && !autoHeightResizeConflict.value) {
     const maximum = calcPosition(
       0,
       0,
@@ -1322,6 +1357,25 @@ function tryMakeResizable() {
       },
       ...resizeOptionSnapshot.value,
     }
+    if (effectiveAutoHeight.value) {
+      const rendered = calcPosition(innerX, innerY, innerW, innerH)
+      opts.edges = {
+        top: false,
+        bottom: false,
+        left: false,
+        right: `${resizerBase}--se`,
+      }
+      opts.restrictSize = {
+        min: {
+          height: rendered.height * transformScale.value,
+          width: minimum.width * transformScale.value,
+        },
+        max: {
+          height: rendered.height * transformScale.value,
+          width: maximum.width * transformScale.value,
+        },
+      }
+    }
     if (resizeIgnoreSelector.value) opts.ignoreFrom = resizeIgnoreSelector.value
 
     interactObj.value.resizable(opts)
@@ -1341,6 +1395,37 @@ function tryMakeResizable() {
   } else {
     interactObj.value.resizable({ enabled: false })
   }
+}
+
+/** 将唯一的内容元素注册到父布局共享的 ResizeObserver。 */
+function syncAutoHeightTarget(): void {
+  if (props.decorative || !effectiveAutoHeight.value) {
+    layout.removeAutoHeightItem(instance)
+    return
+  }
+  if (autoHeightResizeConflict.value) {
+    layout.syncAutoHeightItem(instance, null, true, 'preserve-aspect-ratio')
+    return
+  }
+  const root = wrapper.value
+  if (!root) {
+    layout.syncAutoHeightItem(instance, null, true, 'missing-content-root')
+    return
+  }
+  const resizerClass = nh.be('resizer')
+  const contentRoots = Array.from(root.children).filter(
+    child => child instanceof HTMLElement && !child.classList.contains(resizerClass),
+  ) as HTMLElement[]
+  if (contentRoots.length !== 1) {
+    layout.syncAutoHeightItem(
+      instance,
+      null,
+      true,
+      contentRoots.length === 0 ? 'missing-content-root' : 'multiple-content-roots',
+    )
+    return
+  }
+  layout.syncAutoHeightItem(instance, contentRoots[0], true)
 }
 </script>
 

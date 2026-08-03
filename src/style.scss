@@ -120,6 +120,18 @@
       }
     }
   }
+
+  &--auto-height &__resizer--se {
+    cursor: e-resize;
+
+    &::before {
+      border-bottom-width: 0;
+    }
+  }
+
+  &--auto-height &__resizer--rtl {
+    cursor: w-resize;
+  }
 }
 
 .vgl-background {

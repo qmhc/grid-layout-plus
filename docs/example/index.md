@@ -10,6 +10,7 @@ Start with [Basic Usage](./basic) if this is your first visit. Otherwise, pick t
 
 - [Basic Usage](./basic) — Layout data, dragging, resizing, and static items.
 - [Adding and Removing Items](./dynamic-add-remove) — Add and remove items at runtime.
+- [Content-driven Height](./auto-height) — Resize rows when rendered card content changes.
 - [Move and Resize Events](./events) — Listen while an interaction runs and when it ends.
 
 ## Interaction constraints

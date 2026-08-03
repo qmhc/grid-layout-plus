@@ -33,6 +33,99 @@ function layout(): Layout {
 }
 
 describe('internal layout engine port', () => {
+  it('auto-resize 原子更新多个内容高度并服从尺寸约束', () => {
+    const engine = createLayoutEngine(
+      [
+        { i: 'first', x: 0, y: 0, w: 1, h: 2, minH: 2 },
+        { i: 'second', x: 2, y: 0, w: 1, h: 1, maxH: 3 },
+      ],
+      config(),
+    )
+
+    const result = engine.evaluate({
+      type: 'auto-resize',
+      changes: [
+        { id: 'first', h: 1 },
+        { id: 'second', h: 5 },
+      ],
+    }).result
+
+    expect(result).toMatchObject({ status: 'accepted', operation: 'resize', id: null })
+    expect(result.candidate).toBeNull()
+    expect(result.layout).toEqual([
+      { i: 'first', x: 0, y: 0, w: 1, h: 2, minH: 2 },
+      { i: 'second', x: 2, y: 0, w: 1, h: 3, maxH: 3 },
+    ])
+  })
+
+  it('auto-resize 允许静态项改变高度并推动相交的非静态项', () => {
+    const engine = createLayoutEngine(
+      [
+        { i: 'static', x: 0, y: 0, w: 1, h: 1, static: true },
+        { i: 'moving', x: 0, y: 1, w: 1, h: 1 },
+      ],
+      config({ collisionMode: 'push' }),
+    )
+
+    const result = engine.evaluate({
+      type: 'auto-resize',
+      changes: [{ id: 'static', h: 2 }],
+    }).result
+
+    expect(result.status).toBe('accepted')
+    expect(result.layout).toEqual([
+      { i: 'static', x: 0, y: 0, w: 1, h: 2, static: true },
+      { i: 'moving', x: 0, y: 2, w: 1, h: 1 },
+    ])
+  })
+
+  it('auto-resize 在 maxRows 底边裁剪高度但不移动静态项', () => {
+    const engine = createLayoutEngine(
+      [{ i: 'static', x: 0, y: 2, w: 1, h: 1, static: true }],
+      config({ maxRows: 4 }),
+    )
+
+    const result = engine.evaluate({
+      type: 'auto-resize',
+      changes: [{ id: 'static', h: 5 }],
+    }).result
+
+    expect(result).toMatchObject({
+      status: 'accepted',
+      layout: [{ i: 'static', y: 2, h: 2, static: true }],
+    })
+  })
+
+  it('auto-resize 在 prevent 碰撞和非法批次下整体拒绝', () => {
+    const initial: Layout = [
+      { i: 'first', x: 0, y: 0, w: 1, h: 1 },
+      { i: 'second', x: 0, y: 1, w: 1, h: 1 },
+    ]
+    const engine = createLayoutEngine(initial, config({ collisionMode: 'prevent' }))
+
+    expect(
+      engine.evaluate({ type: 'auto-resize', changes: [{ id: 'first', h: 2 }] }).result,
+    ).toMatchObject({ status: 'rejected', reason: 'collision', layout: initial })
+    expect(
+      engine.evaluate({
+        type: 'auto-resize',
+        changes: [
+          { id: 'first', h: 2 },
+          { id: 'missing', h: 2 },
+        ],
+      }).result,
+    ).toMatchObject({ status: 'rejected', reason: 'item-not-found', layout: initial })
+  })
+
+  it('LayoutItem.autoHeight 只接受布尔值', () => {
+    expect(() =>
+      createLayoutEngine(
+        [{ i: 'item', x: 0, y: 0, w: 1, h: 1, autoHeight: 'yes' } as never],
+        config(),
+      ),
+    ).toThrow(/autoHeight/)
+  })
+
   it('初始 push Layout 允许先接收碰撞输入，再在首帧前完成归一化', () => {
     const initial: Layout = [
       { i: 'first', x: 0, y: 0, w: 1, h: 2 },

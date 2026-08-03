@@ -123,6 +123,7 @@ export default defineConfig({
                   items: [
                     { text: 'Basic Usage', link: '/example/basic' },
                     { text: 'Adding and Removing Items', link: '/example/dynamic-add-remove' },
+                    { text: 'Content-driven Height', link: '/example/auto-height' },
                     { text: 'Move and Resize Events', link: '/example/events' },
                   ],
                 },
@@ -239,6 +240,7 @@ export default defineConfig({
                   items: [
                     { text: '基础用法', link: '/zh/example/basic' },
                     { text: '动态增减栅格项', link: '/zh/example/dynamic-add-remove' },
+                    { text: '内容驱动高度', link: '/zh/example/auto-height' },
                     { text: '移动和缩放事件', link: '/zh/example/events' },
                   ],
                 },

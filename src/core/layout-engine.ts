@@ -29,6 +29,7 @@ const KNOWN_ITEM_KEYS = new Set([
   'static',
   'isDraggable',
   'isResizable',
+  'autoHeight',
   'zIndex',
   'moved',
 ])
@@ -55,6 +56,10 @@ export type InternalLayoutCommand =
     }>
   | Readonly<{ type: 'move'; id: LayoutItem['i']; x: number; y: number }>
   | Readonly<{ type: 'resize'; id: LayoutItem['i']; w: number; h: number }>
+  | Readonly<{
+      type: 'auto-resize'
+      changes: readonly Readonly<{ id: LayoutItem['i']; h: number }>[]
+    }>
   | Readonly<{ type: 'add'; item: ReadonlyLayoutItem }>
   | Readonly<{ type: 'remove'; id: LayoutItem['i'] }>
   | Readonly<{ type: 'layer'; id: LayoutItem['i']; direction: 'front' | 'back' }>
@@ -340,6 +345,7 @@ function effectiveItemValue(item: ReadonlyLayoutItem, key: string): unknown {
   if (key === 'minW' || key === 'minH') return record[key] ?? 1
   if (key === 'maxW' || key === 'maxH') return record[key] ?? Infinity
   if (key === 'static') return record[key] ?? false
+  if (key === 'autoHeight') return record[key] ?? false
   if (key === 'zIndex') return record[key] ?? 0
   return record[key]
 }
@@ -358,6 +364,7 @@ function itemGeometryEqual(first: ReadonlyLayoutItem, second: ReadonlyLayoutItem
     'static',
     'isDraggable',
     'isResizable',
+    'autoHeight',
     'zIndex',
   ]) {
     if (!Object.is(effectiveItemValue(first, key), effectiveItemValue(second, key))) return false
@@ -832,11 +839,20 @@ function mergeInteractionLayerState(
 }
 
 function operationFor(command: InternalLayoutCommand): LayoutOperationResult['operation'] {
-  return command.type === 'config' ? 'set' : command.type
+  if (command.type === 'config') return 'set'
+  if (command.type === 'auto-resize') return 'resize'
+  return command.type
 }
 
 function idFor(command: InternalLayoutCommand): LayoutItem['i'] | null {
-  if (command.type === 'set' || command.type === 'config' || command.type === 'add') return null
+  if (
+    command.type === 'set' ||
+    command.type === 'config' ||
+    command.type === 'add' ||
+    command.type === 'auto-resize'
+  ) {
+    return null
+  }
   return validId(command.id) ? command.id : null
 }
 
@@ -897,6 +913,33 @@ function evaluateCommandLayout(
     } else if (command.type === 'set') {
       nextConfig = command.config ? snapshotEffectiveConfig(command.config) : currentConfig
       nextLayout = normalizeFullLayout(command.layout, nextConfig)
+    } else if (command.type === 'auto-resize') {
+      const base = cloneLayout(algorithmBase)
+      const changedIds = new Set<LayoutItem['i']>()
+
+      for (const change of command.changes) {
+        if (
+          !validId(change.id) ||
+          !validSafeGridValue(change.h, true) ||
+          changedIds.has(change.id)
+        ) {
+          throw new OperationRejection('invalid-input')
+        }
+        changedIds.add(change.id)
+        const index = base.findIndex(item => Object.is(item.i, change.id))
+        if (index < 0) throw new OperationRejection('item-not-found')
+        const target = base[index]
+        target.h =
+          currentConfig.maxRows === Infinity
+            ? change.h
+            : Math.min(change.h, currentConfig.maxRows - target.y)
+        normalizeCandidate(target, index, currentConfig)
+      }
+
+      nextLayout =
+        currentConfig.collisionMode === 'overlap'
+          ? base
+          : normalizeFullLayout(base, currentConfig)
     } else if (command.type === 'remove') {
       if (!validId(command.id)) throw new OperationRejection('invalid-input')
       id = command.id
@@ -1023,7 +1066,9 @@ function evaluateCommandLayout(
         id,
         publicPrevious,
         nextLayout,
-        command.type === 'set' || command.type === 'config' ? null : candidate,
+        command.type === 'set' || command.type === 'config' || command.type === 'auto-resize'
+          ? null
+          : candidate,
       ),
       nextLayout: cloneLayout(nextLayout),
       nextConfig,
@@ -1038,7 +1083,7 @@ function evaluateCommandLayout(
           ? new OperationRejection(error.code, candidate, { kind: 'extension', error })
           : new OperationRejection('invalid-input', candidate)
     const rejectedCandidate =
-      command.type === 'set' || command.type === 'config'
+      command.type === 'set' || command.type === 'config' || command.type === 'auto-resize'
         ? null
         : (candidate ?? rejection.candidate)
     const metrics = calculateContainerMetrics(publicPrevious, currentConfig)

@@ -266,6 +266,23 @@ describe('GridItem interaction', () => {
     disabledWrapper.unmount()
   })
 
+  it('auto-height 项的手工缩放只启用水平方向', async () => {
+    const { wrapper, item, interactable } = await mountItem({
+      autoHeight: true,
+      isResizable: true,
+    })
+    const resizeOptions = interactable.resizable.mock.calls
+      .map((args: unknown[]) => args[0])
+      .find((value: any) => value?.edges?.right)
+
+    expect(item.classes()).toContain('vgl-item--auto-height')
+    expect(resizeOptions).toMatchObject({
+      edges: { top: false, bottom: false, left: false },
+    })
+    expect(resizeOptions.restrictSize.min.height).toBe(resizeOptions.restrictSize.max.height)
+    wrapper.unmount()
+  })
+
   it('RTL 模式下为 se 手柄启用镜像样式类', async () => {
     document.documentElement.dir = 'rtl'
     const { wrapper, item } = await mountItem({ isResizable: true })

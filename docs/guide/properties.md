@@ -31,6 +31,7 @@ interface LayoutItem extends LayoutItemRequired {
   static?: boolean,
   isDraggable?: boolean,
   isResizable?: boolean,
+  autoHeight?: boolean,
   zIndex?: number
 }
 ```
@@ -134,6 +135,7 @@ Built-in strategies:
 
 ```ts
 interface GridConfig<B extends string = DefaultBreakpoint> {
+  autoHeight?: boolean
   colNum?: number
   rowHeight?: number
   maxRows?: number
@@ -353,6 +355,36 @@ During a pointer drag, keeps the item's pixel rectangle inside the `GridLayout` 
 
 Whether the container height follows the layout content.
 
+### auto-height
+
+- type: `boolean`
+- default: `false`
+
+Whether item row heights follow their rendered content by default. Set `LayoutItem.autoHeight` to
+`true` or `false` to override this value for one item. The required `LayoutItem.h` remains the
+initial SSR height and the fallback when content cannot be measured.
+
+An enabled `GridItem` must render exactly one content element. Grid Layout Plus observes that
+element's border-box with one shared `ResizeObserver`, adds the `GridItem` padding and border, and
+calculates:
+
+```ts
+h = Math.ceil((contentHeight + gap[1]) / (rowHeight + gap[1]))
+```
+
+The content element's margins are not measured. Hidden or zero-height content keeps the current
+`h`. If `ResizeObserver` is unavailable, the current `h` is retained and an `error` with
+`source: 'auto-height'` is emitted.
+
+Measured changes are batched once per animation frame and emitted through the normal controlled
+`update:layout` transaction with `meta.source === 'auto-height'`. Use `v-model:layout`; in responsive
+mode, also use `v-model:responsive-layouts`. Until the proposal is written back, the previous
+height stays committed.
+
+`minH`, `maxH`, `maxRows`, `collisionMode`, and the active compactor still apply. Static and
+non-resizable items may follow content height. Pointer resizing becomes width-only, and combining
+auto height with `preserve-aspect-ratio` is reported as an invalid configuration.
+
 ### restore-on-drag
 
 - type: `boolean`
@@ -479,6 +511,7 @@ A grouped configuration object for grid-related props. An explicitly provided in
 
 ```ts
 interface GridConfig<B extends string = DefaultBreakpoint> {
+  autoHeight?: boolean
   colNum?: number
   rowHeight?: number
   maxRows?: number
@@ -547,6 +580,15 @@ Programmatic layout and layer operations are documented in [Methods](./methods).
 - required
 
 The item's unique identifier. It must match exactly one `LayoutItem.i` in the parent Layout.
+
+### auto-height
+
+- type: `boolean`
+- default: parent `GridLayout.autoHeight`
+
+Enables content-driven row height when the matching `LayoutItem.autoHeight` is omitted. Prefer the
+Layout field when the setting is part of persisted layout data. See [`GridLayout.auto-height`](#auto-height)
+for the content-root, measurement, controlled-update, and resize contracts.
 
 ### is-bounded
 

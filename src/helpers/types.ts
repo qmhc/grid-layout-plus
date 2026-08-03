@@ -85,6 +85,15 @@ export interface LayoutItem extends LayoutItemRequired {
   static?: boolean
   isDraggable?: boolean
   isResizable?: boolean
+  /**
+   * Whether this item's row height follows its rendered content.
+   *
+   * Overrides the parent `GridLayout.autoHeight` default when defined. The required `h` remains
+   * the initial, SSR, and measurement-fallback height.
+   *
+   * @defaultValue `false`
+   */
+  autoHeight?: boolean
   /** 元素层级；数值越大越靠前 */
   zIndex?: number
 }

@@ -1,5 +1,25 @@
 import { expect, test } from '@playwright/test'
 
+import type { Locator, Page } from '@playwright/test'
+
+function collectBrowserErrors(page: Page): string[] {
+  const errors: string[] = []
+
+  page.on('console', message => {
+    if (message.type() === 'error') errors.push(`console: ${message.text()}`)
+  })
+  page.on('pageerror', error => {
+    errors.push(`pageerror: ${error.message}`)
+  })
+  return errors
+}
+
+async function readLayoutHeight(locator: Locator): Promise<number> {
+  const text = (await locator.textContent()) ?? ''
+  const match = text.match(/h=(\d+)/)
+  return match ? Number(match[1]) : Number.NaN
+}
+
 test('basic reset restores the first canonical layout after a committed drag', async ({ page }) => {
   const errors: string[] = []
 
@@ -97,5 +117,52 @@ test('custom external source completes the public native drop flow', async ({ pa
 
   await expect(items).toHaveCount(5)
   await expect(page.locator('.demo-state--warning')).toContainText('Restricted by source policy')
+  expect(errors).toEqual([])
+})
+
+test('auto-height demo grows, shrinks, and reflows the following item', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const errors = collectBrowserErrors(page)
+  const response = await page.goto('/#/auto-height')
+  expect(response?.ok()).toBe(true)
+
+  const grid = page.locator('.auto-height-grid')
+  const visibleItems = grid.locator(':scope > .vgl-item:not(.vgl-item--placeholder)')
+  const autoItem = visibleItems.filter({
+    has: page.locator('[data-auto-height-item="details"]'),
+  })
+  const followerItem = visibleItems.filter({
+    has: page.locator('[data-auto-height-item="follower"]'),
+  })
+  const autoHeightState = page.locator('[data-layout-height="details"]')
+
+  await expect(visibleItems).toHaveCount(2)
+
+  const initialAutoRows = await readLayoutHeight(autoHeightState)
+  const initialAutoBox = await autoItem.boundingBox()
+  const initialFollowerBox = await followerItem.boundingBox()
+  expect(initialAutoRows).toBeGreaterThan(0)
+  expect(initialAutoBox).not.toBeNull()
+  expect(initialFollowerBox).not.toBeNull()
+  if (!initialAutoBox || !initialFollowerBox) return
+
+  await page.getByRole('button', { name: 'Show details' }).click()
+  await expect.poll(() => readLayoutHeight(autoHeightState)).toBeGreaterThan(initialAutoRows)
+  await expect
+    .poll(async () => (await autoItem.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(initialAutoBox.height + 20)
+  await expect
+    .poll(async () => (await followerItem.boundingBox())?.y ?? 0)
+    .toBeGreaterThan(initialFollowerBox.y + 20)
+
+  await page.getByRole('button', { name: 'Hide details' }).click()
+  await expect.poll(() => readLayoutHeight(autoHeightState)).toBe(initialAutoRows)
+  await expect
+    .poll(async () => Math.abs(((await autoItem.boundingBox())?.height ?? 0) - initialAutoBox.height))
+    .toBeLessThanOrEqual(2)
+  await expect
+    .poll(async () => Math.abs(((await followerItem.boundingBox())?.y ?? 0) - initialFollowerBox.y))
+    .toBeLessThanOrEqual(2)
+
   expect(errors).toEqual([])
 })

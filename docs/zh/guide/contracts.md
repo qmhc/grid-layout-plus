@@ -88,6 +88,7 @@ interface LayoutUpdateMeta {
     | 'config'
     | 'external'
     | 'drop-commit'
+    | 'auto-height'
 }
 ```
 
@@ -163,6 +164,7 @@ interface GridLayoutRuntimeError {
     | 'position-strategy'
     | 'drop-config'
     | 'grid-item'
+    | 'auto-height'
   path: string | null
   revision: number | null
   evaluationId: number

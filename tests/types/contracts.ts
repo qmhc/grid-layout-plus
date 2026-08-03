@@ -34,6 +34,7 @@ import type {
   LayoutOperationResult,
   LayoutOperationResultBase,
   LayoutTransactionReceipt,
+  LayoutUpdateMeta,
   OperationRejectedPayload,
   ReadonlyLayout,
   RejectedLayoutOperationResult,
@@ -69,8 +70,10 @@ export type { PhaseOneOperationResultExports }
 declare function inferBreakpoint<B extends string>(props: GridLayoutProps<B>): B
 
 const layout: Layout = [{ i: 1, x: 0, y: 0, w: 1, h: 1 }]
+layout[0].autoHeight = true
 const props: GridLayoutProps<BusinessBreakpoint> = {
   layout,
+  autoHeight: true,
   responsive: true,
   breakpoints: { mobile: 0, desktop: 1024 },
   cols: { mobile: 2, desktop: 12 },
@@ -176,9 +179,11 @@ declare const elementRef: Readonly<Ref<HTMLElement | null>>
 
 const publicGridItemProps: GridItemProps = {
   i: 'item',
+  autoHeight: true,
   dragOption: { lockAxis: 'start' },
 }
 publicGridItemProps.x satisfies number | undefined
+publicGridItemProps.autoHeight satisfies boolean | undefined
 // @ts-expect-error interact option 是 readonly 输入
 publicGridItemProps.dragOption!.lockAxis = 'x'
 
@@ -228,6 +233,10 @@ narrowReceipt(transactionReceipt)
 emitLayout('update:layout', readonlyLayout, {
   revision: 1,
   source: 'programmatic',
+})
+emitLayout('update:layout', readonlyLayout, {
+  revision: 2,
+  source: 'auto-height',
 })
 emitLayout('breakpoint-changed', 'mobile', readonlyLayout, {
   revision: 2,
@@ -378,6 +387,8 @@ type PhaseTwoAComposableExports = [
   Expect<Equal<InteractionTerminalBase['revision'], number | null>>,
   Expect<Equal<OperationRejectedPayload['evaluationId'], number>>,
   Expect<Equal<GridLayoutRuntimeError['revision'], number | null>>,
+  Expect<Equal<Extract<LayoutUpdateMeta['source'], 'auto-height'>, 'auto-height'>>,
+  Expect<Equal<Extract<GridLayoutRuntimeError['source'], 'auto-height'>, 'auto-height'>>,
 ]
 
 export type { PhaseTwoAComposableExports }

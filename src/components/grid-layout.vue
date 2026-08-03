@@ -46,6 +46,7 @@ import { useGridLayoutSync } from './grid-layout/use-layout-sync'
 import { createGridPositionStyleController } from './grid-layout/position-style-controller'
 import { useGridResponsive } from './grid-layout/use-responsive'
 import { useGridWidth } from './grid-layout/use-width'
+import { useGridAutoHeight } from './grid-layout/use-auto-height'
 import { createLayoutTransactionController } from './grid-layout/transaction-controller'
 import {
   createCurrentResponsiveTransaction,
@@ -87,6 +88,7 @@ import type { UseGridWidthReturn } from './grid-layout/use-width'
 import type { LayoutTransactionController } from './grid-layout/transaction-controller'
 
 const props = withDefaults(defineProps<GridLayoutProps>(), {
+  autoHeight: undefined,
   autoSize: undefined,
   colNum: undefined,
   rowHeight: undefined,
@@ -128,6 +130,7 @@ const appliedPositionStrategy = shallowRef(snapshotPositionStrategy(initialPosit
  */
 
 const effectiveAutoSize = computed(() => props.autoSize ?? props.gridConfig?.autoSize ?? true)
+const effectiveAutoHeight = computed(() => props.autoHeight ?? props.gridConfig?.autoHeight ?? false)
 const effectiveColNum = computed(() => props.colNum ?? props.gridConfig?.colNum ?? 12)
 const effectiveRowHeight = computed(() => props.rowHeight ?? props.gridConfig?.rowHeight ?? 150)
 const effectiveMaxRows = computed(() => props.maxRows ?? props.gridConfig?.maxRows ?? Infinity)
@@ -236,6 +239,7 @@ const effectiveContainerPadding = computed<readonly [number, number]>(() =>
 )
 
 const effectiveConfig = computed(() => ({
+  autoHeight: effectiveAutoHeight.value,
   autoSize: effectiveAutoSize.value,
   colNum: effectiveColNum.value,
   rowHeight: effectiveRowHeight.value,
@@ -794,6 +798,28 @@ const applyEngineConfig = config.applyEngineConfig
 const applyPositionStrategy = config.applyPositionStrategy
 const rejectPositionStyleBatch = config.rejectPositionStyles
 
+const autoHeight = useGridAutoHeight<Breakpoint>({
+  engine,
+  isUnavailable: () => disposing || sealedError !== null,
+  isMounted: () => mounted,
+  isResponsiveReady: () => !responsiveMode.value || state.lastBreakpoint !== null,
+  hasActiveInteraction: interaction.hasActive,
+  getWidth: () => state.width,
+  getLayout: () => currentLayout.value,
+  getConfig: () => appliedEngineConfig.value,
+  getPositionStrategy: () => appliedPositionStrategy.value,
+  getTransactionController,
+  runAsyncBoundary,
+  evaluatePositionStyles: evaluatePositionStyleBatch,
+  rejectPositionStyles: rejectPositionStyleBatch,
+  emitRuntimeError,
+  emitEvaluationError,
+  emitOperationRejected,
+  nextEvaluationId,
+})
+const syncAutoHeightItem = autoHeight.sync
+const removeAutoHeightItem = autoHeight.remove
+
 const commands = useGridCommands<Breakpoint>({
   state,
   engine,
@@ -1110,6 +1136,7 @@ onMounted(() => {
       window.addEventListener('directionchange', handleDirectionChange)
       processContainerWidth(containerWidthApi.width.value, true)
       validateRegisteredItems()
+      autoHeight.refresh()
       scheduleTransitionRestore()
     })
   })
@@ -1125,6 +1152,7 @@ onBeforeUnmount(() => {
   discardPendingObservedWidth()
   cancelTransitionRestore()
   transactionController.disposePending()
+  autoHeight.destroy()
   const activeInteraction = interaction.getActive()
   if (activeInteraction) {
     finishInteraction('cancelled', 'unmount', {
@@ -1148,6 +1176,7 @@ function resizeEventHandler(
   nativeEvent?: Event,
 ) {
   resizeEvent(eventType, i, x, y, h, w, nativeEvent)
+  if (eventType === 'resizeend') nextTick(() => autoHeight.refresh())
 }
 
 function dragEventHandler(
@@ -1160,6 +1189,7 @@ function dragEventHandler(
   nativeEvent?: Event,
 ) {
   dragEvent(eventType, i, x, y, h, w, nativeEvent)
+  if (eventType === 'dragend') nextTick(() => autoHeight.refresh())
 }
 
 function syncItemEngineConfig(): void {
@@ -1193,7 +1223,19 @@ watch(
 )
 watch(
   () => state.width,
-  value => width.observeStateWidth(value),
+  value => {
+    width.observeStateWidth(value)
+    nextTick(() => runAsyncBoundary(autoHeight.refresh))
+  },
+  { flush: 'post' },
+)
+watch(
+  [
+    () => appliedEngineConfig.value.rowHeight,
+    () => appliedEngineConfig.value.gap[1],
+    () => appliedEngineConfig.value.maxRows,
+  ],
+  () => nextTick(() => runAsyncBoundary(autoHeight.refresh)),
   { flush: 'post' },
 )
 watch(
@@ -1205,6 +1247,7 @@ watch(
       return
     }
     runAsyncBoundary(observeLayoutProp)
+    nextTick(() => runAsyncBoundary(autoHeight.refresh))
   },
   { deep: true, flush: 'post' },
 )
@@ -1241,6 +1284,7 @@ watch(
       } else {
         applyEngineConfig(disabled ? 'disabled' : 'config-changed')
       }
+      nextTick(() => runAsyncBoundary(autoHeight.refresh))
     })
   },
   { flush: 'post' },
@@ -1315,6 +1359,7 @@ provide(
     ...toRefs(state),
     responsive: responsiveMode,
     autoSize: effectiveAutoSize,
+    autoHeight: effectiveAutoHeight,
     colNum: adapterColNum,
     rowHeight: adapterRowHeight,
     maxRows: adapterMaxRows,
@@ -1333,6 +1378,8 @@ provide(
     increaseItem,
     decreaseItem,
     updateItem,
+    syncAutoHeightItem,
+    removeAutoHeightItem,
     getLayoutItem: getInjectedLayoutItem,
     getItemZIndex,
     getPositionStyle,

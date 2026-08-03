@@ -43,6 +43,8 @@ description: GridLayout 的布局更新、交互生命周期、拖放事件和 G
 
 `GridLayout` 每次接受布局变更时都会发送该事件。事件携带一份独立的 Layout 快照，`v-model:layout` 会用它替换父组件中的值。组件通过属性收到新值后，这次变更才算提交。
 
+共享内容观测触发布局提案时，`meta.source` 为 `'auto-height'`。
+
 ```ts
 function updateLayout(layout: ReadonlyLayout, meta: LayoutUpdateMeta): void
 ```
