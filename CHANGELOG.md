@@ -1,5 +1,57 @@
 # grid-layout-plus
 
+## 2.0.0-beta.0
+
+### Major Changes
+
+- [`79aa5fa`](https://github.com/qmhc/grid-layout-plus/commit/79aa5fa59dbeac465a2720424ab03d565fe8805b) Thanks [@qmhc](https://github.com/qmhc)! - Make the parent `Layout` the canonical source of `GridItem` geometry, constraints, interaction
+  flags, and stacking order. The corresponding `GridItem` mirror props are deprecated, and internal
+  component-ref fields have been replaced by the typed `GridLayoutExpose` command API.
+
+- [`bb74b26`](https://github.com/qmhc/grid-layout-plus/commit/bb74b266bcce6fa6e92e1c4cac294402b6c6a90b) Thanks [@qmhc](https://github.com/qmhc)! - Require external drop item factories, commit created items before emitting `drop`, and support controlled same-group cross-grid moves with rollback.
+
+- [#64](https://github.com/qmhc/grid-layout-plus/pull/64) [`3966b6a`](https://github.com/qmhc/grid-layout-plus/commit/3966b6aa9e650880af19afbeade42e9699b3da95) Thanks [@qmhc](https://github.com/qmhc)! - Adopt a controlled, immutable layout model. `GridLayout` now emits readonly update proposals and
+  commits them only after the parent writes `layout` back. Use `v-model:layout` to persist changes
+  from interactions and public commands.
+
+- [`865f5da`](https://github.com/qmhc/grid-layout-plus/commit/865f5da486b17d6f97870d24e751afcba27a829d) Thanks [@qmhc](https://github.com/qmhc)! - Stop injecting component styles from JavaScript bundles and publish them through the explicit `grid-layout-plus/style.css` entry for consumer-side CSS processing.
+
+- [`79aa5fa`](https://github.com/qmhc/grid-layout-plus/commit/79aa5fa59dbeac465a2720424ab03d565fe8805b) Thanks [@qmhc](https://github.com/qmhc)! - Replace legacy layout configuration with the v2 contracts. Rename `margin` to `gap`, note that
+  `containerPadding` now defaults to `[0, 0]`, and replace `verticalCompact`, `useCssTransforms`, and
+  `transformScale` with `compactor` and `positionStrategy`. Grouped grid, drag, resize, and drop
+  configuration now merges beneath flat props.
+
+- [`79aa5fa`](https://github.com/qmhc/grid-layout-plus/commit/79aa5fa59dbeac465a2720424ab03d565fe8805b) Thanks [@qmhc](https://github.com/qmhc)! - Enforce strict layout contracts for safe-integer geometry, unique item ids, valid constraints, and
+  cloneable plain custom data. Layout algorithms no longer mutate their inputs, and invalid layouts
+  now produce structured `GridLayoutValidationError` or rejected operation results.
+
+### Minor Changes
+
+- [`79aa5fa`](https://github.com/qmhc/grid-layout-plus/commit/79aa5fa59dbeac465a2720424ab03d565fe8805b) Thanks [@qmhc](https://github.com/qmhc)! - Add `useGridLayout`, `useResponsiveLayout`, and `useContainerWidth` for headless layout state,
+  interaction lifecycles, responsive breakpoint resolution, and container measurement. Responsive
+  layouts can also be persisted through synchronized controlled models.
+
+- [`79aa5fa`](https://github.com/qmhc/grid-layout-plus/commit/79aa5fa59dbeac465a2720424ab03d565fe8805b) Thanks [@qmhc](https://github.com/qmhc)! - Add `GridBackground` for rendering grid lines from inherited or explicit geometry, with configurable
+  row count, color, and stroke width.
+
+- [`79aa5fa`](https://github.com/qmhc/grid-layout-plus/commit/79aa5fa59dbeac465a2720424ab03d565fe8805b) Thanks [@qmhc](https://github.com/qmhc)! - Expand interaction workflows with typed drag and resize lifecycles, transactional layout commands,
+  native and external drop handling, drag thresholds, bounded movement, overlap layering commands,
+  and structured operation events.
+
+- [`79aa5fa`](https://github.com/qmhc/grid-layout-plus/commit/79aa5fa59dbeac465a2720424ab03d565fe8805b) Thanks [@qmhc](https://github.com/qmhc)! - Add the Vue-free `grid-layout-plus/core` entry point with immutable layout helpers, normalization,
+  compactors, positioning strategies, geometry conversion, structured errors, and public types.
+
+- [`79aa5fa`](https://github.com/qmhc/grid-layout-plus/commit/79aa5fa59dbeac465a2720424ab03d565fe8805b) Thanks [@qmhc](https://github.com/qmhc)! - Add configurable compaction, collision, and positioning strategies, including horizontal, disabled,
+  and indexed compactors; push, prevent, and overlap collision modes; and absolute or scaled
+  positioning.
+
+- [`853f149`](https://github.com/qmhc/grid-layout-plus/commit/853f14986ad123203a7ff6765965f036e106da33) Thanks [@qmhc](https://github.com/qmhc)! - Add opt-in content-driven item heights with shared observation, controlled layout proposals,
+  per-item overrides, collision handling, and width-only pointer resizing.
+
+- [`cf42ee2`](https://github.com/qmhc/grid-layout-plus/commit/cf42ee21a4ab2c20e55b6785782cc4848c732bad) Thanks [@qmhc](https://github.com/qmhc)! - Support configurable resize handles on every edge and corner, with per-item overrides and scoped
+  slots for custom handle visuals. Keep the active item anchored under the pointer while the
+  placeholder and surrounding items preview the terminal compacted layout.
+
 ## [1.1.1](https://github.com/qmhc/grid-layout-plus/compare/v1.1.0...v1.1.1) (2025-10-13)
 
 ### 🐞 Bug Fixes

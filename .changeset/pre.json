@@ -4,5 +4,19 @@
   "initialVersions": {
     "grid-layout-plus": "1.1.1"
   },
-  "changesets": []
+  "changesets": [
+    "add-layout-composables",
+    "align-grid-item-contracts",
+    "commit-external-drops",
+    "draw-grid-background",
+    "expand-interaction-workflows",
+    "expose-headless-core",
+    "extend-layout-strategies",
+    "modern-grids-shift",
+    "observe-content-height",
+    "publish-component-styles",
+    "resize-from-all-directions",
+    "tidy-config-migration",
+    "validate-layout-contracts"
+  ]
 }
