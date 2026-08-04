@@ -40,6 +40,7 @@ jobs:
         run: pnpm run build
 
       - name: Create version PR or publish package
+        id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           publish: pnpm exec changeset publish
@@ -52,3 +53,28 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Select docs deployment branch
+        id: docs-deployment
+        if: steps.changesets.outputs.published == 'true'
+        shell: bash
+        run: |
+          version="$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")"
+
+          if [[ "$version" == *-* ]]; then
+            branch='docs-next'
+          else
+            branch='docs-release'
+          fi
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Advance docs deployment branch
+        if: steps.docs-deployment.outputs.branch != ''
+        env:
+          DOCS_BRANCH: ${{ steps.docs-deployment.outputs.branch }}
+          RELEASE_VERSION: ${{ steps.docs-deployment.outputs.version }}
+        run: |
+          echo "Deploying documentation for v${RELEASE_VERSION} from ${GITHUB_SHA} to ${DOCS_BRANCH}"
+          git push origin "HEAD:refs/heads/${DOCS_BRANCH}"

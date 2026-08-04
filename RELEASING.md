@@ -21,9 +21,21 @@ pnpm changeset
 4. 版本 PR 会更新 `package.json` 和 `CHANGELOG.md`，并消费已合并的 changeset 文件。
 5. 合并版本 PR 后，CI 再次验证；通过后自动构建并发布 npm 包。
 6. 发布成功后自动创建 `v<version>` tag 和 GitHub Release。
+7. Release workflow 根据已发布版本推进文档部署分支：稳定版进入 `docs-release`，预发布版进入
+   `docs-next`。
 
 仓库需要配置具有 npm 发布权限的 `NPM_TOKEN` secret，并允许 GitHub Actions 创建 Pull
 Request。不要手动修改版本号、`CHANGELOG.md` 或创建发布 tag。
+
+## 文档部署
+
+生产文档只跟随 npm 稳定版。Netlify 的 Production branch 必须配置为 `docs-release`；普通
+`main` 提交和版本 PR 创建不会更新生产文档。带 `-beta`、`-rc` 等后缀的预发布版本会推进
+`docs-next`，可通过 Netlify branch deploy 提供预览。
+
+文档分支只由 Release workflow 在 Changesets 确认发布成功后推进，且始终指向本次发布对应的
+提交。不要手动向这两个分支提交、rebase 或 force push。首次启用时，`docs-release` 从当前 npm
+稳定版对应的 tag 创建；后续发布只进行 fast-forward 更新。
 
 ## 本地检查
 
