@@ -5,7 +5,7 @@ import { nextTick } from 'vue'
 import { GridLayout } from '../src'
 
 import type { ComponentPublicInstance } from 'vue'
-import type { Layout } from '../src'
+import type { Layout, ReadonlyLayout } from '../src'
 
 interface GridLayoutInstance extends ComponentPublicInstance {
   dragEvent(
@@ -71,7 +71,7 @@ describe('Phase 0 current behavior characterization', () => {
         collisionMode: 'overlap',
         isDraggable: true,
         isResizable: true,
-        'onUpdate:layout': (nextLayout: Layout) => {
+        'onUpdate:layout': (nextLayout: ReadonlyLayout) => {
           void wrapper.setProps({
             layout: nextLayout.map(item => ({ ...item })),
           })

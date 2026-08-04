@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import type { Layout, ResizeConfig } from 'grid-layout-plus'
+import type { Layout, LayoutItem, ResizeConfig } from 'grid-layout-plus'
 
 const resizeConfig: ResizeConfig = {
   handles: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
@@ -21,18 +21,19 @@ function createLayout(): Layout {
 const layout = ref(createLayout())
 const lastAction = ref('Waiting · resize from any edge or corner')
 
-function handleResize(id: string) {
+function handleResize(id: LayoutItem['i']) {
   lastAction.value = `Resizing item ${id}`
 }
 
-function handleResized(id: string) {
+function handleResized(id: LayoutItem['i']) {
   lastAction.value = `Resized item ${id}`
 }
 
-function itemLabel(id: string) {
-  if (id === '0') return 'Item 0 · E / S / SE only'
-  if (id === '4') return 'Item 4 · try N / NE / NW'
-  return `Item ${id}`
+function itemLabel(id: LayoutItem['i']) {
+  const label = String(id)
+  if (label === '0') return 'Item 0 · E / S / SE only'
+  if (label === '4') return 'Item 4 · try N / NE / NW'
+  return `Item ${label}`
 }
 
 function resetDemo() {

@@ -4,22 +4,28 @@ import { renderToString } from 'vue/server-renderer'
 
 import GridLayout from '../../src/components/grid-layout.vue'
 
-import type { PropType } from 'vue'
+import type { DefineComponent, PropType } from 'vue'
 import type {
   Breakpoints,
   Layout,
   PositionStrategy,
-  ResponsiveLayout,
+  ReadonlyLayout,
+  ResponsiveLayoutsInput,
 } from '../../src/helpers/types'
+import type { GridLayoutProps } from '../../src/components/types'
 
 type SsrBreakpoint = 'lg' | 'sm' | 'xxs'
+type SsrResponsiveLayouts = Partial<Record<SsrBreakpoint, Layout>>
+
+// Vue SFC 导出固定为默认断点；fixture 按公开泛型 props 适配自定义断点。
+const SsrGridLayout = GridLayout as unknown as DefineComponent<GridLayoutProps<SsrBreakpoint>>
 
 export interface SsrFixtureInput {
   variant: string
   width?: number
   responsive: boolean
   layout: Layout
-  responsiveLayouts: Partial<ResponsiveLayout>
+  responsiveLayouts: ResponsiveLayoutsInput<SsrBreakpoint>
   breakpoints: Breakpoints<SsrBreakpoint>
   cols: Breakpoints<SsrBreakpoint>
   strategyFailure: boolean
@@ -32,7 +38,7 @@ function item(w: number, x = 0): Layout[number] {
   return { i: 'ssr-item', x, y: 0, w, h: 1 }
 }
 
-function completeLayouts(smWidth: number): Partial<ResponsiveLayout> {
+function completeLayouts(smWidth: number): SsrResponsiveLayouts {
   return {
     lg: [item(2)],
     sm: [item(smWidth)],
@@ -91,14 +97,14 @@ export function createSsrFixtureInput(variant: string): SsrFixtureInput {
   return base
 }
 
-function cloneLayout(layout: Layout): Layout {
+function cloneLayout(layout: ReadonlyLayout): Layout {
   return layout.map(entry => ({ ...entry }))
 }
 
-function cloneLayouts(layouts: Partial<ResponsiveLayout>): Partial<ResponsiveLayout> {
+function cloneLayouts(layouts: ResponsiveLayoutsInput<SsrBreakpoint>): SsrResponsiveLayouts {
   return Object.fromEntries(
     Object.entries(layouts).map(([key, value]) => [key, value ? cloneLayout(value) : value]),
-  ) as Partial<ResponsiveLayout>
+  ) as SsrResponsiveLayouts
 }
 
 export const SsrFixture = defineComponent({
@@ -142,12 +148,12 @@ export const SsrFixture = defineComponent({
       eventOrder.value.push(name)
     }
 
-    function applyLayout(nextLayout: Layout) {
+    function applyLayout(nextLayout: ReadonlyLayout) {
       record('update:layout')
       model.value = cloneLayout(nextLayout)
     }
 
-    function applyResponsiveLayouts(nextLayouts: Partial<ResponsiveLayout>) {
+    function applyResponsiveLayouts(nextLayouts: ResponsiveLayoutsInput<SsrBreakpoint>) {
       record('update:responsive-layouts')
       responsiveModels.value = cloneLayouts(nextLayouts)
     }
@@ -200,7 +206,7 @@ export const SsrFixture = defineComponent({
         },
         [
           h(
-            GridLayout,
+            SsrGridLayout,
             {
               layout: model.value,
               width: props.input.width,

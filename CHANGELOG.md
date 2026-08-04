@@ -1,10 +1,12 @@
+# grid-layout-plus
+
 ## [1.1.1](https://github.com/qmhc/grid-layout-plus/compare/v1.1.0...v1.1.1) (2025-10-13)
 
 ### 🐞 Bug Fixes
 
 - release detached DOM nodes on destroy ([#56](https://github.com/qmhc/grid-layout-plus/issues/56)) ([20ddeb7](https://github.com/qmhc/grid-layout-plus/commit/20ddeb7d3efcf2ef3e9f14e87f3b548452e022d7))
 
-# [1.1.0](https://github.com/qmhc/grid-layout-plus/compare/v1.0.6...v1.1.0) (2025-05-07)
+## [1.1.0](https://github.com/qmhc/grid-layout-plus/compare/v1.0.6...v1.1.0) (2025-05-07)
 
 ### 🐞 Bug Fixes
 
@@ -46,7 +48,7 @@
 
 ## [1.0.1](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.3...v1.0.1) (2023-04-26)
 
-# [1.0.0-beta.3](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2023-04-23)
+## [1.0.0-beta.3](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2023-04-23)
 
 ### ⚡ Performance Improvements
 
@@ -56,13 +58,13 @@
 
 - redesign class names of element ([c0ef03c](https://github.com/qmhc/grid-layout-plus/commit/c0ef03c18f801dc4dc3632c53683258bddf09aee))
 
-# [1.0.0-beta.2](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2023-04-21)
+## [1.0.0-beta.2](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2023-04-21)
 
 ### ⚡ Performance Improvements
 
 - merge repeated watch callbacks ([4b924a1](https://github.com/qmhc/grid-layout-plus/commit/4b924a13364920ff5944b584c3485aadcf99d4e9))
 
-# [1.0.0-beta.1](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.0...v1.0.0-beta.1) (2023-04-21)
+## [1.0.0-beta.1](https://github.com/qmhc/grid-layout-plus/compare/v1.0.0-beta.0...v1.0.0-beta.1) (2023-04-21)
 
 ### 🐞 Bug Fixes
 
@@ -72,4 +74,4 @@
 
 - fix: on demand import interactjs packages ([b87cb8b](https://github.com/qmhc/grid-layout-plus/commit/b87cb8bea7d165179123383344297536980bcc11))
 
-# 1.0.0-beta.0 (2023-04-09)
+## 1.0.0-beta.0 (2023-04-09)

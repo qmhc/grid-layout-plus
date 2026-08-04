@@ -154,7 +154,9 @@ describe('GridItem interaction', () => {
   }
 
   function dragEvent(type: string, target: HTMLElement, clientX: number, clientY: number) {
-    return { type, target, clientX, clientY } as MouseEvent
+    const event = new MouseEvent(type, { clientX, clientY })
+    Object.defineProperty(event, 'target', { configurable: true, value: target })
+    return event
   }
 
   function resizeEvent(
@@ -650,7 +652,7 @@ describe('GridItem interaction', () => {
     await nextTick()
     await nextTick()
 
-    const ordered = Object.entries(fixture.grid.emitted())
+    const ordered = Object.entries(fixture.grid.emitted() as Record<string, unknown[][]>)
       .flatMap(([name, emissions]) => emissions.map(args => ({ name, args })))
       .filter(event => ['error', 'interaction-end'].includes(event.name))
       .slice(-2)
@@ -853,7 +855,7 @@ describe('GridItem interaction', () => {
     await nextTick()
     await nextTick()
 
-    const ordered = Object.entries(fixture.grid.emitted())
+    const ordered = Object.entries(fixture.grid.emitted() as Record<string, unknown[][]>)
       .flatMap(([name, emissions]) => emissions.map(args => ({ name, args })))
       .filter(event => ['error', 'operation-rejected', 'interaction-end'].includes(event.name))
       .slice(-3)

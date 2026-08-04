@@ -109,7 +109,7 @@ describe('Phase 1 layout validation and snapshots', () => {
     [-0, 'negative zero'],
     [1.5, 'fraction'],
     [Number.MAX_SAFE_INTEGER + 1, 'unsafe integer'],
-  ])('rejects invalid id %s (%s)', invalidId => {
+  ])('rejects invalid id %s (%s)', (invalidId, _label) => {
     expectValidation(
       () => validateLayout([item({ i: invalidId })]),
       'invalid-layout',

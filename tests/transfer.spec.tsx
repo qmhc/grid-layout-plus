@@ -5,7 +5,13 @@ import { h, nextTick } from 'vue'
 import { GridLayout, GridLayoutValidationError } from '../src'
 
 import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
-import type { Layout } from '../src'
+import type { DefineComponent } from 'vue'
+import type { GridLayoutProps } from '../src/components/types'
+import type { Layout, ReadonlyLayout } from '../src'
+
+type GridLayoutWrapper = VueWrapper<InstanceType<typeof GridLayout>>
+const MobileGridLayout = GridLayout as unknown as DefineComponent<GridLayoutProps<'mobile'>>
+type MobileGridLayoutWrapper = VueWrapper<InstanceType<typeof MobileGridLayout>>
 
 interface TransferGridInstance {
   state: {
@@ -51,8 +57,8 @@ function mockRect(root: DOMWrapper<Element>, left: number): void {
 async function mountGrid(
   layout: Layout,
   group: string,
-  confirm: boolean | ((next: Layout) => Layout),
-): Promise<VueWrapper> {
+  confirm: boolean | ((next: ReadonlyLayout) => Layout),
+): Promise<GridLayoutWrapper> {
   const wrapper = mount(GridLayout, {
     props: {
       layout,
@@ -63,7 +69,7 @@ async function mountGrid(
       transferConfig: { group },
       ...(confirm
         ? {
-            'onUpdate:layout': (next: Layout) => {
+            'onUpdate:layout': (next: ReadonlyLayout) => {
               const confirmed =
                 typeof confirm === 'function' ? confirm(next) : next.map(item => ({ ...item }))
               void wrapper.setProps({ layout: confirmed })
@@ -80,8 +86,8 @@ async function mountGrid(
   return wrapper
 }
 
-async function mountResponsiveGrid(layout: Layout): Promise<VueWrapper> {
-  const wrapper = mount(GridLayout, {
+async function mountResponsiveGrid(layout: Layout): Promise<MobileGridLayoutWrapper> {
+  const wrapper = mount(MobileGridLayout, {
     props: {
       layout,
       width: 400,
@@ -92,16 +98,13 @@ async function mountResponsiveGrid(layout: Layout): Promise<VueWrapper> {
       rowHeight: 100,
       gap: [0, 0],
       transferConfig: { group: 'responsive' },
-      'onUpdate:layout': (next: Layout) => {
+      'onUpdate:layout': (next: ReadonlyLayout) => {
         void wrapper.setProps({ layout: next.map(item => ({ ...item })) })
       },
-      'onUpdate:responsiveLayouts': (next: Record<string, Layout>) => {
+      'onUpdate:responsiveLayouts': (next: Readonly<Record<'mobile', ReadonlyLayout>>) => {
         void wrapper.setProps({
           responsiveLayouts: Object.fromEntries(
-            Object.entries(next).map(([key, value]) => [
-              key,
-              value.map(item => ({ ...item })),
-            ]),
+            Object.entries(next).map(([key, value]) => [key, value.map(item => ({ ...item }))]),
           ),
         })
       },
@@ -129,11 +132,8 @@ describe('跨网格拖拽', () => {
   })
 
   it('同组网格先预览，双端受控确认后移动完整业务 item', async () => {
-    const source = await mountGrid(
-      [{ i: 'card', x: 0, y: 0, w: 1, h: 1, metadata: { label: 'Card' } }],
-      'dashboard',
-      true,
-    )
+    const sourceLayout = [{ i: 'card', x: 0, y: 0, w: 1, h: 1, metadata: { label: 'Card' } }]
+    const source = await mountGrid(sourceLayout, 'dashboard', true)
     const target = await mountGrid([{ i: 'target', x: 2, y: 0, w: 1, h: 1 }], 'dashboard', true)
     mockRect(source.find('.vgl-layout'), 0)
     mockRect(target.find('.vgl-layout'), 500)
@@ -178,11 +178,8 @@ describe('跨网格拖拽', () => {
   })
 
   it('transfer 结果使用目标父组件实际确认的业务 metadata', async () => {
-    const source = await mountGrid(
-      [{ i: 'card', x: 0, y: 0, w: 1, h: 1, metadata: { label: 'Draft' } }],
-      'dashboard',
-      true,
-    )
+    const sourceLayout = [{ i: 'card', x: 0, y: 0, w: 1, h: 1, metadata: { label: 'Draft' } }]
+    const source = await mountGrid(sourceLayout, 'dashboard', true)
     const target = await mountGrid([], 'dashboard', next =>
       next.map(item =>
         item.i === 'card' ? { ...item, metadata: { label: 'Confirmed' } } : { ...item },
@@ -441,7 +438,7 @@ describe('跨网格拖拽', () => {
     expect(addProposal).toBeDefined()
     await target.setProps({
       layout: addProposal!.map(item => ({ ...item })),
-      'onUpdate:layout': (next: Layout) => {
+      'onUpdate:layout': (next: ReadonlyLayout) => {
         void target.setProps({ layout: next.map(item => ({ ...item })) })
       },
     })

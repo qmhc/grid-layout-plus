@@ -5,7 +5,10 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { GridLayout } from '../src'
 
 import type { Layout, ReadonlyLayout } from '../src/helpers/types'
-import type { LayoutUpdateMeta } from '../src/components/types'
+import type { DefineComponent } from 'vue'
+import type { GridLayoutProps, LayoutUpdateMeta } from '../src/components/types'
+
+const SingleBreakpointGridLayout = GridLayout as unknown as DefineComponent<GridLayoutProps<'only'>>
 
 class MockResizeObserver {
   static instances: MockResizeObserver[] = []
@@ -88,26 +91,27 @@ describe('GridLayout auto height', () => {
       { i: 'second', x: 1, y: 0, w: 1, h: 1 },
     ])
     const proposals: Array<Readonly<{ layout: ReadonlyLayout; meta: LayoutUpdateMeta }>> = []
-    const Host = defineComponent(() => () =>
-      h(
-        GridLayout,
-        {
-          layout: model.value,
-          autoHeight: true,
-          width: 400,
-          colNum: 4,
-          rowHeight: 30,
-          gap: [10, 10],
-          'onUpdate:layout': (layout: ReadonlyLayout, meta: LayoutUpdateMeta) => {
-            proposals.push({ layout, meta })
-            model.value = layout.map(item => ({ ...item }))
+    const Host = defineComponent(
+      () => () =>
+        h(
+          GridLayout,
+          {
+            layout: model.value,
+            autoHeight: true,
+            width: 400,
+            colNum: 4,
+            rowHeight: 30,
+            gap: [10, 10],
+            'onUpdate:layout': (layout: ReadonlyLayout, meta: LayoutUpdateMeta) => {
+              proposals.push({ layout, meta })
+              model.value = layout.map(item => ({ ...item }))
+            },
           },
-        },
-        {
-          item: ({ item }: { item: { i: string | number } }) =>
-            h('div', { 'data-auto-content': String(item.i) }),
-        },
-      ),
+          {
+            item: ({ item }: { item: { i: string | number } }) =>
+              h('div', { 'data-auto-content': String(item.i) }),
+          },
+        ),
     )
     const wrapper = mount(Host, { attachTo: document.body })
     const grid = wrapper.findComponent(GridLayout)
@@ -137,32 +141,33 @@ describe('GridLayout auto height', () => {
     const responsiveLayouts = ref<Record<'only', Layout>>({
       only: model.value.map(item => ({ ...item })),
     })
-    const Host = defineComponent(() => () =>
-      h(
-        GridLayout,
-        {
-          layout: model.value,
-          responsiveLayouts: responsiveLayouts.value,
-          responsive: true,
-          autoHeight: true,
-          width: 400,
-          breakpoints: { only: 0 },
-          cols: { only: 4 },
-          rowHeight: 30,
-          gap: [10, 10],
-          'onUpdate:layout': (layout: ReadonlyLayout) => {
-            model.value = layout.map(item => ({ ...item }))
+    const Host = defineComponent(
+      () => () =>
+        h(
+          SingleBreakpointGridLayout,
+          {
+            layout: model.value,
+            responsiveLayouts: responsiveLayouts.value,
+            responsive: true,
+            autoHeight: true,
+            width: 400,
+            breakpoints: { only: 0 },
+            cols: { only: 4 },
+            rowHeight: 30,
+            gap: [10, 10],
+            'onUpdate:layout': (layout: ReadonlyLayout) => {
+              model.value = layout.map(item => ({ ...item }))
+            },
+            'onUpdate:responsiveLayouts': (layouts: Readonly<Record<'only', ReadonlyLayout>>) => {
+              responsiveLayouts.value = {
+                only: layouts.only.map(item => ({ ...item })),
+              }
+            },
           },
-          'onUpdate:responsiveLayouts': (layouts: Readonly<Record<'only', ReadonlyLayout>>) => {
-            responsiveLayouts.value = {
-              only: layouts.only.map(item => ({ ...item })),
-            }
+          {
+            item: () => h('div', { 'data-auto-content': 'item' }),
           },
-        },
-        {
-          item: () => h('div', { 'data-auto-content': 'item' }),
-        },
-      ),
+        ),
     )
     const wrapper = mount(Host, { attachTo: document.body })
     const grid = wrapper.findComponent(GridLayout)

@@ -484,7 +484,7 @@ function defineFutureContract<Actual>(contract: FutureContract<Actual>) {
       const actual = await contract.exercise(page)
 
       expect(errors).toEqual([])
-      expect(actual).toEqual(contract.expected)
+      expect(actual as unknown).toEqual(contract.expected)
     })
   })
 }
@@ -2873,7 +2873,7 @@ defineFutureContract({
       'no-position',
     ] as const) {
       await openVariant(page, 'phase-4', 'E2E-42', reason, ['reject-drop-callback'])
-      await dispatchDragEvent(page, 'dragover', 0.3, undefined, reason === 'invalid-input')
+      await dispatchDragEvent(page, 'dragover', 0.3, undefined, false)
       await settleBrowser(page)
       const events = await readEvents(page)
       results[reason] = {

@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { defineConfig } from 'vitepress'
 import autoprefixer from 'autoprefixer'
 
-import { writeLlmsBundles } from './llms.ts'
+import { writeLlmsBundles } from './llms'
 
 const siteUrl = 'https://grid-layout-plus.netlify.app'
 

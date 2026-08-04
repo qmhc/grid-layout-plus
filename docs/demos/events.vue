@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 
-import type { Layout } from 'grid-layout-plus'
+import type { Layout, LayoutItem, ReadonlyLayout } from 'grid-layout-plus'
 
 interface DemoEventLog {
   key: number
@@ -12,7 +12,7 @@ interface DemoEventLog {
 
 const MAX_EVENT_LOGS = 50
 
-const layout = ref([
+const layout = ref<Layout>([
   { x: 0, y: 0, w: 2, h: 2, i: '0', static: false },
   { x: 2, y: 0, w: 2, h: 4, i: '1', static: true },
   { x: 4, y: 0, w: 2, h: 5, i: '2', static: false },
@@ -69,48 +69,60 @@ function clearEvents() {
   eventLogs.splice(0)
 }
 
-function moveEvent(i: string, newX: number, newY: number) {
+function moveEvent(i: LayoutItem['i'], newX: number, newY: number) {
   logEvent('move', `item ${i}`, `x=${newX}, y=${newY}`)
 }
 
-function movedEvent(i: string, newX: number, newY: number) {
+function movedEvent(i: LayoutItem['i'], newX: number, newY: number) {
   logEvent('moved', `item ${i}`, `x=${newX}, y=${newY}`)
 }
 
-function resizeEvent(i: string, newH: number, newW: number, newHPx: number, newWPx: number) {
-  logEvent('resize', `item ${i}`, `w=${newW}, h=${newH} · ${newWPx}×${newHPx}px`)
-}
-
-function resizedEvent(i: string, newX: number, newY: number, newHPx: number, newWPx: number) {
-  logEvent('resized', `item ${i}`, `x=${newX}, y=${newY} · ${newWPx}×${newHPx}px`)
-}
-
-function containerResizedEvent(
-  i: string,
+function resizeEvent(
+  i: LayoutItem['i'],
   newH: number,
   newW: number,
   newHPx: number,
   newWPx: number,
 ) {
-  if (!layoutReady) return
-  logEvent('container-resized', `item ${i}`, `w=${newW}, h=${newH} · ${newWPx}×${newHPx}px`)
+  logEvent('resize', `item ${i}`, `w=${newW}, h=${newH} · ${newWPx}×${newHPx}px`)
 }
 
-function layoutBeforeMountEvent(newLayout: Layout) {
+function resizedEvent(
+  i: LayoutItem['i'],
+  newH: number,
+  newW: number,
+  newHPx: number,
+  newWPx: number,
+) {
+  logEvent('resized', `item ${i}`, `w=${newW}, h=${newH} · ${newWPx}×${newHPx}px`)
+}
+
+function containerResizedEvent(
+  i: LayoutItem['i'],
+  newH: number,
+  newW: number,
+  newHPx: string,
+  newWPx: string,
+) {
+  if (!layoutReady) return
+  logEvent('container-resized', `item ${i}`, `w=${newW}, h=${newH} · ${newWPx}×${newHPx}`)
+}
+
+function layoutBeforeMountEvent(newLayout: ReadonlyLayout) {
   layoutReady = false
   logEvent('layout-before-mount', 'layout', `${newLayout.length} items`)
 }
 
-function layoutMountedEvent(newLayout: Layout) {
+function layoutMountedEvent(newLayout: ReadonlyLayout) {
   logEvent('layout-mounted', 'layout', `${newLayout.length} items`)
 }
 
-function layoutReadyEvent(newLayout: Layout) {
+function layoutReadyEvent(newLayout: ReadonlyLayout) {
   logEvent('layout-ready', 'layout', `${newLayout.length} items`)
   layoutReady = true
 }
 
-function layoutUpdatedEvent(newLayout: Layout) {
+function layoutUpdatedEvent(newLayout: ReadonlyLayout) {
   logEvent('layout-updated', 'layout', `${newLayout.length} items`)
 }
 </script>

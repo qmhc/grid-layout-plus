@@ -15,13 +15,16 @@ import {
 
 import type { Layout } from '../src/helpers/types'
 
+type MetadataLayout = Array<Layout[number] & { metadata?: unknown }>
+
 function layout(x = 0): Layout {
-  return [{ i: 1, x, y: 0, w: 1, h: 1, metadata: { ignored: x } }]
+  const result: MetadataLayout = [{ i: 1, x, y: 0, w: 1, h: 1, metadata: { ignored: x } }]
+  return result
 }
 
 describe('Phase 5 事务性能边界', () => {
   it('geometry signature 保留类型和顺序并忽略 metadata 与 effective default 差异', () => {
-    const explicit: Layout = [
+    const explicit: MetadataLayout = [
       {
         i: 1,
         x: 0,
@@ -38,7 +41,7 @@ describe('Phase 5 事务性能边界', () => {
       },
       { i: '1', x: 1, y: 0, w: 1, h: 1 },
     ]
-    const defaults: Layout = [
+    const defaults: MetadataLayout = [
       { i: 1, x: 0, y: 0, w: 1, h: 1, metadata: 'second' },
       { i: '1', x: 1, y: 0, w: 1, h: 1 },
     ]

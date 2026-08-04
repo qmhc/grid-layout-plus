@@ -128,7 +128,7 @@ describe('useContainerWidth', () => {
     observer.trigger({
       target: element,
       contentBoxSize: undefined,
-      contentRect: { width: 360 },
+      contentRect: new DOMRectReadOnly(0, 0, 360, 0),
     })
     expect(api.width.value).toBe(360)
     scope.stop()
@@ -149,7 +149,7 @@ describe('useContainerWidth', () => {
     observer.trigger({
       target: element,
       contentBoxSize: [],
-      contentRect: { width: 400 },
+      contentRect: new DOMRectReadOnly(0, 0, 400, 0),
     })
     expect(api.width.value).toBeNull()
     expect(errors).toHaveBeenLastCalledWith(

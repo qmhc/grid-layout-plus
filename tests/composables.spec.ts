@@ -10,8 +10,7 @@ import { useResponsiveLayout } from '../src/composables/useResponsiveLayout'
 import { horizontalCompactor, noCompactor, verticalCompactor } from '../src/core/compactors'
 import { getBreakpointFromWidth, getColsFromBreakpoint } from '../src/helpers/responsive'
 
-import type { GridLayoutExtensionError } from '../src/core/errors'
-import type { Breakpoints, Compactor, Layout } from '../src/helpers/types'
+import type { Breakpoints, Compactor, Layout, ReadonlyLayout } from '../src/helpers/types'
 
 // ─── useGridLayout ──────────────────────────────────────────
 
@@ -94,8 +93,8 @@ describe('useGridLayout', () => {
   })
 
   it.each([
-    ['extension-error', () => new Error('failed')],
-    ['extension-invalid-result', () => null],
+    ['extension-error', (): Error | null => new Error('failed')],
+    ['extension-invalid-result', (): Error | null => null],
   ] as const)('创建期 Compactor %s 同步抛扩展错误', (code, compactResult) => {
     expect(() =>
       useGridLayout({
@@ -111,7 +110,7 @@ describe('useGridLayout', () => {
         },
       }),
     ).toThrowError(
-      expect.objectContaining<GridLayoutExtensionError>({
+      expect.objectContaining({
         code,
         source: 'compactor',
       }),
@@ -970,16 +969,15 @@ describe('useGridLayout', () => {
       }),
     )
 
-    expect(
-      api.addItem({
-        i: 'invalid-metadata',
-        x: 2,
-        y: 0,
-        w: 1,
-        h: 1,
-        metadata: () => undefined,
-      }),
-    ).toMatchObject({ status: 'rejected', reason: 'invalid-input' })
+    const invalidItem = {
+      i: 'invalid-metadata',
+      x: 2,
+      y: 0,
+      w: 1,
+      h: 1,
+      metadata: () => undefined,
+    }
+    expect(api.addItem(invalidItem)).toMatchObject({ status: 'rejected', reason: 'invalid-input' })
     expect(errors).not.toHaveBeenCalled()
     expect(rejected).toHaveBeenCalledWith(
       expect.objectContaining({ operation: 'add', reason: 'invalid-input' }),
@@ -1102,7 +1100,7 @@ describe('useResponsiveLayout', () => {
 
   it('不同 width 值对应正确的断点和列数', () => {
     const width = ref(1400)
-    const layouts = ref({})
+    const layouts = ref<Partial<Record<'lg' | 'sm', Layout>>>({})
     const layout = ref<Layout>([{ i: '1', x: 0, y: 0, w: 1, h: 1 }])
 
     const { currentBreakpoint, currentCols } = withScope(() =>
@@ -1528,7 +1526,7 @@ describe('useResponsiveLayout', () => {
   it('onError 抛错时不递归包装，且公开对象 mutable-detached', async () => {
     const width = ref<number | null>(1400)
     const layout = ref<Layout>([{ i: 'item', x: 0, y: 0, w: 1, h: 1 }])
-    const layouts = ref({})
+    const layouts = ref<Partial<Record<'lg' | 'md' | 'sm' | 'xs' | 'xxs', Layout>>>({})
     const callbackError = new Error('callback failed')
     const api = withScope(() =>
       useResponsiveLayout({

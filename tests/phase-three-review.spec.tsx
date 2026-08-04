@@ -4,9 +4,25 @@ import { defineComponent, h, nextTick, reactive, ref, shallowRef } from 'vue'
 
 import { GridLayout } from '../src'
 
-import type { Layout, ResponsiveLayoutsInput } from '../src/helpers/types'
-import type { GridLayoutRuntimeError } from '../src/composables/useGridLayout'
-import type { GridLayoutExpose, WidthChangedPayload } from '../src/components/types'
+import type {
+  CompleteResponsiveLayouts,
+  Layout,
+  ReadonlyLayout,
+  ResponsiveLayoutsInput,
+} from '../src/helpers/types'
+import type {
+  GridLayoutRuntimeError,
+  OperationRejectedPayload,
+} from '../src/composables/useGridLayout'
+import type { DefineComponent } from 'vue'
+import type {
+  GridLayoutExpose,
+  GridLayoutProps,
+  WidthChangedPayload,
+} from '../src/components/types'
+
+const MobileGridLayout = GridLayout as unknown as DefineComponent<GridLayoutProps<'mobile'>>
+const OpenBreakpointGridLayout = GridLayout as unknown as DefineComponent<GridLayoutProps<string>>
 
 async function flushUpdates(count = 6): Promise<void> {
   for (let index = 0; index < count; index++) await nextTick()
@@ -27,11 +43,11 @@ describe('Phase 3 review regressions', () => {
       cols: { mobile: 24 },
       compactor: { type: 'vertical' as const, compact },
     }
-    const wrapper = mount(GridLayout<'mobile'>, {
+    const wrapper = mount(MobileGridLayout, {
       props: {
         ...responsiveProps,
         onError: (error: GridLayoutRuntimeError) => errors.push(error),
-        onOperationRejected: payload => rejected.push(payload),
+        onOperationRejected: (payload: OperationRejectedPayload) => rejected.push(payload),
       },
     })
 
@@ -53,6 +69,7 @@ describe('Phase 3 review regressions', () => {
         id: expectedIds[index],
         candidate: null,
       })
+      if (result.status !== 'rejected') throw new Error('Expected a rejected command result')
       expect(rejectedEvents[index]?.[0]).toMatchObject({
         operation: result.operation,
         reason: result.reason,
@@ -94,15 +111,15 @@ describe('Phase 3 review regressions', () => {
     })
     const Host = defineComponent(
       () => () =>
-        h(GridLayout<'mobile'>, {
+        h(MobileGridLayout, {
           layout: corrected.value,
           responsive: true,
           width: width.value,
           breakpoints: correctedBreakpoints,
           cols: correctedCols,
           responsiveLayouts: layouts.value,
-          'onUpdate:layout': value => {
-            corrected.value = value
+          'onUpdate:layout': (value: ReadonlyLayout) => {
+            corrected.value = value.map(item => ({ ...item }))
           },
           'onUpdate:responsive-layouts': updateResponsiveLayouts,
           onError: (error: GridLayoutRuntimeError) => correctedErrors.push(error),
@@ -137,7 +154,7 @@ describe('Phase 3 review regressions', () => {
 
   it('创建期校验 dormant，动态字段变化仅更新 error episode 且不调用 Compactor', async () => {
     expect(() =>
-      mount(GridLayout, {
+      mount(OpenBreakpointGridLayout, {
         props: {
           layout: [],
           responsive: false,
@@ -168,7 +185,7 @@ describe('Phase 3 review regressions', () => {
     const compact = vi.fn((layout: Layout) => layout.map(item => ({ ...item })))
     const Host = defineComponent(
       () => () =>
-        h(GridLayout, {
+        h(OpenBreakpointGridLayout, {
           layout: [{ i: 'item', x: 0, y: 0, w: 1, h: 1 }],
           responsive: responsive.value,
           width: width.value,
@@ -221,6 +238,9 @@ describe('Phase 3 review regressions', () => {
 
   it('responsive false→true 在 post-flush 读取 sibling props 的最终快照', async () => {
     type TestBreakpoint = 'legacy' | 'mobile' | 'desktop'
+    const TestBreakpointGridLayout = GridLayout as unknown as DefineComponent<
+      GridLayoutProps<TestBreakpoint>
+    >
     const responsive = ref(false)
     const layout = ref<Layout>([{ i: 'item', x: 0, y: 0, w: 1, h: 1 }])
     const breakpoints = shallowRef<Record<TestBreakpoint, number>>({
@@ -240,17 +260,17 @@ describe('Phase 3 review regressions', () => {
     const breakpointsChanged: Array<string | null> = []
     const Host = defineComponent(
       () => () =>
-        h(GridLayout<TestBreakpoint>, {
+        h(TestBreakpointGridLayout, {
           layout: layout.value,
           responsive: responsive.value,
           width: 400,
           breakpoints: breakpoints.value,
           cols: cols.value,
           responsiveLayouts: layouts.value,
-          'onUpdate:layout': value => {
-            layout.value = value
+          'onUpdate:layout': (value: ReadonlyLayout) => {
+            layout.value = value.map(item => ({ ...item }))
           },
-          'onUpdate:responsiveLayouts': value => {
+          'onUpdate:responsiveLayouts': (value: CompleteResponsiveLayouts<TestBreakpoint>) => {
             layouts.value = value
           },
           onError: (error: GridLayoutRuntimeError) => errors.push(error),
@@ -297,7 +317,7 @@ describe('Phase 3 review regressions', () => {
     const Host = defineComponent(
       () => () =>
         h(
-          GridLayout<'mobile'>,
+          MobileGridLayout,
           {
             layout: layout.value,
             responsive: responsive.value,
@@ -306,10 +326,10 @@ describe('Phase 3 review regressions', () => {
             breakpoints: { mobile: 0 },
             cols: { mobile: 4 },
             responsiveLayouts: layouts.value,
-            'onUpdate:layout': value => {
-              layout.value = value
+            'onUpdate:layout': (value: ReadonlyLayout) => {
+              layout.value = value.map(item => ({ ...item }))
             },
-            'onUpdate:responsiveLayouts': value => {
+            'onUpdate:responsiveLayouts': (value: CompleteResponsiveLayouts<'mobile'>) => {
               layouts.value = value
             },
             onError: (error: GridLayoutRuntimeError) => errors.push(error),
@@ -351,7 +371,7 @@ describe('Phase 3 review regressions', () => {
 
   it('响应式配置预检失败时不部分提交新的 width', async () => {
     const width = ref(400)
-    const gap = shallowRef({ mobile: [10, 10] as const })
+    const gap = shallowRef<Record<'mobile', readonly [number, number]>>({ mobile: [10, 10] })
     const layout = ref<Layout>([{ i: 'item', x: 0, y: 0, w: 1, h: 1 }])
     const layouts = ref<ResponsiveLayoutsInput<'mobile'>>({
       mobile: layout.value,
@@ -359,7 +379,7 @@ describe('Phase 3 review regressions', () => {
     const widths: WidthChangedPayload[] = []
     const Host = defineComponent(
       () => () =>
-        h(GridLayout<'mobile'>, {
+        h(MobileGridLayout, {
           layout: layout.value,
           responsive: true,
           width: width.value,
@@ -367,10 +387,10 @@ describe('Phase 3 review regressions', () => {
           cols: { mobile: 4 },
           gap: gap.value,
           responsiveLayouts: layouts.value,
-          'onUpdate:layout': value => {
-            layout.value = value
+          'onUpdate:layout': (value: ReadonlyLayout) => {
+            layout.value = value.map(item => ({ ...item }))
           },
-          'onUpdate:responsiveLayouts': value => {
+          'onUpdate:responsiveLayouts': (value: CompleteResponsiveLayouts<'mobile'>) => {
             layouts.value = value
           },
           onWidthChanged: (payload: WidthChangedPayload) => widths.push(payload),

@@ -280,7 +280,7 @@ describe('Phase 2 review regressions', () => {
     })
     await settle()
 
-    const ordered = Object.entries(wrapper.emitted())
+    const ordered = Object.entries(wrapper.emitted() as Record<string, unknown[][]>)
       .flatMap(([name, emissions]) => emissions.map(args => ({ name, args })))
       .filter(event => ['error', 'operation-rejected', 'interaction-end'].includes(event.name))
       .slice(-3)
@@ -486,7 +486,9 @@ describe('Phase 2 review regressions', () => {
 
     const ranks = wrapper
       .findAll('.vgl-item:not(.vgl-item--placeholder)')
-      .map(item => item.attributes('style').match(/--vgl-item-z-index:\s*(\d+)/)?.[1])
+      .map(
+        item => (item.attributes('style') ?? '').match(/--vgl-item-z-index:\s*(\d+)/)?.[1] ?? null,
+      )
     expect(ranks).toEqual(['0', '1', '2', '3'])
     wrapper.unmount()
   })

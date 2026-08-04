@@ -47,7 +47,7 @@ function removeItem(id: string) {
 
   if (itemIndex > -1) {
     layout.value.splice(itemIndex, 1)
-    selectedId.value = layout.value[Math.min(itemIndex, layout.value.length - 1)]?.i ?? ''
+    selectedId.value = String(layout.value[Math.min(itemIndex, layout.value.length - 1)]?.i ?? '')
     lastAction.value = `Removed item ${id}`
   }
 }

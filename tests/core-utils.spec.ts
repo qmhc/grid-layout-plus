@@ -13,7 +13,6 @@ import {
 } from '../src/core/utils'
 import { bottom } from '../src/helpers/common'
 
-import type { GridLayoutValidationError } from '../src/core/errors'
 import type { GridGeometry, Layout } from '../src/helpers/types'
 
 // ─── calcGridCellDimensions ─────────────────────────────────
@@ -76,7 +75,7 @@ describe('calcGridCellDimensions', () => {
         rowHeight: 30,
       }),
     ).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-config',
         path: 'geometry.cols',
       }),
@@ -171,7 +170,7 @@ describe('gridToPixelRect', () => {
     expect(() =>
       gridToPixelRect({ i: 'item', x: Number.MAX_SAFE_INTEGER, y: 0, w: 2, h: 1 }, geometry),
     ).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-layout',
         path: 'layoutItem.w',
       }),
@@ -179,7 +178,7 @@ describe('gridToPixelRect', () => {
     expect(() =>
       gridToPixelRect({ i: 'item', x: 0, y: 0, w: 1, h: 1, minW: 2 }, geometry),
     ).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-layout',
         path: 'layoutItem.w',
       }),
@@ -248,7 +247,7 @@ describe('pointerToGridPosition', () => {
         geometry,
       }),
     ).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-config',
         path: 'containerRect.width',
       }),
@@ -267,7 +266,7 @@ describe('pointerToGridPosition', () => {
         },
       }),
     ).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-config',
         path: 'geometry.width',
       }),
@@ -289,7 +288,7 @@ describe('pixelSizeToGridSize', () => {
         geometry: { ...geometry, rowHeight: 0, gap: [10, 0] },
       }),
     ).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-config',
         path: 'geometry.rowHeight',
       }),
@@ -436,7 +435,7 @@ describe('bottom', () => {
   it('拒绝 y + h 的 safe-integer overflow', () => {
     const layout: Layout = [{ i: 'overflow', x: 0, y: Number.MAX_SAFE_INTEGER, w: 1, h: 1 }]
     expect(() => bottom(layout)).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-layout',
         path: 'layout[0].h',
       }),

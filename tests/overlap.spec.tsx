@@ -16,7 +16,7 @@ import {
 } from '../src'
 
 import type { ComponentPublicInstance } from 'vue'
-import type { CollisionMode, Compactor, Layout } from '../src'
+import type { CollisionMode, Compactor, Layout, ReadonlyLayout } from '../src'
 
 const componentStyles = readFileSync(resolve(process.cwd(), 'src/style.scss'), 'utf-8')
 
@@ -57,7 +57,7 @@ async function mountGrid(layout: Layout, props: Record<string, unknown> = {}) {
       width: 1200,
       isDraggable: true,
       isResizable: true,
-      'onUpdate:layout': (nextLayout: Layout) => {
+      'onUpdate:layout': (nextLayout: ReadonlyLayout) => {
         const current = wrapper.props('layout') as Layout
         for (const target of new Set([layout, current])) {
           target.splice(0, target.length, ...nextLayout.map(item => ({ ...item })))
@@ -599,11 +599,12 @@ describe('GridLayout engine adapter', () => {
   )
 
   it('Compactor 同 identity 原地变更对组件与 headless 都不可见', async () => {
-    const compactor: Compactor = {
+    const mutableCompactor = {
       type: 'vertical',
-      allowOverlap: false,
+      allowOverlap: false as boolean,
       compact: verticalCompactor.compact,
-    }
+    } satisfies Compactor
+    const compactor: Compactor = mutableCompactor
     const initial: Layout = [
       { i: 'active', x: 0, y: 0, w: 1, h: 1 },
       { i: 'blocker', x: 1, y: 0, w: 1, h: 1 },
@@ -621,8 +622,8 @@ describe('GridLayout engine adapter', () => {
       },
     )
 
-    compactor.allowOverlap = true
-    compactor.compact = noCompactor.compact
+    mutableCompactor.allowOverlap = true
+    mutableCompactor.compact = noCompactor.compact
     await nextTick()
 
     const started = headless.beginInteraction({

@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import type { GridTransferResult, Layout, TransferConfig } from 'grid-layout-plus'
+import type { GridTransferResult, LayoutItem, TransferConfig } from 'grid-layout-plus'
+
+interface DashboardItem extends LayoutItem {
+  metadata: {
+    title: string
+  }
+}
 
 const transferConfig: TransferConfig = { group: 'dashboard' }
-const left = ref<Layout>([
+const left = ref<DashboardItem[]>([
   { i: 'sales', x: 0, y: 0, w: 2, h: 2, metadata: { title: 'Sales' } },
   { i: 'visits', x: 2, y: 0, w: 2, h: 2, metadata: { title: 'Visits' } },
 ])
-const right = ref<Layout>([
+const right = ref<DashboardItem[]>([
   { i: 'tasks', x: 0, y: 0, w: 2, h: 2, metadata: { title: 'Tasks' } },
 ])
 const status = ref('Drag a card between the two grids')
@@ -22,9 +28,7 @@ function resetDemo() {
     { i: 'sales', x: 0, y: 0, w: 2, h: 2, metadata: { title: 'Sales' } },
     { i: 'visits', x: 2, y: 0, w: 2, h: 2, metadata: { title: 'Visits' } },
   ]
-  right.value = [
-    { i: 'tasks', x: 0, y: 0, w: 2, h: 2, metadata: { title: 'Tasks' } },
-  ]
+  right.value = [{ i: 'tasks', x: 0, y: 0, w: 2, h: 2, metadata: { title: 'Tasks' } }]
   status.value = 'Reset · drag a card between the two grids'
 }
 </script>

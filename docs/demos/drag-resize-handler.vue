@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import type { Layout } from 'grid-layout-plus'
+import type { Layout, LayoutItem } from 'grid-layout-plus'
 
 function createLayout(): Layout {
   return [
@@ -17,15 +17,15 @@ function createLayout(): Layout {
 const layout = ref(createLayout())
 const lastAction = ref('Waiting · move only from a labeled handle')
 
-function handleClick(id: string) {
+function handleClick(id: LayoutItem['i']) {
   lastAction.value = `Clicked item ${id} · no drag started`
 }
 
-function handleMove(id: string) {
+function handleMove(id: LayoutItem['i']) {
   lastAction.value = `Moving item ${id}`
 }
 
-function handleMoved(id: string) {
+function handleMoved(id: LayoutItem['i']) {
   lastAction.value = `Moved item ${id}`
 }
 
@@ -43,12 +43,7 @@ function resetDemo() {
       </Tag>
       <Button button-type="button" @click="resetDemo"> Reset layout </Button>
     </div>
-    <GridLayout
-      v-model:layout="layout"
-      class="demo-grid"
-      :is-resizable="false"
-      :row-height="30"
-    >
+    <GridLayout v-model:layout="layout" class="demo-grid" :is-resizable="false" :row-height="30">
       <GridItem
         v-for="item in layout"
         :key="item.i"

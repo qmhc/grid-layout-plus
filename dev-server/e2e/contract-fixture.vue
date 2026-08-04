@@ -637,8 +637,8 @@ function runControl(control: string) {
         const nextBreakpoints = { ...breakpoints.value }
         const nextCols = { ...cols.value }
         const nextLayouts = { ...responsiveLayouts.value }
-        delete (nextBreakpoints as Partial<Breakpoints>).xxs
-        delete (nextCols as Partial<Breakpoints>).xxs
+        Reflect.deleteProperty(nextBreakpoints, 'xxs')
+        Reflect.deleteProperty(nextCols, 'xxs')
         delete nextLayouts.xxs
         nextBreakpoints.xs = 0
         breakpoints.value = nextBreakpoints

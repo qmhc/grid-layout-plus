@@ -64,7 +64,7 @@ describe('外部拖入 proposal', () => {
         dropItem: { w: 2, h: 2 },
         colNum: 12,
         rowHeight: 150,
-        gap: [10, 10],
+        gap: [10, 10] as const,
       },
       attachTo: document.body,
     })
@@ -103,7 +103,7 @@ describe('外部拖入 proposal', () => {
         },
         colNum: 12,
         rowHeight: 150,
-        gap: [10, 10],
+        gap: [10, 10] as const,
         'onUpdate:layout': layout => wrapper.setProps({ layout }),
       },
       attachTo: document.body,
@@ -145,7 +145,7 @@ describe('外部拖入 proposal', () => {
         layout: baseLayout,
         width: 1200,
         isDroppable: true,
-        compactor: { type: 'vertical', compact },
+        compactor: { type: 'vertical' as const, compact },
         dropConfig: {
           createItem: () => ({ i: 'created', x: 0, y: 0, w: 1, h: 1 }),
         },
@@ -321,7 +321,7 @@ describe('DropConfig 与 proposal 边界', () => {
     expect(wrapper.emitted('drop')).toHaveLength(1)
 
     await wrapper.setProps({
-      dropConfig: { onDragOver: () => false },
+      dropConfig: { createItem: () => false, onDragOver: () => false },
     })
     await settle()
     const rejected = createDragEvent('dragover', { clientX: 1000, clientY: 100 })
@@ -354,7 +354,7 @@ describe('DropConfig 与 proposal 边界', () => {
         layout: baseLayout,
         width: 1200,
         isDroppable: true,
-        dropConfig: { onDragOver: testCase.callback as () => any },
+        dropConfig: { createItem: () => false, onDragOver: testCase.callback as () => any },
       },
       attachTo: document.body,
     })
@@ -389,6 +389,7 @@ describe('DropConfig 与 proposal 边界', () => {
         props: {
           dropConfig: {
             dropItem: { w: Number.NaN, h: 1 },
+            createItem: (): false => false,
             onDragOver: callback,
           },
         },
@@ -433,6 +434,7 @@ describe('DropConfig 与 proposal 边界', () => {
         isDroppable: true,
         dropConfig: {
           dropItem: { w: 1, h: 1 },
+          createItem: () => false,
           onDragOver: validCallback,
         },
       },
@@ -442,6 +444,7 @@ describe('DropConfig 与 proposal 边界', () => {
     await wrapper.setProps({
       dropConfig: {
         dropItem: { w: 0, h: 1 },
+        createItem: () => false,
         onDragOver: invalidCallback,
       },
     })
@@ -474,6 +477,7 @@ describe('DropConfig 与 proposal 边界', () => {
         maxRows: 1,
         isDroppable: true,
         dropConfig: {
+          createItem: () => false,
           onDragOver: () => ({ w: 13, h: 2 }),
         },
       },
@@ -762,7 +766,10 @@ describe('DropConfig 与 proposal 边界', () => {
         layout: baseLayout,
         width: 1200,
         isDroppable: true,
-        dropConfig: testCase.dropConfig,
+        // 此用例刻意覆盖运行时缺失 createItem 的非法配置。
+        dropConfig: testCase.dropConfig as unknown as NonNullable<
+          InstanceType<typeof GridLayout>['$props']['dropConfig']
+        >,
       },
     })
     await settle()
@@ -879,7 +886,7 @@ describe('DropConfig 与 proposal 边界', () => {
         layout: baseLayout,
         width: 1200,
         isDroppable: true,
-        dropConfig: { onDragOver: callback },
+        dropConfig: { createItem: () => false, onDragOver: callback },
       },
     })
     await settle()

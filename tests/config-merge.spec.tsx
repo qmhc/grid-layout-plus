@@ -80,7 +80,7 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
       props: {
         layout: baseLayout,
         isDroppable: true,
-        dropConfig: { isDroppable: false },
+        dropConfig: { isDroppable: false, createItem: () => false },
       },
     })
 
@@ -229,10 +229,10 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
         layout: [{ i: 'geometry', x: 0, y: 0, w: 1, h: 1 }],
         width: Number.MAX_VALUE,
         containerPadding: [Number.MAX_VALUE, 0],
-        onError: error => errors.push(error as unknown as Record<string, unknown>),
-        onOperationRejected: payload =>
+        onError: (error: unknown) => errors.push(error as Record<string, unknown>),
+        onOperationRejected: (payload: unknown) =>
           rejected.push(payload as unknown as Record<string, unknown>),
-        onInteractionEnd: payload => terminals.push(payload as unknown as Record<string, unknown>),
+        onInteractionEnd: (payload: unknown) => terminals.push(payload as Record<string, unknown>),
       },
       slots: {
         item: ({ item }: { item: { i: string | number } }) => h('span', String(item.i)),
@@ -269,10 +269,10 @@ describe('Config 合并逻辑（需求 8.5, 8.6）', () => {
         layout,
         width: Number.MAX_VALUE,
         containerPadding: [10, 10],
-        onError: error => errors.push(error as unknown as Record<string, unknown>),
-        onOperationRejected: payload =>
+        onError: (error: unknown) => errors.push(error as Record<string, unknown>),
+        onOperationRejected: (payload: unknown) =>
           rejected.push(payload as unknown as Record<string, unknown>),
-        onInteractionEnd: payload => terminals.push(payload as unknown as Record<string, unknown>),
+        onInteractionEnd: (payload: unknown) => terminals.push(payload as Record<string, unknown>),
       },
     })
     await nextTick()

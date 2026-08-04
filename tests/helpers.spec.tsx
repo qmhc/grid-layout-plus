@@ -13,7 +13,6 @@ import {
   validateLayout,
 } from '../src/helpers/common'
 
-import type { GridLayoutValidationError } from '../src/core/errors'
 import type { Layout, LayoutItem } from '../src/helpers/types'
 
 describe('bottom', () => {
@@ -71,7 +70,7 @@ describe('validateLayout', () => {
     expect(() =>
       validateLayout([{ i: '1', x: 0, y: 1, w: 1, h: 1 }, { i: '2', x: 1, y: 2, w: 1 } as any]),
     ).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-layout',
         path: 'layout[1].h',
       }),
@@ -81,7 +80,7 @@ describe('validateLayout', () => {
     expect(() =>
       validateLayout([{ i: '1', x: 0, y: 0, w: 1, h: 1, zIndex: Number.NaN }]),
     ).toThrowError(
-      expect.objectContaining<GridLayoutValidationError>({
+      expect.objectContaining({
         code: 'invalid-layout',
         path: 'layout[0].zIndex',
       }),
