@@ -5,6 +5,10 @@
   "packageManager": "pnpm@9.14.2",
   "license": "MIT",
   "author": "qmhc",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qmhc/grid-layout-plus.git"
+  },
   "scripts": {
     "benchmark": "node --expose-gc --import tsx scripts/benchmark.ts",
     "build": "node --import tsx scripts/build.ts",

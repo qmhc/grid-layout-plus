@@ -24,8 +24,10 @@ pnpm changeset
 7. Release workflow 根据已发布版本推进文档部署分支：稳定版进入 `docs-release`，预发布版进入
    `docs-next`。
 
-仓库需要配置具有 npm 发布权限的 `NPM_TOKEN` secret，并允许 GitHub Actions 创建 Pull
-Request。不要手动修改版本号、`CHANGELOG.md` 或创建发布 tag。
+仓库需要在 npm 配置 Trusted Publisher，指向 `qmhc/grid-layout-plus` 的 `release.yml`，并授予
+`npm publish` 权限；Release workflow 通过 GitHub OIDC 发布 npm 包，因此需要
+`id-token: write` 权限。仓库还需要允许 GitHub Actions 创建 Pull Request。不要手动修改版本号、
+`CHANGELOG.md` 或创建发布 tag。
 
 ## 文档部署
 
