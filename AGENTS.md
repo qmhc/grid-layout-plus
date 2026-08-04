@@ -57,6 +57,12 @@ API 变更必须在同一变更中完成：
 
 `pnpm check:docs` 只验证文档结构、双语文件配对和 API 索引覆盖，不替代对 TSDoc、正文语义及双语一致性的人工核对。
 
+## 文档部署
+
+- `docs-release`：稳定版文档，`https://grid-layout-plus.netlify.app/`
+- `docs-next`：预发布文档，`https://docs-next--grid-layout-plus.netlify.app/`
+- 文档链接必须与目标版本一致。
+
 ## 实现约束
 
 - 修改前先读取当前实现；保持最小变更，不顺带重构任务范围外代码
