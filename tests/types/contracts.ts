@@ -7,6 +7,7 @@ import {
   useGridLayout,
   useResponsiveLayout,
 } from 'grid-layout-plus'
+import 'grid-layout-plus/style.css'
 
 import type { Ref } from 'vue'
 import type {

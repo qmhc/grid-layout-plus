@@ -7,6 +7,9 @@ description: Learn the controlled Layout data flow, rendering options, and headl
 
 Your application owns the layout array. `GridLayout` emits valid updates during an interaction, and the parent writes the accepted value back. You can then render items with the `item` slot or create each `GridItem` yourself.
 
+Before rendering components, import `grid-layout-plus/style.css` once as described in
+[Installation](./installation#import).
+
 ## Layout data
 
 A layout is an array of items. Each item needs `i` (id), `x`, `y`, `w`, and `h`.

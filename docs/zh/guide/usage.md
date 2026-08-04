@@ -7,6 +7,8 @@ description: 了解 Grid Layout Plus 的受控 Layout 数据流、渲染方式�
 
 布局数组由应用维护。交互过程中，`GridLayout` 会发出有效的布局变更，父组件再把确认后的值传回来。栅格项可以由 `item` 插槽渲染，也可以手动创建。
 
+渲染组件前，请按[安装说明](./installation#引入)在应用中引入一次 `grid-layout-plus/style.css`。
+
 ## 布局数据
 
 布局是一个栅格项数组。每一项都需要 `i`（id）、`x`、`y`、`w` 和 `h`。

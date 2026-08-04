@@ -11,7 +11,7 @@ description: 不依赖 Vue 或 DOM，直接使用 Grid Layout Plus 的校验、�
 import { normalizeLayout, verticalCompactor } from 'grid-layout-plus/core'
 ```
 
-这些 API 也从 `grid-layout-plus` 根入口导出。只使用算法、在服务端运行或不渲染 UI 时，推荐使用 `/core`，因为它不会注入组件 CSS。
+这些 API 也从 `grid-layout-plus` 根入口导出。只使用算法、在服务端运行或不渲染 UI 时，推荐使用 `/core`，因为它不依赖 Vue、DOM 或组件样式。
 
 所有稳定函数都把 Layout 参数视为只读输入。生成 Layout 的函数会返回独立且可修改的副本，调用方必须使用返回值。
 

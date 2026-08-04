@@ -9,6 +9,25 @@ This page covers the incompatible changes when upgrading Grid Layout Plus from v
 It uses the latest v1 release, `v1.1.1`, as its baseline. Read only the sections relevant
 to your project.
 
+## Component styles are now explicit
+
+v1 injected the component styles when its JavaScript entry loaded. v2 publishes those styles as a
+separate file and never injects them from the ESM, CommonJS, or IIFE bundles.
+
+Import the stylesheet once from the application entry so your build tool can apply the project's
+browser targets and CSS post-processing:
+
+```ts
+import 'grid-layout-plus/style.css'
+```
+
+When loading the browser bundle directly, add the stylesheet before the script:
+
+```html
+<link rel="stylesheet" href="dist/style.css" />
+<script src="dist/grid-layout-plus.js"></script>
+```
+
 ## `Layout` is now controlled
 
 This change affects projects that rely on `GridLayout` mutating the `Layout` array in

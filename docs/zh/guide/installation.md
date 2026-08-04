@@ -19,6 +19,14 @@ pnpm i grid-layout-plus
 yarn add grid-layout-plus
 ```
 
+Grid Layout Plus 将组件样式作为独立文件发布，应用可以按自己的 PostCSS、Lightning CSS 或浏览器目标继续处理。请在应用入口引入一次样式：
+
+```ts
+import 'grid-layout-plus/style.css'
+```
+
+JavaScript 产物不会在运行时注入样式。
+
 ## 引入
 
 全局注册：
@@ -58,6 +66,7 @@ export default defineComponent({
 从 [Releases](https://github.com/qmhc/grid-layout-plus/releases) 下载浏览器版本，再通过 script 标签引入：
 
 ```html
+<link rel="stylesheet" href="dist/style.css" />
 <script src="dist/grid-layout-plus.js"></script>
 ```
 

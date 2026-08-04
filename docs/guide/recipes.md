@@ -156,7 +156,7 @@ If you pass a plain `ReadonlyLayout` instead of a ref, the composable owns an in
 
 ## Validate and normalize Layout data without Vue
 
-Use the `/core` entry for server-side validation, persistence boundaries, workers, or algorithm-only code. It does not inject component CSS.
+Use the `/core` entry for server-side validation, persistence boundaries, workers, or algorithm-only code. It has no Vue, DOM, or component stylesheet dependency.
 
 ```ts
 import {

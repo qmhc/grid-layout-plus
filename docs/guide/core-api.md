@@ -11,7 +11,7 @@ The stable Core API contains pure layout and geometry functions. It does not dep
 import { normalizeLayout, verticalCompactor } from 'grid-layout-plus/core'
 ```
 
-These exports are also available from `grid-layout-plus`, but the `/core` entry is preferable for algorithm-only, server-side, and non-UI code because it does not inject component CSS.
+These exports are also available from `grid-layout-plus`, but the `/core` entry is preferable for algorithm-only, server-side, and non-UI code because it has no Vue, DOM, or component stylesheet dependency.
 
 All stable functions treat Layout arguments as readonly. Functions that produce a Layout return an independent mutable copy; always use the returned value.
 

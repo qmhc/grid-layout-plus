@@ -156,7 +156,7 @@ if (result.status === 'accepted') {
 
 ## 不使用 Vue，校验并规范化 Layout 数据
 
-服务端校验、持久化边界、Worker 或纯算法代码应使用 `/core` 入口。该入口不会注入组件 CSS。
+服务端校验、持久化边界、Worker 或纯算法代码应使用 `/core` 入口。该入口不依赖 Vue、DOM 或组件样式。
 
 ```ts
 import {

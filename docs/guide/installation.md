@@ -19,6 +19,16 @@ With `yarn`:
 yarn add grid-layout-plus
 ```
 
+Grid Layout Plus publishes its component styles separately so your build tool can process them
+with your own PostCSS, Lightning CSS, or browser targets. Import the stylesheet once from your
+application entry:
+
+```ts
+import 'grid-layout-plus/style.css'
+```
+
+The JavaScript bundles do not inject styles at runtime.
+
 ## Import
 
 Register the components globally:
@@ -58,6 +68,7 @@ export default defineComponent({
 Download the browser bundle from [Releases](https://github.com/qmhc/grid-layout-plus/releases), then include it with a script tag:
 
 ```html
+<link rel="stylesheet" href="dist/style.css" />
 <script src="dist/grid-layout-plus.js"></script>
 ```
 

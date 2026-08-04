@@ -44,6 +44,7 @@
       "import": "./es/core.mjs",
       "require": "./lib/core.cjs"
     },
+    "./style.css": "./dist/style.css",
     "./es": {
       "types": "./dist/index.d.ts",
       "import": "./es/index.mjs"
@@ -135,7 +136,6 @@
     "tsx": "^4.23.1",
     "typescript": "5.9.3",
     "vite": "^8.2.0",
-    "vite-plugin-css-injected-by-js": "^4.0.1",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.1.10",
     "vue": "catalog:"

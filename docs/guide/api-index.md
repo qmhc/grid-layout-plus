@@ -5,7 +5,7 @@ description: Find the Grid Layout Plus v2 component, composable, type, method, e
 
 # API Index
 
-Use this page to locate a public v2 symbol. Import components, composables, and component contracts from `grid-layout-plus`. Import DOM-free algorithms from `grid-layout-plus/core` when you do not need the components or their injected CSS.
+Use this page to locate a public v2 symbol. Import components, composables, and component contracts from `grid-layout-plus`. Import the component stylesheet from `grid-layout-plus/style.css`. Import DOM-free algorithms from `grid-layout-plus/core` when you do not need Vue components.
 
 ## Choose an API by task
 
@@ -90,6 +90,7 @@ All values in this section are available from both `grid-layout-plus` and `grid-
 ```ts
 import { GridLayout, useGridLayout } from 'grid-layout-plus'
 import { normalizeLayout, validateLayout } from 'grid-layout-plus/core'
+import 'grid-layout-plus/style.css'
 ```
 
-The root entry injects component CSS. The `/core` entry has no Vue, DOM, or component CSS dependency. Public APIs not listed here should not be imported from `src`, `es`, `lib`, or another internal path.
+The JavaScript entries never inject component CSS. Import `grid-layout-plus/style.css` explicitly when rendering components; the `/core` entry has no Vue, DOM, or component CSS dependency. Public APIs not listed here should not be imported from `src`, `es`, `lib`, or another internal path.

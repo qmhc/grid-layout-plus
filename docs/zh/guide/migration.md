@@ -7,6 +7,23 @@ description: 将 Grid Layout Plus v1 项目迁移到受控的 v2 API，并调整
 
 本页列出 Grid Layout Plus 从 v1 升级到 v2 时需要处理的不兼容变化，内容以最新的 v1 版本 `v1.1.1` 为基线。按项目用到的功能阅读相应章节即可。
 
+## 组件样式改为显式引入
+
+v1 会在 JavaScript 入口加载时注入组件样式。v2 把样式作为独立文件发布，ESM、CommonJS 和 IIFE 产物都不再注入样式。
+
+请在应用入口引入一次样式，让构建工具按照项目自己的浏览器目标继续处理 CSS：
+
+```ts
+import 'grid-layout-plus/style.css'
+```
+
+直接使用浏览器版本时，请在脚本前加载样式文件：
+
+```html
+<link rel="stylesheet" href="dist/style.css" />
+<script src="dist/grid-layout-plus.js"></script>
+```
+
 ## `Layout` 改为受控模型
 
 这项变化影响依赖 `GridLayout` 原地修改 `Layout` 数组的项目。

@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { execa } from 'execa'
 import { logger, rootDir } from './utils'
@@ -29,18 +30,45 @@ function assertSameExport(
   }
 }
 
-async function assertCssInjectionBoundary(): Promise<void> {
-  const [esmRoot, esmCore, cjsRoot, cjsCore] = await Promise.all(
-    ['es/index.mjs', 'es/core.mjs', 'lib/index.cjs', 'lib/core.cjs'].map(file =>
-      readFile(resolve(rootDir, file), 'utf-8'),
+async function assertCssBuildBoundary(): Promise<void> {
+  const javascriptFiles = [
+    'es/index.mjs',
+    'es/core.mjs',
+    'lib/index.cjs',
+    'lib/core.cjs',
+    'dist/grid-layout-plus.mjs',
+    'dist/grid-layout-plus.cjs',
+    'dist/grid-layout-plus.js',
+  ]
+  const [javascriptOutputs, stylesheet] = await Promise.all([
+    Promise.all(
+      javascriptFiles.map(file => readFile(resolve(rootDir, file), 'utf-8')),
     ),
-  )
-  const injectionMarker = 'vite-plugin-css-injected-by-js'
-  if (!esmRoot.includes(injectionMarker) || !cjsRoot.includes(injectionMarker)) {
-    throw new Error('root entries must contain the component CSS injection')
+    readFile(resolve(rootDir, 'dist/style.css'), 'utf-8'),
+  ])
+
+  for (const [index, output] of javascriptOutputs.entries()) {
+    if (
+      output.includes('vite-plugin-css-injected-by-js') ||
+      /document\.createElement\([`'"]style[`'"]\)/u.test(output)
+    ) {
+      throw new Error(`${javascriptFiles[index]} must not inject component CSS`)
+    }
   }
-  if (esmCore.includes(injectionMarker) || cjsCore.includes(injectionMarker)) {
-    throw new Error('core entries must remain free of component CSS injection')
+
+  if (!stylesheet.includes('.vgl-layout') || !stylesheet.includes('.vgl-item')) {
+    throw new Error('dist/style.css must contain the component styles')
+  }
+
+  const expectedStylePath = resolve(rootDir, 'dist/style.css')
+  const expectedStyleUrl = pathToFileURL(expectedStylePath).href
+  if (import.meta.resolve('grid-layout-plus/style.css') !== expectedStyleUrl) {
+    throw new Error('ESM style export must resolve to dist/style.css')
+  }
+
+  const require = createRequire(import.meta.url)
+  if (require.resolve('grid-layout-plus/style.css') !== expectedStylePath) {
+    throw new Error('CJS style export must resolve to dist/style.css')
   }
 }
 
@@ -71,7 +99,7 @@ async function verifyBuildOutputs() {
     assertSameExport(`CJS ${name}`, cjsRoot, cjsCore)
   }
 
-  await assertCssInjectionBoundary()
+  await assertCssBuildBoundary()
   await run('tsc', ['-p', 'tests/types/tsconfig.json'])
 }
 

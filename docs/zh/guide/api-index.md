@@ -5,7 +5,7 @@ description: 按任务查找 Grid Layout Plus v2 的组件、组合式函数、�
 
 # API 索引
 
-使用本页定位 v2 公开符号。组件、组合式函数和组件契约从 `grid-layout-plus` 导入；不需要组件及其注入样式时，可以从 `grid-layout-plus/core` 导入不依赖 DOM 的算法。
+使用本页定位 v2 公开符号。组件、组合式函数和组件契约从 `grid-layout-plus` 导入，组件样式从 `grid-layout-plus/style.css` 引入；不需要 Vue 组件时，可以从 `grid-layout-plus/core` 导入不依赖 DOM 的算法。
 
 ## 按任务选择 API
 
@@ -90,6 +90,7 @@ description: 按任务查找 Grid Layout Plus v2 的组件、组合式函数、�
 ```ts
 import { GridLayout, useGridLayout } from 'grid-layout-plus'
 import { normalizeLayout, validateLayout } from 'grid-layout-plus/core'
+import 'grid-layout-plus/style.css'
 ```
 
-根入口会注入组件 CSS；`/core` 入口不依赖 Vue、DOM 或组件 CSS。不要从 `src`、`es`、`lib` 或其他内部路径导入本页未列出的 API。
+JavaScript 入口都不会注入组件 CSS。渲染组件时请显式引入 `grid-layout-plus/style.css`；`/core` 入口不依赖 Vue、DOM 或组件 CSS。不要从 `src`、`es`、`lib` 或其他内部路径导入本页未列出的 API。

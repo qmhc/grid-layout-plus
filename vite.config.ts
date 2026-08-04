@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import cssInject from 'vite-plugin-css-injected-by-js'
 import autoprefixer from 'autoprefixer'
 
 interface Manifest {
@@ -37,6 +36,7 @@ export default defineConfig({
     sourcemap: true,
     lib: {
       entry: resolve(import.meta.dirname, 'src/index.ts'),
+      cssFileName: 'style',
     },
     rollupOptions: {
       input: [
@@ -66,11 +66,5 @@ export default defineConfig({
       sourceMap: false,
     },
   },
-  plugins: [
-    vue(),
-    cssInject({
-      jsAssetsFilterFunction: chunk =>
-        chunk.fileName === 'index.cjs' || chunk.fileName === 'index.mjs',
-    }),
-  ],
+  plugins: [vue()],
 })
