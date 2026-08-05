@@ -7,7 +7,7 @@ export { default as GridBackground } from './components/grid-background.vue'
 export type * from './components/types'
 export type * from './helpers/types'
 
-// Composable API
+// 组合式函数 API
 export { useContainerWidth } from './composables/useContainerWidth'
 export { useGridLayout } from './composables/useGridLayout'
 export { useResponsiveLayout } from './composables/useResponsiveLayout'
@@ -39,7 +39,7 @@ export type {
   UseContainerWidthReturn,
 } from './composables/useContainerWidth'
 
-// CoreAPI
+// 核心算法 API
 export {
   bottom,
   cloneLayout,

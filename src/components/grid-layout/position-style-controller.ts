@@ -268,6 +268,7 @@ export function createGridPositionStyleController(
     persist: boolean,
     unblock = true,
   ): void {
+    // blocked 表示策略或几何已失败；只有显式 unblock 的成功批次才能重新开放指针交互。
     if (unblock) blocked = false
     currentStyles = new Map(styles)
     options.state.positionStyleReady = ready && !blocked

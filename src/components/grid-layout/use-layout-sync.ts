@@ -238,6 +238,7 @@ export function useGridLayoutSync<B extends string>(
     const transactionController = options.getTransactionController()
     const pending = transactionController.getPending()
     if (pending && layoutsGeometryEqual(observed, pending.expectedLayout)) {
+      // 几何一致即可推进事务；父组件可附加元数据，无需元数据与待确认布局完全一致。
       if (!layoutsSemanticallyEqual(observed, pending.expectedLayout)) {
         transactionController.mergeMetadata(pending, observed)
       }

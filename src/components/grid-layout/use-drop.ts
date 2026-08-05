@@ -424,6 +424,7 @@ export function useGridDrop<B extends string>(options: UseGridDropOptions<B>): U
           : Math.max(0, Math.min(provisional.y, config.maxRows - size.h)),
     })
     const syntheticId = findSyntheticId(currentLayout)
+    // 用临时 id 让新增项完整经过布局引擎；得到最终几何后立即回滚，不把预览写入已提交状态。
     const evaluation = options.engine.evaluate({
       type: 'add',
       item: { ...candidate, i: syntheticId },
@@ -626,6 +627,7 @@ export function useGridDrop<B extends string>(options: UseGridDropOptions<B>): U
     }
 
     options.prepareCommitEvaluation()
+    // createItem 可添加 id 和约束，但不得改变已接受的 drop 几何，因此用正式 item 再求值一次。
     const verification = options.engine.evaluate({ type: 'add', item })
     const verifiedItem =
       verification.result.status === 'rejected'

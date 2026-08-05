@@ -109,6 +109,7 @@ function normalizePushPlacement(
     if (collision) failLayout(`layout[${indexes.get(statics[index].i)!}]`, statics[index])
   }
 
+  // 静态元素先成为障碍物；动态元素按压缩轴稳定排序，保证相同输入得到相同推挤结果。
   const placed = Array.from(statics)
   const movingItems = sortByAxis(
     layout.filter(item => !item.static),
@@ -203,6 +204,7 @@ function validateCompactorResult(
     extensionFailure('extension-invalid-result', result)
   }
 
+  // 扩展必须返回新布局，且不得改写传入副本；两项同时检查才能隔离不守约的 compactor。
   if (!layoutsEqual(afterCall, beforeCall) || result === callInput) {
     extensionFailure('extension-invalid-result', result)
   }
@@ -210,6 +212,7 @@ function validateCompactorResult(
     extensionFailure('extension-invalid-result', result)
   }
 
+  // compactor 只能调整非静态元素的位置，不能增删、重排或改写尺寸与 metadata。
   const indexes = indexesFor(beforeCall)
   for (let index = 0; index < output.length; index++) {
     const item = output[index]
@@ -252,6 +255,19 @@ function runCompactor(compactor: Compactor, layout: Layout, cols: number, maxRow
   return validateCompactorResult(result, callInput, beforeCall, cols, maxRows)
 }
 
+/**
+ * Validates, bounds, resolves collisions in, and optionally compacts a layout.
+ *
+ * The returned layout is recursively detached from the input. `overlap` retains collisions,
+ * `prevent` rejects them, and `push` displaces items along the compactor axis before compaction.
+ *
+ * @param layout - The readonly layout to normalize.
+ * @param options - Column, row-limit, collision, and compaction settings.
+ * @returns A mutable normalized layout detached from `layout`.
+ * @throws {@link GridLayoutValidationError} If the layout or options are invalid.
+ * @throws {@link GridLayoutExtensionError} If a custom compactor throws, mutates its input, or
+ * returns a value that violates the compactor contract.
+ */
 export function normalizeLayout(
   layout: ReadonlyLayout,
   options: Readonly<NormalizeLayoutOptions>,
@@ -293,6 +309,7 @@ export function normalizeLayout(
 
   if (collisionMode === 'overlap') return normalized
 
+  // `prevent` 在压缩前直接拒绝碰撞；`push` 则先建立无碰撞放置，再交给扩展压缩。
   for (let index = 0; index < normalized.length; index++) {
     for (let otherIndex = 0; otherIndex < index; otherIndex++) {
       if (collides(normalized[index], normalized[otherIndex])) {

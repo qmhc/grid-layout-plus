@@ -31,6 +31,7 @@ export function formatPositionNumber(value: number): string {
   const text = String(Math.abs(normalized))
   if (!/[eE]/.test(text)) return `${sign}${text}`
 
+  // 扩展策略校验需要逐字符串比对；展开指数形式可得到跨数量级一致的 canonical 样式。
   const [coefficient, exponentText] = text.toLowerCase().split('e')
   const exponent = Number(exponentText)
   const [integer, fraction = ''] = coefficient.split('.')
@@ -146,6 +147,7 @@ export function validatePositionStyleResult(
     return { ok: false, path: basePath, cause: value }
   }
 
+  // 不通过普通属性读取扩展结果，避免 getter 或 Proxy 在校验过程中产生副作用。
   let prototype: object | null
   let keys: (string | symbol)[]
   try {

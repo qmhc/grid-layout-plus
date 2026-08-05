@@ -1,5 +1,11 @@
 <script setup lang="ts">
 /* eslint-disable vue/max-attributes-per-line */
+/**
+ * GridLayout 组件适配层。
+ *
+ * 布局算法位于 core；受控事务和交互状态由拆分后的组合式函数管理。本文件负责解析 props、
+ * 连接各模块、派发公共事件，并向直属 GridItem 提供已提交的运行时配置。
+ */
 import {
   computed,
   nextTick,
@@ -311,6 +317,7 @@ const itemInstances = new Map<LayoutItem['i'], GridItemRegistration>()
 const registeredItems = new Set<GridItemRegistration>()
 const registrationEpisodes = new WeakMap<object, string | null>()
 
+// props.layout 是外部权威值，committedLayout 是已确认快照，currentLayout 还可承载交互或 drop 预览。
 const currentLayout = ref(cloneLayout(props.layout))
 let committedLayout = cloneLayout(currentLayout.value)
 
@@ -394,6 +401,7 @@ const renderedLayoutStyle = computed(() => ({
       : String(currentLayout.value.length),
 }))
 const canNormalizeInitialLayout = !responsiveMode.value || initialProvisionalBreakpoint !== null
+// 响应式宽度未解析时暂不收紧横向边界，待选出断点和列数后再做完整规范化。
 const initialEngine = canNormalizeInitialLayout
   ? createNormalizedLayoutEngine(currentLayout.value, engineConfig)
   : null
@@ -454,6 +462,7 @@ emitter.on('dragEvent', (...args: Parameters<typeof dragEventHandler>) => {
   runAsyncBoundary(() => dragEventHandler(...args))
 })
 
+// composable 之间存在双向协作，先以惰性端口打断初始化顺序，再在实例创建后填充引用。
 const transactionControllerRef: {
   current: LayoutTransactionController<Breakpoint> | null
 } = { current: null }
@@ -996,6 +1005,7 @@ function sealCounter(error: GridLayoutValidationError, emitRuntime: boolean): vo
   if (sealedError) return
   const pending = transactionController.getPending()
   const revision = interaction.getActive()?.latestRevision ?? pending?.revision ?? null
+  // 计数器耗尽后 revision 已无法保持唯一；组件必须封存并一次性清理所有异步与交互资源。
   sealedError = error
   cancelPendingFrame()
   discardPendingObservedWidth()
@@ -1166,6 +1176,7 @@ function scheduleTransitionRestore(): void {
     })
     return
   }
+  // 连续等待两帧，确保首屏定位样式已经绘制，再开放过渡，避免初始布局从原点飞入。
   transitionFrame = requestAnimationFrame(() => {
     if (disposing || sealedError) {
       transitionFrame = 0
@@ -1364,6 +1375,7 @@ watch(
   ],
   (value, previous) => {
     runAsyncBoundary(() => {
+      // 影响布局算法的配置统一从这里进入引擎；响应式模式则重新生成当前断点模型。
       const activeInteraction = interaction.getActive()
       const disabled =
         activeInteraction !== null &&
@@ -1479,6 +1491,7 @@ const adapterIsResizable = computed(() => appliedEngineConfig.value.isResizable)
 const adapterRestoreOnDrag = computed(() => appliedEngineConfig.value.restoreOnDrag)
 const adapterCollisionMode = computed(() => appliedEngineConfig.value.collisionMode)
 
+// GridItem 只能看到已提交配置，不能直接消费可能仍在等待父组件确认的 props 候选。
 provide(
   LAYOUT_KEY,
   reactive({

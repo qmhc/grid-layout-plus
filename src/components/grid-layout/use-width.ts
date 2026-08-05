@@ -153,12 +153,14 @@ export function useGridWidth<B extends string>(
   }
 
   function queueObserved(value: number | null): void {
+    // 交互期间仍记录 ResizeObserver 的最新值，终态清理后只应用最后一次测量。
     pendingObservedWidth = value
     hasPendingObservedWidth = true
     schedulePendingObserved()
   }
 
   function writeWidth(value: number | null): void {
+    // watcher 会观察同一 state；guard 用来区分内部提交与调用方主动改写。
     applyingWidth = true
     guardedWidth = value
     options.state.width = value

@@ -133,6 +133,7 @@ function snapshotGeometry(value: unknown, requirePositivePitch: boolean): Geomet
 
   const cols = properties.cols
   const rowHeight = canonicalZero(properties.rowHeight)
+  // 每一步都单独检查有限性，便于把派生溢出映射到稳定且具体的字段路径。
   const paddingSpan = checkedFinite(2 * containerPadding[0], 'geometry.containerPadding[0]')
   checkedFinite(2 * containerPadding[1], 'geometry.containerPadding[1]')
   const gapSpan = checkedFinite((cols - 1) * gap[0], 'geometry.gap[0]')
@@ -143,6 +144,7 @@ function snapshotGeometry(value: unknown, requirePositivePitch: boolean): Geomet
   const pitchX = checkedFinite(cellWidth + gap[0], 'geometry.gap[0]')
   const pitchY = checkedFinite(rowHeight + gap[1], 'geometry.gap[1]')
 
+  // 像素转网格需要除以 pitch；仅做网格转像素时允许零尺寸单元格。
   if (requirePositivePitch && pitchX <= 0) invalid('geometry.width', pitchX)
   if (requirePositivePitch && pitchY <= 0) invalid('geometry.rowHeight', pitchY)
 
@@ -200,10 +202,12 @@ function snapshotClientRect(value: unknown): ReadonlyClientRect {
 }
 
 /**
- * 计算网格单元格的精确尺寸。
+ * Calculates exact grid-cell dimensions in pixels.
  *
- * cellWidth = (containerWidth - 2 * paddingX - gapX * (cols - 1)) / cols
- * cellHeight = rowHeight
+ * The available horizontal space excludes both container paddings and every inter-column gap. A
+ * negative calculated width is clamped to zero.
+ *
+ * @throws {@link GridLayoutValidationError} If the geometry input is invalid.
  */
 export function calcGridCellDimensions(
   input: Readonly<CalcGridCellDimensionsInput>,
@@ -247,7 +251,11 @@ export function calcGridCellDimensions(
 }
 
 /**
- * 将网格 item 转换为逻辑像素矩形；RTL 仅影响调用方选择 left/right。
+ * Converts a layout item into a logical pixel rectangle.
+ *
+ * `inlineStart` is measured from the left in LTR and from the right in RTL.
+ *
+ * @throws {@link GridLayoutValidationError} If the item or geometry is invalid or overflows.
  */
 export function gridToPixelRect(
   value: ReadonlyLayoutItem,
@@ -274,7 +282,9 @@ export function gridToPixelRect(
 }
 
 /**
- * 将 viewport pointer 按锚点转换为未 clamp 的有符号网格坐标。
+ * Converts a viewport pointer and pixel anchor into unclamped, signed grid coordinates.
+ *
+ * @throws {@link GridLayoutValidationError} If any input geometry is invalid or overflows.
  */
 export function pointerToGridPosition(
   value: Readonly<{
@@ -336,7 +346,9 @@ export function pointerToGridPosition(
 }
 
 /**
- * 将逻辑像素尺寸转换为未 clamp 的网格尺寸。
+ * Converts a logical pixel size into an unclamped grid size.
+ *
+ * @throws {@link GridLayoutValidationError} If the size or geometry is invalid or overflows.
  */
 export function pixelSizeToGridSize(
   value: Readonly<{

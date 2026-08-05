@@ -168,6 +168,7 @@ export function useContainerWidth(
   }
 
   function cleanup(): void {
+    // 推进 epoch 后，即使旧 ResizeObserver 回调已经排队，也无法再提交过期测量。
     observerEpoch += 1
     observer?.disconnect()
     observer = null

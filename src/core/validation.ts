@@ -22,7 +22,7 @@ export interface TransferConfigSnapshot {
   readonly group: string
 }
 
-/** Creates a descriptor-safe snapshot of cross-grid transfer options. */
+/** 对跨网格传输配置做 descriptor-safe 快照；空值表示未启用传输。 */
 export function snapshotTransferConfig(
   value: unknown,
   unwrap: (value: unknown) => unknown = input => input,
@@ -41,6 +41,7 @@ export function snapshotTransferConfig(
 }
 
 export function defineDataProperty(target: object, key: string, value: unknown): void {
+  // 统一用数据属性写入，避免 `__proto__` 等键触发普通赋值的原型语义。
   Object.defineProperty(target, key, {
     configurable: true,
     enumerable: true,
@@ -63,7 +64,7 @@ function invalid(
 
 const RESIZE_HANDLE_AXES = new Set<ResizeHandleAxis>(['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'])
 
-/** Creates a descriptor-safe, deduplicated snapshot of resize handle axes. */
+/** 对缩放手柄数组做 descriptor-safe 快照，并按首次出现顺序去重。 */
 export function snapshotResizeHandles(
   value: unknown,
   path = 'config.resizeConfig.handles',
@@ -169,6 +170,7 @@ export function readPlainDataObject(
   const allowed = allowedKeys ? new Set(allowedKeys) : null
   const properties = Object.create(null) as Record<string, unknown>
 
+  // 只读取 own data descriptor，既不会触发 getter，也不会信任 Proxy 的普通属性访问结果。
   for (const key of getOwnKeys(value, code, path)) {
     if (typeof key === 'symbol') {
       throw invalid(code, `${path}.<symbol>`, key)
@@ -242,6 +244,7 @@ export function snapshotCompactor(value: unknown, path = 'config.compactor'): Co
     throw invalid('invalid-config', `${path}.allowOverlap`, properties.allowOverlap)
   }
 
+  // 保留函数身份供配置等价判断使用，但不在快照阶段调用第三方扩展。
   const compact = properties.compact as (layout: ReadonlyLayout, cols: number) => Layout
   return {
     ...(type === undefined ? {} : { type }),
@@ -305,7 +308,7 @@ function snapshotDropItemShape(
   return Object.freeze({ w: properties.w, h: properties.h })
 }
 
-/** 对 grouped DropConfig 做 descriptor-safe shape snapshot。 */
+/** 对分组 DropConfig 做 descriptor-safe 的结构快照。 */
 export function snapshotDropConfig(
   value: unknown,
   unwrap: (value: unknown) => unknown = input => input,
@@ -342,7 +345,7 @@ export function snapshotDropConfig(
   })
 }
 
-/** 对 onDragOver 返回值做 descriptor-safe extension snapshot。 */
+/** 对 onDragOver 返回值做 descriptor-safe 扩展快照，并统一映射为扩展点错误。 */
 export function snapshotDropResult(
   value: unknown,
   unwrap: (value: unknown) => unknown = input => input,

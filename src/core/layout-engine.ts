@@ -35,6 +35,7 @@ const KNOWN_ITEM_KEYS = new Set([
   'moved',
 ])
 
+/** 引擎实际消费的配置快照；调用方对象不会直接进入持久状态。 */
 export interface InternalEffectiveConfig {
   readonly cols: number
   readonly rowHeight: number
@@ -144,6 +145,12 @@ interface InternalLayoutEngineInitializationOptions extends LayoutReplacementOpt
   readonly allowInitialCollisions?: boolean
 }
 
+/**
+ * 一次评估的私有提交记录。
+ *
+ * `evaluate` 只计算候选结果，只有 `confirm` 才会推进已提交布局和版本；记录放在 WeakMap
+ * 中，可避免调用方伪造评估对象参与提交。
+ */
 interface EvaluationRecord {
   readonly evaluation: LayoutEngineEvaluation
   readonly nextLayout: Layout
@@ -157,6 +164,7 @@ interface EvaluationRecord {
   finalResult: LayoutOperationResult | null
 }
 
+/** 连续拖拽或缩放会话的工作副本；`baseLayout` 在整个会话期间保持不变。 */
 interface SessionRecord {
   readonly session: InternalInteractionSession
   readonly type: 'drag' | 'resize'
@@ -358,6 +366,7 @@ function effectiveItemValue(item: ReadonlyLayoutItem, key: string): unknown {
   return record[key]
 }
 
+// 几何相等会折叠可选字段的默认值，避免 `undefined` 与显式默认值触发伪变化。
 function itemGeometryEqual(first: ReadonlyLayoutItem, second: ReadonlyLayoutItem): boolean {
   for (const key of [
     'i',
@@ -410,6 +419,7 @@ export function layoutsGeometryEqual(first: ReadonlyLayout, second: ReadonlyLayo
   )
 }
 
+/** 几何字段与自定义 metadata 均一致时，两个布局才具有相同的公共语义。 */
 export function layoutsSemanticallyEqual(first: ReadonlyLayout, second: ReadonlyLayout): boolean {
   return (
     layoutsGeometryEqual(first, second) &&
@@ -479,6 +489,7 @@ function snapshotLayout(
   const layout = cloneLayout(input)
   const config = snapshotEffectiveConfig(configInput)
 
+  // 响应式切换可能先接收旧列数下的布局，因此可延后横向边界检查；其余契约仍立即校验。
   for (let index = 0; index < layout.length; index++) {
     const item = layout[index]
     const minW = item.minW ?? 1
@@ -628,6 +639,7 @@ function normalizeCandidate(
     throw error
   }
 
+  // 合法但越界的候选会收敛到最近边界；只有无法满足的约束才转成稳定拒绝原因。
   item.w = Math.min(Math.max(item.w, minW), maxW, config.cols)
   item.h = Math.min(Math.max(item.h, minH), maxH, config.maxRows)
   item.x = Math.min(Math.max(canonicalZero(item.x), 0), config.cols - item.w)
@@ -684,6 +696,7 @@ function propagateActive(
   const queue: LayoutItem[] = [active]
   const queued = new Set<LayoutItem['i']>([active.i])
 
+  // 被推动的元素可能继续推动后续元素，队列负责把一次碰撞扩散到整条依赖链。
   while (queue.length) {
     const moving = queue.shift()!
     queued.delete(moving.i)
@@ -734,6 +747,7 @@ function hasStaticCollision(layout: ReadonlyLayout): boolean {
 
 function normalizeFullLayout(layout: ReadonlyLayout, config: InternalEffectiveConfig): Layout {
   let validated: Layout
+  // 扩展点异常和布局异常在此收口，向上层暴露有限且稳定的操作拒绝原因。
   try {
     validated = cloneLayout(layout)
     validated.forEach((item, index) => {
@@ -839,6 +853,7 @@ function applyLayer(
     (direction === 'front' && max === Number.MAX_SAFE_INTEGER) ||
     (direction === 'back' && min === Number.MIN_SAFE_INTEGER)
   ) {
+    // zIndex 到达安全整数边界时先按当前视觉顺序重新编号，再执行本次置顶或置底。
     const ordered = layout
       .map((item, index) => ({ item, index }))
       .sort(
@@ -916,6 +931,7 @@ function evaluateCommandLayout(
   let preservesBaseGeometry = false
   let nextConfig = currentConfig
 
+  // 这是命令执行的异常边界：预期失败均物化为 rejected 结果，不让状态机泄漏半成品。
   try {
     let nextLayout: Layout
     if (command.type === 'config') {
@@ -1139,6 +1155,7 @@ export function mergeLayoutMetadata(
   const metadata = cloneLayout(metadataInput)
   const metadataById = new Map(metadata.map(item => [item.i, item]))
 
+  // 几何始终来自已提交布局，仅按 id 替换调用方自定义字段，防止外部回写覆盖内部位置。
   for (const item of base) {
     const source = metadataById.get(item.i)
     if (!source) continue
@@ -1183,6 +1200,7 @@ function createLayoutEngineInternal(
   let version = 1
   let sessionSequence = 0
   let activeSession: SessionRecord | null = null
+  // 布局与配置只在本闭包内提交；对外对象均为快照或受 WeakMap 认证的句柄。
   const evaluations = new WeakMap<LayoutEngineEvaluation, EvaluationRecord>()
   const sessions = new WeakMap<InternalInteractionSession, SessionRecord>()
 
@@ -1228,6 +1246,7 @@ function createLayoutEngineInternal(
     let previousLayerIntent = record.previousLayerIntent
     let previousEvaluation = record.previousWorkingEvaluation
     let previousRecord = previousEvaluation ? evaluations.get(previousEvaluation) : undefined
+    // 连续候选可能乱序回滚，沿历史链跳过已失效节点才能恢复到最近仍有效的工作态。
     while (previousRecord?.state === 'rolled-back' && previousRecord.previousWorking) {
       previousWorking = previousRecord.previousWorking
       previousLayerIntent = previousRecord.previousLayerIntent
@@ -1243,6 +1262,7 @@ function createLayoutEngineInternal(
   return {
     evaluate(command) {
       const baseVersion = version
+      // 连续交互期间仅允许配置评估；其他离散命令会破坏会话基线，必须明确拒绝。
       if (activeSession && command.type !== 'config') {
         const operation = operationFor(command)
         const id = idFor(command)
@@ -1378,6 +1398,7 @@ function createLayoutEngineInternal(
         record.session.baseConfig.collisionMode === 'overlap' && !record.layerIntent
           ? mergeInteractionLayerState(record.baseLayout, record.latestWorking)
           : record.baseLayout
+      // 每帧候选都从会话基线重算；仅把已消费的层级意图合并回来，避免位置误差逐帧累积。
       const evaluatedAttempt = evaluateCommandLayout(
         algorithmBase,
         committedLayout,
@@ -1424,6 +1445,7 @@ function createLayoutEngineInternal(
       } catch {
         return rejectedResult('set', null, committedLayout, 'invalid-input')
       }
+      // 外部受控值拥有最终权威；一旦接纳就终止基于旧版本的交互会话。
       if (activeSession) closeRecord(activeSession)
       const changed =
         !layoutsSemanticallyEqual(nextLayout, committedLayout) ||
@@ -1462,6 +1484,7 @@ function createLayoutEngineInternal(
         return rejectedResult('set', null, committedLayout, 'superseded')
       }
       if (record.state !== 'pending') return record.finalResult!
+      // 乐观评估只能提交到其基准版本；版本已推进说明结果被外部更新或更早确认淘汰。
       if (evaluation.baseVersion !== version) {
         restoreInteractionWorking(record)
         record.state = 'rolled-back'

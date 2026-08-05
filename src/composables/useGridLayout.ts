@@ -538,6 +538,7 @@ function cloneTerminal(payload: InteractionTerminalPayload): InteractionTerminal
 }
 
 function callAll(callbacks: ReadonlyArray<() => void>): void {
+  // 一个监听器失败不能阻止其余终态通知；全部尝试后再抛出最先发生的异常。
   let firstError: unknown
   let hasError = false
   for (const callback of callbacks) {
@@ -579,6 +580,7 @@ function spacingDependency(value: unknown, index: 0 | 1): unknown {
  * @returns Readonly layout state and commands for one-off or continuous operations.
  */
 export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutReturn {
+  // 是否受控只在创建时判定，避免运行期间因输入形态变化而切换状态所有权。
   const externalLayout = isRef(options.layout) ? options.layout : null
   const instanceId = nextInstanceId()
   const allocateRevision = createCounter('revision')
@@ -661,6 +663,7 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
   function writeExternalRef(layout: ReadonlyLayout): void {
     if (!externalLayout) return
     const snapshot = cloneLayout(layout)
+    // 记录写入对象身份，让同步 watcher 忽略 composable 自己产生的回写。
     guardedRefValue = snapshot
     externalLayout.value = snapshot
   }
@@ -1081,6 +1084,7 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
       null,
       false,
     )
+    // 先通知最终布局变化，再通知交互终态；callAll 保证任一回调抛错都不吞掉另一条通知。
     const callbacks: Array<() => void> = []
     if (layoutChangeCallback) callbacks.push(layoutChangeCallback)
     if (options.onInteractionEnd) {
@@ -1199,6 +1203,7 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
       return
     }
 
+    // 配置也走引擎的评估/确认协议，确保约束变化与普通布局命令拥有相同回滚语义。
     const evaluation = engine.evaluate({ type: 'config', config: nextConfig })
     const interaction = activeInteraction
     if (evaluation.result.status === 'rejected') {
@@ -1323,6 +1328,7 @@ export function useGridLayout(options: UseGridLayoutOptions): UseGridLayoutRetur
         }
 
         if (layoutsGeometryEqual(nextLayout, layoutState.value)) {
+          // 仅 metadata 变化不终止交互，也不重新运行布局算法。
           if (!layoutsSemanticallyEqual(nextLayout, layoutState.value)) {
             const merged = engine.mergeExternalMetadata(nextLayout)
             syncLayout(merged, effectiveConfig)

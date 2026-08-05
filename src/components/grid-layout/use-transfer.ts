@@ -53,10 +53,7 @@ interface GridTransferEndpoint<B extends string> {
   clearPreview(): void
   suspendSource(): void
   finishSource(reason: 'transferred' | 'cancelled', event: Event | null): void
-  submit(
-    command: InternalLayoutCommand,
-    options: TransferSubmitOptions,
-  ): LayoutTransactionReceipt
+  submit(command: InternalLayoutCommand, options: TransferSubmitOptions): LayoutTransactionReceipt
   emitCommitted(result: GridTransferResult, event: Event): void
 }
 
@@ -206,6 +203,7 @@ function findTarget(
   const group = session.source.getConfig()?.group
   if (!group) return null
   const endpoints = Array.from(registry.endpoints)
+  // 后注册端点通常对应更深或更晚挂载的网格，逆序可让重叠区域优先命中上层目标。
   for (let index = endpoints.length - 1; index >= 0; index -= 1) {
     const endpoint = endpoints[index]
     if (
@@ -248,6 +246,7 @@ function commitRegistrySession(
   target.clearPreview()
   session.source.finishSource('transferred', event)
 
+  // 两端都是独立受控事务，无法原子提交；先并行确认，单边成功时再用会话快照补偿。
   let sourceState: 'pending' | 'committed' | 'rejected' = 'pending'
   let targetState: 'pending' | 'committed' | 'rejected' = 'pending'
   let sourceRevision = 0
@@ -341,6 +340,7 @@ function commitRegistrySession(
       }
     }
 
+    // 补偿也走公开事务协议；即使补偿被拒绝，协调器仍须收尾，避免永久占用端点。
     if (sourceState === 'committed') {
       requestCompensation('source', session.source, session.sourceLayout)
     }
@@ -431,10 +431,7 @@ interface UseGridTransferOptions<B extends string> {
   updateHeight(): void
   suspendSource(): void
   finishSource(reason: 'transferred' | 'cancelled', event: Event | null): void
-  submit(
-    command: InternalLayoutCommand,
-    options: TransferSubmitOptions,
-  ): LayoutTransactionReceipt
+  submit(command: InternalLayoutCommand, options: TransferSubmitOptions): LayoutTransactionReceipt
   emitCommitted(result: GridTransferResult, event: Event): void
 }
 
@@ -463,7 +460,10 @@ export function useGridTransfer<B extends string>(
     if (hadPreview) options.restorePreview()
   }
 
-  function previewIncoming(item: ReadonlyLayoutItem, event: Event): IncomingTransferPreview<B> | null {
+  function previewIncoming(
+    item: ReadonlyLayoutItem,
+    event: Event,
+  ): IncomingTransferPreview<B> | null {
     clearPreview()
     if (
       options.isUnavailable() ||
@@ -477,7 +477,8 @@ export function useGridTransfer<B extends string>(
     const pointer = eventPointer(event)
     if (!root || !pointer) return null
     const config = options.getEngineConfig()
-    if (item.w > config.cols || (config.maxRows !== Infinity && item.h > config.maxRows)) return null
+    if (item.w > config.cols || (config.maxRows !== Infinity && item.h > config.maxRows))
+      return null
 
     let candidate: ReadonlyLayoutItem
     try {
@@ -646,9 +647,7 @@ export function useGridTransfer<B extends string>(
     register,
     unregister,
     isBusy: () =>
-      registry
-        ? endpointIsBusy(registry, endpoint as GridTransferEndpoint<string>)
-        : false,
+      registry ? endpointIsBusy(registry, endpoint as GridTransferEndpoint<string>) : false,
     start,
     move,
     end,

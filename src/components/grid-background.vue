@@ -72,6 +72,7 @@ const resolvedContainerPadding = computed<[number, number]>(() => {
 const resolvedWidth = computed(() => props.width ?? layout?.width ?? 0)
 
 const geometry = computed(() => {
+  // 背景仅作装饰：几何尚未解析或输入无效时隐藏自身，不干扰主布局的错误与事务协议。
   try {
     const width = resolvedWidth.value
     if (typeof width !== 'number' || !Number.isFinite(width) || width <= 0) return null

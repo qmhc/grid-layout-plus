@@ -4,7 +4,7 @@ import type {
   GridLayoutValidationCode,
 } from '../helpers/types'
 
-/** 稳定 core 输入或配置不满足公共契约。 */
+/** Indicates that input to the stable Core API, or its configuration, violates the public contract. */
 export class GridLayoutValidationError extends TypeError {
   readonly name = 'GridLayoutValidationError'
   readonly code: GridLayoutValidationCode
@@ -26,7 +26,7 @@ export class GridLayoutValidationError extends TypeError {
   }
 }
 
-/** 稳定 core 调用扩展点时发生执行错误或返回非法结果。 */
+/** Indicates that a Core API extension point threw or returned a value outside its contract. */
 export class GridLayoutExtensionError extends Error {
   readonly name = 'GridLayoutExtensionError'
   readonly code: GridLayoutExtensionCode

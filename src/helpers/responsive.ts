@@ -109,6 +109,7 @@ export function snapshotResponsiveConfig<B extends string>(
   }
   if (!thresholds.has(0)) invalid('config.breakpoints', breakpointsValue)
 
+  // 唯一阈值和 0 起点让宽度到断点的映射保持确定且无空档。
   const sorted = [...keys].sort((first, second) => breakpoints[first] - breakpoints[second])
   return Object.freeze({
     breakpoints: freezeRecord(breakpoints) as Breakpoints<B>,
@@ -172,6 +173,7 @@ export function snapshotDormantResponsiveInputs<B extends string>(
   colsValue: unknown,
   layoutsValue: unknown,
 ): DormantResponsiveSnapshot<B> {
+  // 响应式关闭时三组输入可暂时不完整，只做各自的安全快照，待启用时再校验配对关系。
   const breakpointProperties = readPlainDataObject(breakpointsValue, {
     code: 'invalid-config',
     path: 'config.breakpoints',
@@ -240,6 +242,7 @@ function findAuthorSource<B extends string>(
   config: ResponsiveConfigSnapshot<B>,
 ): Readonly<{ key: B; layout: ReadonlyLayout }> | null {
   const targetIndex = config.sorted.indexOf(target)
+  // 优先采用最近的更宽作者布局；它通常包含更多信息，再退回最近的更窄布局。
   for (let index = targetIndex + 1; index < config.sorted.length; index++) {
     const key = config.sorted[index]
     const wider = author[key]
@@ -304,6 +307,7 @@ export function createCompleteResponsiveLayouts<B extends string>(
   initialFallbackPath = 'initialFallback',
 ): CompleteResponsiveLayouts<B> {
   const complete = createRecord<ReadonlyLayout>()
+  // 每个缺失断点都从作者输入独立生成，不能串联前一个派生结果，否则误差会逐断点累积。
   for (const key of config.keys) {
     const existing = author[key]
     if (existing) {
@@ -327,6 +331,7 @@ export function getBreakpointFromWidth<B extends string>(
   width: number,
 ): B {
   const sorted = sortBreakpoints(breakpoints)
+  // 阈值按升序扫描，最终保留不超过当前宽度的最大断点。
   let matching = sorted[0]
   for (let index = 1; index < sorted.length; index++) {
     const breakpoint = sorted[index]

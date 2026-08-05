@@ -26,6 +26,7 @@ function fingerprint128(layout: ReadonlyLayout): string {
     mix(value === undefined ? 0 : value ? 2 : 1)
   }
 
+  // 指纹只服务于短期受控确认去重：固定长度便于限制内存，不承担安全哈希用途。
   mix(0x676c7031)
   mix(layout.length)
   for (const item of layout) {
@@ -73,7 +74,7 @@ type LayoutGeometrySignature = string & {
   readonly __brand: 'LayoutGeometrySignature'
 }
 
-/** 只编码参与受控确认的规范字段，忽略 metadata 和临时 moved 字段。 */
+/** 只编码参与受控确认的规范字段，忽略 metadata 和临时 `moved` 字段。 */
 export function layoutGeometrySignature(layout: ReadonlyLayout): LayoutGeometrySignature {
   return fingerprint128(layout) as LayoutGeometrySignature
 }
@@ -115,6 +116,7 @@ export class SupersededLayoutCache {
     this.#head = (this.#head + 1) % this.limit
     this.#size -= 1
     this.#retainedCodeUnits -= evicted.length
+    // 相同几何可能多次入队，计数表保证淘汰一个槽位时不会过早删除成员关系。
     const count = this.#counts.get(evicted)!
     if (count === 1) this.#counts.delete(evicted)
     else this.#counts.set(evicted, count - 1)

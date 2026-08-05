@@ -453,6 +453,7 @@ export function useGridInteraction<B extends string>(
     }
     if (result.status === 'unchanged') return result
 
+    // 预览布局和定位样式是一组原子候选；样式失败时先回滚引擎，再结束或保留会话。
     const styleEvaluation = options.evaluatePositionStyles(
       result.layout,
       options.getPositionStrategy(),
@@ -505,6 +506,7 @@ export function useGridInteraction<B extends string>(
     nativeEvent: Event | null,
   ): void {
     if (options.isUnavailable()) return
+    // 高频原生事件只保留同一帧的最后一个候选，避免为已过时位置创建受控事务。
     options.interactionBuffer.replaceProposal({ type, id, value, nativeEvent })
     if (pendingFrame) return
     if (typeof requestAnimationFrame !== 'function') {
@@ -566,6 +568,7 @@ export function useGridInteraction<B extends string>(
     const terminalState: { cancelReason: InteractionCancelReason | null } = {
       cancelReason: null,
     }
+    // GridItem 终止回调可能触发用户监听器；异常时也必须静默清理内部会话，不能遗留 active 状态。
     let listenersCompleted = false
     try {
       evaluateCandidate(type, id, candidate, nativeEvent, true, terminalState)

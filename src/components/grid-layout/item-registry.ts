@@ -37,6 +37,7 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
   const { itemInstances, registeredItems, registrationEpisodes } = options
 
   function emitRegistrationError(item: GridItemRegistration, reason: string): void {
+    // 同一注册异常只上报一次；恢复正常后 registrationEpisodes 会被重置。
     if (registrationEpisodes.get(item) === reason) return
     registrationEpisodes.set(item, reason)
     const id = item.i
@@ -59,6 +60,7 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
     if (options.isUnavailable()) return
     const root = options.getRoot()
     if (!root) return
+    // 每轮从 registeredItems 重建 id 映射，避免 id 变化或重复项留下过期 owner。
     const previousOwners = new Map(itemInstances)
     itemInstances.clear()
     for (const item of registeredItems) {

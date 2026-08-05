@@ -133,6 +133,7 @@ function cloneMetadataValue(value: unknown, path: string, ancestors: Set<object>
   ancestors.add(value)
 
   try {
+    // metadata 也按 descriptor 读取，避免克隆过程触发 getter，并拒绝无法稳定序列化的循环引用。
     if (Array.isArray(value)) {
       const keys = getOwnKeys(value, 'invalid-layout', path)
       const lengthDescriptor = getOwnDescriptor(value, 'length', 'invalid-layout', path)
@@ -262,6 +263,7 @@ function snapshotLayout(
     if (!allowedKeys.has(key)) failLayout(propertyPath(contextName, key), key)
   }
 
+  // `layout` 用于内部计算，`sources` 用于碰撞查询返回原始对象身份。
   const layout: Layout = Array(length)
   const sources: ReadonlyLayoutItem[] = Array(length)
   const ids = new Set<string | number>()
@@ -323,7 +325,11 @@ function sortByColRowUnchecked<T extends ReadonlyLayoutItem>(
   )
 }
 
-/** 返回 Layout 的最大底边坐标。 */
+/**
+ * Returns the largest bottom edge in grid rows.
+ *
+ * @throws {@link GridLayoutValidationError} If `layout` violates the layout contract.
+ */
 export function bottom(layout: ReadonlyLayout): number {
   const snapshot = snapshotLayout(layout).layout
   let max = 0
@@ -334,7 +340,12 @@ export function bottom(layout: ReadonlyLayout): number {
   return max
 }
 
-/** 返回与输入递归隔离的可变 Layout。 */
+/**
+ * Returns a mutable layout recursively detached from the input, including custom metadata.
+ *
+ * @throws {@link GridLayoutValidationError} If `layout` contains invalid fields, accessors,
+ * unsupported metadata, duplicate ids, or cycles.
+ */
 export function cloneLayout(layout: ReadonlyLayout): Layout {
   return snapshotLayout(layout).layout
 }
@@ -343,7 +354,13 @@ export function cloneLayoutItem(layoutItem: ReadonlyLayoutItem): LayoutItem {
   return cloneLayoutItemAt(layoutItem, 'layoutItem')
 }
 
-/** 使用半开矩形判定两个 LayoutItem 是否碰撞。 */
+/**
+ * Tests two layout items for overlap using half-open rectangle edges.
+ *
+ * Items with the same id never collide. Touching edges do not count as a collision.
+ *
+ * @throws {@link GridLayoutValidationError} If either item violates the layout item contract.
+ */
 export function collides(first: ReadonlyLayoutItem, second: ReadonlyLayoutItem): boolean {
   const firstSnapshot = cloneLayoutItemAt(first, 'layoutItem.first')
   const secondSnapshot = cloneLayoutItemAt(second, 'layoutItem.second')
@@ -426,7 +443,14 @@ function validateMinPositions(
   return result
 }
 
-/** 使用障碍底边候选执行确定性垂直压缩。 */
+/**
+ * Returns a deterministically compacted, detached layout.
+ *
+ * When `verticalCompact` is `false`, items retain their row unless `minPositions` permits upward
+ * movement. `minPositions` cannot be combined with vertical compaction.
+ *
+ * @throws {@link GridLayoutValidationError} If the layout or options violate their contracts.
+ */
 export function compact(
   layout: ReadonlyLayout,
   verticalCompact = true,
@@ -469,6 +493,13 @@ export function compact(
   return cloned
 }
 
+/**
+ * Returns a detached layout whose horizontal extents fit within `bounds.cols`.
+ *
+ * Static-item collisions are pushed downward unless `allowOverlap` is `true`.
+ *
+ * @throws {@link GridLayoutValidationError} If the layout, column count, or option is invalid.
+ */
 export function correctBounds(
   layout: ReadonlyLayout,
   bounds: Readonly<{ cols: number }>,
@@ -546,6 +577,11 @@ export function getLayoutItem(
   }
 }
 
+/**
+ * Returns the first input item that collides with `layoutItem`, preserving input identity.
+ *
+ * @throws {@link GridLayoutValidationError} If the layout or candidate is invalid.
+ */
 export function getFirstCollision(
   layout: ReadonlyLayout,
   layoutItem: ReadonlyLayoutItem,
@@ -559,6 +595,11 @@ export function getFirstCollision(
   }
 }
 
+/**
+ * Returns every input item that collides with `layoutItem`, preserving layout order and identity.
+ *
+ * @throws {@link GridLayoutValidationError} If the layout or candidate is invalid.
+ */
 export function getAllCollisions(
   layout: ReadonlyLayout,
   layoutItem: ReadonlyLayoutItem,
@@ -581,7 +622,11 @@ export function getStatics(layout: ReadonlyLayout): Array<ReadonlyLayoutItem> {
   return layout.filter(l => l.static)
 }
 
-/** @deprecated 请迁移到 useGridLayout 或 normalizeLayout。 */
+/**
+ * Returns a detached layout after applying a legacy item-movement operation.
+ *
+ * @deprecated Use {@link useGridLayout} or {@link normalizeLayout} instead.
+ */
 export function moveElement(
   layout: ReadonlyLayout,
   layoutItem: ReadonlyLayoutItem,
@@ -642,6 +687,7 @@ export function moveElement(
       : sortByRowColUnchecked(snapshot, indexes)
   const queue: LayoutItem[] = [target]
 
+  // 每次移动都可能推动另一个动态元素，队列把位移传播到整条碰撞链。
   while (queue.length) {
     const moving = queue.shift()!
     let collision = sorted.find(item => collidesUnchecked(item, moving))
@@ -823,18 +869,13 @@ export function moveElementAwayFromCollisionMutable(
   )
 }
 
-/**
- * Helper to convert a number to a percentage string.
- *
- * @param   num Any number
- * @return      That number as a percentage.
- */
+/** @internal 把比例值转换成百分数字符串。 */
 export function perc(num: number): string {
   return num * 100 + '%'
 }
 
 export function setTransform(top: number, left: number, width: number, height: number) {
-  // Replace unitless items with px
+  // 旧组件适配层需要同时输出各浏览器前缀，稳定定位策略只使用标准属性。
   const translate = 'translate3d(' + left + 'px,' + top + 'px, 0)'
   return {
     transform: translate,
@@ -847,17 +888,8 @@ export function setTransform(top: number, left: number, width: number, height: n
     position: 'absolute',
   }
 }
-/**
- * Just like the setTransform method, but instead it will return a negative value of right.
- *
- * @param top
- * @param right
- * @param width
- * @param height
- * @returns {{transform: string, WebkitTransform: string, MozTransform: string, msTransform: string, OTransform: string, width: string, height: string, position: string}}
- */
+/** @internal RTL 版本的旧 transform 样式生成器，逻辑 right 需转换为负向位移。 */
 export function setTransformRtl(top: number, right: number, width: number, height: number) {
-  // Replace unitless items with px
   const translate = 'translate3d(' + right * -1 + 'px,' + top + 'px, 0)'
   return {
     transform: translate,
@@ -880,15 +912,7 @@ export function setTopLeft(top: number, left: number, width: number, height: num
     position: 'absolute',
   }
 }
-/**
- * Just like the setTopLeft method, but instead, it will return a right property instead of left.
- *
- * @param top
- * @param right
- * @param width
- * @param height
- * @returns position style
- */
+/** @internal RTL 版本的旧绝对定位样式生成器。 */
 export function setTopRight(top: number, right: number, width: number, height: number) {
   return {
     top: top + 'px',
@@ -900,9 +924,9 @@ export function setTopRight(top: number, right: number, width: number, height: n
 }
 
 /**
- * Get layout items sorted from top left to right and down.
+ * Returns the original layout items ordered by row, column, and stable input order.
  *
- * @return Layout, sorted static items first.
+ * The returned array is detached, while its entries preserve their original identities.
  */
 export function sortLayoutItemsByRowCol(layout: ReadonlyLayout): readonly ReadonlyLayoutItem[] {
   const snapshot = snapshotLayout(layout)
@@ -921,7 +945,7 @@ export function sortLayoutItemsByRowCol(layout: ReadonlyLayout): readonly Readon
     .map(entry => entry.source)
 }
 
-/** 按列、行顺序排序，用于水平压缩和水平碰撞避让。 */
+/** @internal 按列、行顺序排序，用于水平压缩和水平碰撞避让。 */
 export function sortLayoutItemsByColRow(layout: ReadonlyLayout): readonly ReadonlyLayoutItem[] {
   const snapshot = snapshotLayout(layout)
   const indexes = indexById(snapshot.layout)
@@ -940,18 +964,17 @@ export function sortLayoutItemsByColRow(layout: ReadonlyLayout): readonly Readon
 }
 
 /**
- * Validate a layout. Throws errors.
+ * Validates a layout without retaining or mutating it.
  *
- * @param layout Array of layout items.
- * @param contextName Context name for errors.
- * @throw Validation error.
+ * @param contextName - Optional root label used in validation error paths.
+ * @throws {@link GridLayoutValidationError} If the layout violates the public contract.
  */
 export function validateLayout(layout: ReadonlyLayout, contextName?: string): void {
   const root = contextName ? contextName.charAt(0).toLowerCase() + contextName.slice(1) : 'layout'
   snapshotLayout(layout, root)
 }
 
-// Flow can't really figure this out, so we just use Object
+// 旧辅助函数只负责绑定已存在的方法，不参与稳定 core 的输入契约。
 export function autoBindHandlers(
   el: Record<string, (...args: any[]) => any>,
   fns: Array<string>,
@@ -959,11 +982,7 @@ export function autoBindHandlers(
   fns.forEach(key => (el[key] = el[key].bind(el)))
 }
 
-/**
- * Convert a JS object to CSS string. Similar to React's output of CSS.
- * @param obj
- * @returns
- */
+/** @internal 将旧样式对象串行化为内联 CSS 文本。 */
 export function createMarkup(obj: Record<string, any>) {
   const keys = Object.keys(obj)
   if (!keys.length) return ''
@@ -980,7 +999,7 @@ export function createMarkup(obj: Record<string, any>) {
   return result
 }
 
-/* The following list is defined in React's core */
+/* 沿用 React 的无单位 CSS 属性清单，供旧样式串行化逻辑使用。 */
 export const IS_UNITLESS: Record<string, boolean> = {
   animationIterationCount: true,
   boxFlex: true,
@@ -1006,7 +1025,7 @@ export const IS_UNITLESS: Record<string, boolean> = {
   zIndex: true,
   zoom: true,
 
-  // SVG-related properties
+  // SVG 属性
   fillOpacity: true,
   stopOpacity: true,
   strokeDashoffset: true,
@@ -1014,12 +1033,7 @@ export const IS_UNITLESS: Record<string, boolean> = {
   strokeWidth: true,
 }
 
-/**
- * Will add px to the end of style values which are Numbers.
- * @param name
- * @param value
- * @returns {*}
- */
+/** @internal 为需要长度单位的数值样式追加 `px`。 */
 export function addPx(name: string, value: number | string) {
   if (typeof value === 'number' && !IS_UNITLESS[name]) {
     return value + 'px'
@@ -1030,12 +1044,7 @@ export function addPx(name: string, value: number | string) {
 
 export const hyphenateRE = /([a-z\d])([A-Z])/g
 
-/**
- * Hyphenate a camelCase string.
- *
- * @param  str
- * @return
- */
+/** @internal 将 camelCase CSS 属性名转换为连字符形式。 */
 export function hyphenate(str: string) {
   return str.replace(hyphenateRE, '$1-$2').toLowerCase()
 }
@@ -1053,7 +1062,7 @@ export function findItemInArray(array: any[], property: string, value: any) {
 export function findAndRemove(array: any[], property: string, value: any) {
   array.forEach(function (result, index) {
     if (result[property] === value) {
-      // Remove from array
+      // 命中后原地删除，保留旧调用方依赖的可变行为。
       array.splice(index, 1)
     }
   })

@@ -1,4 +1,10 @@
 <script setup lang="ts">
+/**
+ * GridItem 的 DOM 与指针交互适配层。
+ *
+ * 父布局维护已规范化的网格状态；本组件只维护 Interact.js 所需的像素暂态，把 drag/resize 候选换算为
+ * 网格坐标后上送，并在父布局确认终态后恢复已提交样式。
+ */
 import {
   computed,
   inject,
@@ -126,6 +132,7 @@ let lastH = NaN
 let previousX = -1
 let previousY = -1
 
+// inner* 是最近一次父布局快照；dragging/resizing 则是尚未确认的像素暂态。
 let innerX = 0
 let innerY = 0
 let innerW = 1
@@ -219,6 +226,7 @@ const instance = reactive({
   disableInteractionBinding,
 })
 
+// interactjs 选项只在边界处做一次安全快照，后续绑定不再读取可能带 getter 的原始对象。
 try {
   dragOptionSnapshot.value = snapshotInteractOption(toRaw(props.dragOption), 'dragOption')
   resizeOptionSnapshot.value = snapshotInteractOption(toRaw(props.resizeOption), 'resizeOption')
@@ -641,6 +649,7 @@ function createStyle() {
     return
   }
 
+  // 非装饰且未处于拖拽或缩放状态的元素直接使用父布局原子提交的样式；只有交互暂态和占位项在本地重新计算。
   if (!props.decorative && !state.isDragging && !state.isResizing) {
     state.style = { ...layout.getPositionStyle(props.i) }
     return
@@ -859,6 +868,7 @@ function nextResizePixelRect(x: number, y: number): ResizePixelRect {
     }
   }
 
+  // 先在逻辑 inline/block 坐标中累计原始像素，再应用宽高比，避免 RTL 分支重复一套算法。
   const inlineDelta =
     (renderRtl.value ? -coreEvent.deltaX : coreEvent.deltaX) / transformScale.value
   const blockDelta = coreEvent.deltaY / transformScale.value
@@ -926,6 +936,7 @@ function resizePixelRectToGrid(rect: ResizePixelRect): ResizeGridRect | null {
   const limits = resizeGridLimits(snapshot)
   if (limits.maxW < effectiveMinW.value || limits.maxH < effectiveMinH.value) return null
 
+  // 保持宽高比时需在离散网格中重新选最接近的格数；普通缩放可直接四舍五入换算。
   const size = snapshot.enabled
     ? selectAspectGridSize(rect.width, rect.height, snapshot.ratio, limits.maxW, limits.maxH)
     : pixelSizeToGridSize({ width: rect.width, height: rect.height, geometry: itemGeometry() })
@@ -1133,6 +1144,7 @@ function handleDrag(event: MouseEvent, phase = event.type) {
       previousY = innerY
       dragTerminalSnapshot = null
 
+      // DOMRect 位于缩放后的视口坐标系，除以 transformScale 后才与父布局几何同域。
       const parentRect = target.offsetParent.getBoundingClientRect()
       const clientRect = target.getBoundingClientRect()
 
@@ -1339,6 +1351,7 @@ function selectAspectGridSize(
     height: targetHeight,
     geometry: itemGeometry(),
   })
+  // 搜索四舍五入结果邻域及边界点，在有限候选中兼顾指针距离、比例误差和稳定次序。
   const widths = new Set([rounded.w - 1, rounded.w, rounded.w + 1, effectiveMinW.value, maxW])
   const heights = new Set([rounded.h - 1, rounded.h, rounded.h + 1, effectiveMinH.value, maxH])
   let best:
@@ -1446,6 +1459,7 @@ function tryMakeDraggable() {
     if (dragAllowSelector.value) opts.allowFrom = dragAllowSelector.value
     interactObj.value.draggable(opts)
 
+    // Interactable 会反复更新选项，监听器只绑定一次，避免 watcher 触发后重复派发事件。
     if (!dragEventSet) {
       dragEventSet = true
       interactObj.value.on('dragstart dragmove dragend', event => {
@@ -1552,6 +1566,7 @@ function tryMakeResizable() {
 
     interactObj.value.resizable(opts)
     boundResizeHandlesSignature = renderedResizeHandles.value.join('|')
+    // 与拖拽相同，更新 handles 和限制时复用唯一监听器。
     if (!resizeEventSet) {
       resizeEventSet = true
       interactObj.value.on('resizestart resizemove resizeend', event => {

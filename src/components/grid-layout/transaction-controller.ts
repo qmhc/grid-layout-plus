@@ -188,6 +188,7 @@ export function createLayoutTransactionController<B extends string>(
 
     options.setEngineConfig(pending.evaluation.nextConfig)
     let committedLayout = cloneLayout(result.layout)
+    // 父组件可在确认几何的同时补充 metadata；确认后把它合并回引擎，但不接受位置覆写。
     if (
       pending.metadataDirty ||
       !layoutsSemanticallyEqual(pending.expectedLayout, pending.evaluation.result.layout) ||
@@ -315,6 +316,7 @@ export function createLayoutTransactionController<B extends string>(
   function startDeadline(pending: PendingLayoutTransaction<B>): void {
     if (pending.deadlineStarted || options.isDisposing() || options.isSealed()) return
     pending.deadlineStarted = true
+    // epoch 让已排队的 nextTick 在事务被确认、替换或销毁后自动失效。
     const epoch = ++deadlineEpoch
     nextTick(() => {
       options.runAsyncBoundary(() => {
@@ -389,6 +391,7 @@ export function createLayoutTransactionController<B extends string>(
 
     let completed = false
     try {
+      // 先发出受控更新，再由 props watcher 确认；监听器抛错时必须回滚尚未公开提交的 evaluation。
       if (responsive) {
         options.emitUpdateResponsiveLayouts(responsive.expectedLayouts, revision, source)
       }

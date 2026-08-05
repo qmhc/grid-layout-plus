@@ -309,6 +309,7 @@ export function useResponsiveLayout<B extends string = DefaultBreakpoint>(
     const publicLayout = cloneLayout(layout)
     options.layouts.value = publicLayouts
     options.layout.value = publicLayout
+    // 两个 ref 必须作为同一受控提交写入；身份守卫用于吞掉本次成对回写触发的 watcher。
     writtenLayoutsIdentity = rawIdentity(options.layouts.value)
     writtenLayoutIdentity = rawIdentity(options.layout.value)
     writtenInputs = inputs.map(rawIdentity)
@@ -430,6 +431,7 @@ export function useResponsiveLayout<B extends string = DefaultBreakpoint>(
         Object.is(rawIdentity(layoutsInput), writtenLayoutsIdentity) &&
         sameIdentities(inputs, writtenInputs)
       ) {
+        // 仅忽略完全匹配最近内部写入的一轮，后续相同对象的主动修改仍需重新校验。
         guardedWrite = false
         return
       }
@@ -480,6 +482,7 @@ export function useResponsiveLayout<B extends string = DefaultBreakpoint>(
           committedComplete &&
           currentBreakpoint.value === activeBreakpoint
         ) {
+          // 宽度变化但仍落在同一断点时，布局模型不变，只更新宽度状态和输入身份。
           committedEvaluation = evaluation
           committedInputIdentities = inputs.map(rawIdentity)
           state.value = widthState(evaluation.width)
@@ -522,6 +525,7 @@ export function useResponsiveLayout<B extends string = DefaultBreakpoint>(
         completeLayouts.value = null
       }
       restoreModels(inputs)
+      // 任一侧无效或只更新一半时恢复最后一次完整模型，避免 layout/layouts 长期分叉。
       if (
         typeof failure === 'object' &&
         failure !== null &&

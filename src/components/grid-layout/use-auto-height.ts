@@ -27,10 +27,7 @@ import type { LayoutUpdateMeta } from '../types'
 import type { PositionStyleBatchResult } from './position-style-controller'
 import type { LayoutTransactionController } from './transaction-controller'
 
-type AutoHeightIssue =
-  | 'missing-content-root'
-  | 'multiple-content-roots'
-  | 'preserve-aspect-ratio'
+type AutoHeightIssue = 'missing-content-root' | 'multiple-content-roots' | 'preserve-aspect-ratio'
 
 interface AutoHeightRecord {
   item: GridItemRegistration
@@ -209,6 +206,7 @@ export function useGridAutoHeight<B extends string>(
       return
     }
     const measuredHeight = contentHeight + wrapperChromeHeight(record.item.wrapper)
+    // 一个 n 行元素的像素高度为 n * rowHeight + (n - 1) * gap，移项后向上取整。
     const rows = Math.ceil((measuredHeight + config.gap[1]) / pitch)
     if (!Number.isSafeInteger(rows) || rows <= 0) {
       reportIssue(record.item, 'height-overflow', {
@@ -239,6 +237,7 @@ export function useGridAutoHeight<B extends string>(
 
     const transactionController = options.getTransactionController()
     if (transactionController.getPending()) {
+      // 保留最新测量，等当前受控事务结束后再合并提交，避免高度更新候选抢占确认窗口。
       retryAfterPendingTransaction()
       return
     }

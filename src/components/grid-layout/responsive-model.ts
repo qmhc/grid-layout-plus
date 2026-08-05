@@ -132,6 +132,7 @@ export function hasExternalResponsiveAuthor<B extends string>(options: {
     committedCompleteLayouts,
     engineConfig,
   } = options
+  // 身份未变时可跳过深快照；身份变化仍需比较语义，组件自己的回写不应被误判为作者更新。
   if (Object.is(observedInput, committedInputIdentity)) return false
   if (!committedConfig || !committedCompleteLayouts) return true
   try {
@@ -163,6 +164,7 @@ export function snapshotCommittedResponsiveAuthor<B extends string>(options: {
   ) {
     return snapshotResponsiveLayouts(observedInput, config, engineConfig)
   }
+  // 配置键变化时只继承仍能在新列数下通过契约的旧作者布局，失效断点稍后重新派生。
   const candidate = Object.create(null) as Partial<Record<B, ReadonlyLayout>>
   for (const key of config.keys) {
     const layout = committedAuthorLayouts[key]

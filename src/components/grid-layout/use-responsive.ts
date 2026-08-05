@@ -316,6 +316,7 @@ export function useGridResponsive<B extends string>(
         cause: null,
       })
     }
+    // 配置求值依赖 currentColNum；这里只临时切换到候选断点，失败或完成后必须恢复视图状态。
     const previousCols = options.currentColNum.value
     try {
       const config =
@@ -423,6 +424,7 @@ export function useGridResponsive<B extends string>(
       readyAfter,
     }
     const committedLayout = options.getCommittedLayout()
+    // 断点未变且布局未变时只刷新响应式模型，无需让父组件重复确认当前 layout。
     if (
       options.state.lastBreakpoint === breakpoint &&
       layoutsSemanticallyEqual(result.layout, committedLayout)
@@ -445,6 +447,7 @@ export function useGridResponsive<B extends string>(
       if (readyAfter) options.emitReadyOnce()
       return
     }
+    // 初次挂载或父组件已提前提供完整双模型时可直接确认，避免制造一次无意义的回写往返。
     if (
       responsiveModelsMatch({
         layoutInput: options.getLayout(),
@@ -486,6 +489,7 @@ export function useGridResponsive<B extends string>(
       return
     }
 
+    // 其余情况必须同时等待 layout 与 responsiveLayouts 两个受控模型回写。
     options
       .getTransactionController()
       .begin(

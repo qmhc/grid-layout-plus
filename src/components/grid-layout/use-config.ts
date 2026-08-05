@@ -236,6 +236,7 @@ export function useGridConfig<B extends string>(
         evaluation.nextConfig,
       )
       if (!styleEvaluation.ok) {
+        // 配置和样式必须原子切换；样式不可用时不能确认已经求值的布局配置。
         options.engine.rollback(evaluation)
         options.currentColNum.value = previousColNum
         return rejectPositionStyles(styleEvaluation, result, 'config')
@@ -344,6 +345,7 @@ export function useGridConfig<B extends string>(
       return
     }
 
+    // 新策略先覆盖整份已提交布局，成功后才替换旧策略，避免同屏混用两套定位规则。
     const committedLayout = options.getCommittedLayout()
     const evaluation = options.evaluatePositionStyles(
       committedLayout,

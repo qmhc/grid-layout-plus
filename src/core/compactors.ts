@@ -73,10 +73,7 @@ function sortByColRow(layout: Layout): Layout {
   )
 }
 
-/**
- * 垂直压缩器 — 委托给现有 compact() 逻辑。
- * 等价于 compact(layout, true)。
- */
+/** The default compactor, which moves non-static items upward without changing their columns. */
 export const verticalCompactor: Compactor = {
   type: 'vertical',
   compact(layout: ReadonlyLayout, cols: number): Layout {
@@ -86,13 +83,8 @@ export const verticalCompactor: Compactor = {
 }
 
 /**
- * 水平压缩器 — 按列优先排序后向左压缩。
- *
- * 算法：
- * 1. 按列优先排序（先 x 后 y）
- * 2. 静态元素加入碰撞列表
- * 3. 对每个非静态元素，将 x 向左移动至无碰撞的最小位置
- * 4. 碰撞时放置在障碍物右侧，超出列边界时换到下一行
+ * Moves non-static items toward inline start, wrapping them downward when an obstacle would exceed
+ * the configured column count.
  */
 export const horizontalCompactor: Compactor = {
   type: 'horizontal',
@@ -125,7 +117,7 @@ function compactHorizontally(layout: Layout, cols: number): Layout {
   return layout
 }
 
-/** 无压缩器 — 返回 detached 布局，不移动任何元素。 */
+/** Returns a detached layout without moving any items. */
 export const noCompactor: Compactor = {
   type: 'vertical',
   compact(layout: ReadonlyLayout, cols: number): Layout {
@@ -134,10 +126,9 @@ export const noCompactor: Compactor = {
 }
 
 /**
- * 创建带 allowOverlap 选项的压缩器包装。
- * allowOverlap 仅供旧配置推导 collisionMode，显式模式仍调用原压缩器。
+ * Returns a compatibility wrapper marked with the legacy `allowOverlap` flag.
  *
- * @deprecated 请改用 GridLayout 的 collisionMode="overlap"。
+ * @deprecated Use `GridLayout` with `collisionMode="overlap"` instead.
  */
 export function withOverlap(input: Compactor): Compactor {
   const compactor = snapshotCompactor(input)
@@ -292,10 +283,8 @@ function firstCollisionAmong(
 // ---------------------------------------------------------------------------
 
 /**
- * 快速垂直压缩器 — 使用区间树按 x 轴索引已放置元素，
- * 查询开销取决于区间索引返回的候选数量，不承诺无条件复杂度上界。
- *
- * 输出与 verticalCompactor 完全一致。
+ * Produces the same layout as {@link verticalCompactor} while using an interval index to reduce
+ * collision candidates. Runtime depends on the number of candidates returned by the index.
  */
 export const fastVerticalCompactor: Compactor = {
   type: 'vertical',
@@ -358,10 +347,8 @@ function fastCompactItemVertically(
 // ---------------------------------------------------------------------------
 
 /**
- * 快速水平压缩器 — 使用区间树按 y 轴索引已放置元素，
- * 查询开销取决于区间索引返回的候选数量，不承诺无条件复杂度上界。
- *
- * 输出与 horizontalCompactor 完全一致。
+ * Produces the same layout as {@link horizontalCompactor} while using an interval index to reduce
+ * collision candidates. Runtime depends on the number of candidates returned by the index.
  */
 export const fastHorizontalCompactor: Compactor = {
   type: 'horizontal',

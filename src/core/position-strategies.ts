@@ -7,10 +7,7 @@ import {
 
 import type { PositionStrategy, PositionStyle } from '../helpers/types'
 
-/**
- * CSS transform translate3d 定位策略（默认）。
- * 等价于现有 setTransform / setTransformRtl。
- */
+/** The default positioning strategy, which renders items with CSS `translate3d` transforms. */
 export const transformStrategy: PositionStrategy = {
   usesCssTransforms: true,
   getStyle(top: number, left: number, width: number, height: number): PositionStyle {
@@ -21,10 +18,7 @@ export const transformStrategy: PositionStrategy = {
   },
 }
 
-/**
- * CSS top/left/right 绝对定位策略。
- * 等价于现有 setTopLeft / setTopRight。
- */
+/** Positions items with absolute `top` and the direction-appropriate `left` or `right` declaration. */
 export const absoluteStrategy: PositionStrategy = {
   usesCssTransforms: false,
   getStyle(top: number, left: number, width: number, height: number): PositionStyle {
@@ -36,8 +30,12 @@ export const absoluteStrategy: PositionStrategy = {
 }
 
 /**
- * 为位于 CSS transform 缩放容器中的网格创建定位策略。
- * 样式保持在布局坐标系中，缩放比例仅用于修正拖拽和缩放的指针坐标。
+ * Returns a transform strategy for a grid rendered inside a scaled CSS transform context.
+ *
+ * Generated styles stay in grid coordinates; `scale` only corrects pointer deltas.
+ *
+ * @param scale - The positive finite CSS scale applied by the containing transform context.
+ * @throws {@link GridLayoutValidationError} If `scale` is not positive and finite.
  */
 export function scaledStrategy(scale: number): PositionStrategy {
   if (!Number.isFinite(scale) || scale <= 0) {
