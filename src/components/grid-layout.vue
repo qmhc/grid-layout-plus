@@ -7,12 +7,16 @@
  * 连接各模块、派发公共事件，并向直属 GridItem 提供已提交的运行时配置。
  */
 import {
+  ErrorCodes,
   computed,
+  getCurrentInstance,
+  handleError,
   nextTick,
   onBeforeMount,
   onBeforeUnmount,
   onMounted,
   provide,
+  queuePostFlushCb,
   reactive,
   ref,
   shallowRef,
@@ -25,6 +29,7 @@ import GridItem from './grid-item.vue'
 import { createEventEmitter } from '@vexip-ui/utils'
 import { useContainerWidth } from '../composables/useContainerWidth'
 import { EMITTER_KEY, LAYOUT_KEY, bottom, cloneLayout, getLayoutItem } from '../helpers/common'
+import { sameStyle } from '../helpers/style-equality'
 import { getDocumentDir } from '../helpers/dom'
 import {
   cloneResponsiveLayouts,
@@ -287,7 +292,7 @@ const effectiveConfig = computed(() => ({
 
 const state = reactive({
   width: initialWidth as number | null,
-  mergedStyle: {},
+  mergedStyle: {} as { height?: string },
   lastLayoutLength: 0,
   isDragging: false,
   suppressTransitions: true,
@@ -320,6 +325,26 @@ const registrationEpisodes = new WeakMap<object, string | null>()
 // props.layout 是外部权威值，committedLayout 是已确认快照，currentLayout 还可承载交互或 drop 预览。
 const currentLayout = ref(cloneLayout(props.layout))
 let committedLayout = cloneLayout(currentLayout.value)
+
+// 按 id 查找（注册表成员校验、GridItem 读取自身布局项）走原始数组：在深层响应式代理上线性查找，
+// 每个元素和字段都会触发一次代理拦截，一轮校验即 O(n²)。currentLayout 只会被整体替换、从不原地修改，
+// 因此每次替换只需重建一次索引。
+let currentLayoutIndexSource: ReadonlyLayout | null = null
+let currentLayoutIndex = new Map<LayoutItem['i'], ReadonlyLayoutItem>()
+
+function getCurrentLayoutIndex(): ReadonlyMap<LayoutItem['i'], ReadonlyLayoutItem> {
+  // 读取 `.value` 使 computed 调用方仍订阅布局替换。
+  const layout = toRaw(currentLayout.value)
+  if (layout !== currentLayoutIndexSource) {
+    currentLayoutIndex = new Map()
+    // 与 getLayoutItem 一致：同一 id 取第一个元素。
+    for (const item of layout) {
+      if (!currentLayoutIndex.has(item.i)) currentLayoutIndex.set(item.i, item)
+    }
+    currentLayoutIndexSource = layout
+  }
+  return currentLayoutIndex
+}
 
 const itemZIndexRanks = computed(() => {
   const ordered = currentLayout.value
@@ -393,13 +418,17 @@ function resolveEngineConfig(
 
 let engineConfig = resolveEngineConfig()
 const appliedEngineConfig = shallowRef(engineConfig)
-const renderedLayoutStyle = computed(() => ({
-  ...state.mergedStyle,
-  '--vgl-layout-interaction-z-index':
-    appliedEngineConfig.value.collisionMode === 'overlap'
-      ? '0'
-      : String(currentLayout.value.length),
-}))
+// 内容相同时沿用上一次的样式对象，根节点样式不因布局提交而产生新的响应式变化。
+const renderedLayoutStyle = computed<Record<string, string | undefined>>(previous => {
+  const next = {
+    ...state.mergedStyle,
+    '--vgl-layout-interaction-z-index':
+      appliedEngineConfig.value.collisionMode === 'overlap'
+        ? '0'
+        : String(currentLayout.value.length),
+  }
+  return previous && sameStyle(previous, next) ? previous : next
+})
 const canNormalizeInitialLayout = !responsiveMode.value || initialProvisionalBreakpoint !== null
 // 响应式宽度未解析时暂不收紧横向边界，待选出断点和列数后再做完整规范化。
 const initialEngine = canNormalizeInitialLayout
@@ -700,14 +729,24 @@ const itemRegistry = createGridItemRegistry({
   registrationEpisodes,
   isUnavailable: () => disposing || sealedError !== null,
   getRoot: () => wrapper.value,
-  hasLayoutItem: id => getLayoutItem(currentLayout.value, id) !== undefined,
+  hasLayoutItem: id => getCurrentLayoutIndex().has(id),
   getActiveInteractionId: () => interaction.getActive()?.id ?? null,
   prepareActiveForTerminal,
   finishActiveForExternalUpdate: () => {
     finishInteraction('cancelled', 'external-update', { nativeEvent: null })
   },
+  // 在当前 flush 的 post 阶段末尾执行（排在本轮所有 updated/mounted 钩子之后），
+  // 校验结果触发的 watcher 仍在同一次 flush 内完成，与原先 onUpdated 内同步校验的时序一致。
+  // Vue 执行 post 回调时没有 try/finally：回调抛出会让调度器停在 post 阶段，页面上所有应用的
+  // updated/mounted 钩子和 flush: 'post' watcher 都不再执行。因此异常在此捕获并交给应用的 errorHandler。
   scheduleValidation: callback => {
-    nextTick(() => runAsyncBoundary(callback))
+    queuePostFlushCb(() => {
+      try {
+        runAsyncBoundary(callback)
+      } catch (error) {
+        reportPostFlushError(error)
+      }
+    })
   },
   nextEvaluationId,
   emitError: error => emit('error', error),
@@ -966,7 +1005,21 @@ const layoutSync = useGridLayoutSync<Breakpoint>({
   nextRevision,
 })
 layoutSyncRef.current = layoutSync
-const observeLayoutProp = layoutSync.observeLayoutProp
+// 非响应式模式下 colNum 与 layout 可能在同一 tick 变化，而 layout watcher 先于配置
+// watcher 运行；因此用随 layout 一起到达的 colNum 观察新布局，布局未被接纳时恢复原列数。
+function observeLayoutProp(): void {
+  if (responsiveMode.value || currentColNum.value === effectiveColNum.value) {
+    layoutSync.observeLayoutProp()
+    return
+  }
+  const previousColNum = currentColNum.value
+  currentColNum.value = effectiveColNum.value
+  try {
+    layoutSync.observeLayoutProp()
+  } finally {
+    if (engineConfig.cols !== currentColNum.value) currentColNum.value = previousColNum
+  }
+}
 
 function replaceEngineLayout(layout: ReadonlyLayout, config = resolveEngineConfig()): boolean {
   const hadActiveInteraction = interaction.hasActive()
@@ -1027,6 +1080,20 @@ function sealCounter(error: GridLayoutValidationError, emitRuntime: boolean): vo
   }
   if (interaction.hasActive()) {
     finishInteraction('cancelled', 'config-changed', { revision, nativeEvent: null })
+  }
+}
+
+const layoutInstance = getCurrentInstance()
+
+/** 把 post 回调中的异常交给应用 errorHandler（无 errorHandler 时仅打印），不向调度器抛出。 */
+function reportPostFlushError(error: unknown): void {
+  try {
+    handleError(error, layoutInstance, ErrorCodes.SCHEDULER, false)
+  } catch (handlerError) {
+    // errorHandler 自身抛出时，在调度器之外重新抛出，保留未捕获异常的可见性。
+    queueMicrotask(() => {
+      throw handlerError
+    })
   }
 }
 
@@ -1543,7 +1610,7 @@ const exposed = {
 defineExpose<GridLayoutExpose>(exposed)
 
 function getInjectedLayoutItem(id: LayoutItem['i']): ReadonlyLayoutItem | undefined {
-  const item = getLayoutItem(currentLayout.value, id)
+  const item = getCurrentLayoutIndex().get(id)
   return item ? cloneLayout([item])[0] : undefined
 }
 
@@ -1638,9 +1705,10 @@ function layoutUpdate() {
 }
 
 function updateHeight() {
-  state.mergedStyle = {
-    height: containerHeight(),
-  }
+  const height = containerHeight()
+  // 高度未变时保留原对象：每次提交都会调用此处，写入新对象会让根节点样式重新求值。
+  if ('height' in state.mergedStyle && state.mergedStyle.height === height) return
+  state.mergedStyle = { height }
 }
 
 function containerHeight() {

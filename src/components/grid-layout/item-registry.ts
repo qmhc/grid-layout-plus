@@ -56,31 +56,48 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
     options.finishActiveForExternalUpdate()
   }
 
+  // 每个注册表最多排队一轮延迟校验。一轮校验会遍历全部注册项，同一次 flush 中的注册与重新渲染共用它；
+  // 同步校验会消费掉尚未执行的延迟校验。
+  let validationPending = false
+
+  function requestValidation(): void {
+    if (validationPending) return
+    validationPending = true
+    options.scheduleValidation(() => {
+      if (validationPending) validate()
+    })
+  }
+
   function validate(): void {
+    validationPending = false
     if (options.isUnavailable()) return
     const root = options.getRoot()
     if (!root) return
+    // 先一次性读取全部 DOM 归属事实，再进入写入阶段。被拒绝项的写入（重置定位样式、解绑交互、
+    // 上报错误）若夹在读取之间，下一项的 offsetParent 读取会被迫重新计算样式与布局，
+    // 每个被拒绝项各触发一次。读取阶段抛错时注册表状态保持本轮开始前的样子。
+    // 布局成员判断与原先相同先于 DOM 检查，缺失 id 的项不读取 DOM；写入阶段不会增删布局 id。
+    const items = Array.from(registeredItems)
+    const facts = items.map(item => {
+      if (!options.hasLayoutItem(item.i)) return 'missing-id'
+      if (item.internal) return null
+      const node = item.wrapper
+      if (!node || node.ownerDocument !== root.ownerDocument || !root.contains(node)) {
+        return 'outside-root'
+      }
+      return node.offsetParent !== root ? 'invalid-containing-block' : null
+    })
     // 每轮从 registeredItems 重建 id 映射，避免 id 变化或重复项留下过期 owner。
     const previousOwners = new Map(itemInstances)
     itemInstances.clear()
-    for (const item of registeredItems) {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index]
+      // 与原先遍历实时 Set 一致：写入阶段中途被注销的项不再处理。
+      if (!registeredItems.has(item)) continue
       const id = item.i
-      const node = item.wrapper
       const wasRegistered = item.state.registered
-      let reason: string | null = null
-
-      if (!options.hasLayoutItem(id)) {
-        reason = 'missing-id'
-      } else if (
-        !item.internal &&
-        (!node || node.ownerDocument !== root.ownerDocument || !root.contains(node))
-      ) {
-        reason = 'outside-root'
-      } else if (!item.internal && node?.offsetParent !== root) {
-        reason = 'invalid-containing-block'
-      } else if (itemInstances.has(id)) {
-        reason = 'duplicate'
-      }
+      let reason: string | null = facts[index]
+      if (reason === null && itemInstances.has(id)) reason = 'duplicate'
 
       item.state.registered = reason === null
       if (reason === null) {
@@ -106,7 +123,7 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
       return
     }
     registeredItems.add(item)
-    options.scheduleValidation(validate)
+    requestValidation()
   }
 
   function decrease(item: GridItemRegistration): void {
@@ -119,7 +136,7 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
     registeredItems.delete(item)
     if (itemInstances.get(item.i) === item) itemInstances.delete(item.i)
     registrationEpisodes.delete(item)
-    if (!options.isUnavailable()) options.scheduleValidation(validate)
+    if (!options.isUnavailable()) requestValidation()
   }
 
   function update(item: GridItemRegistration, previousId: LayoutItem['i']): void {
@@ -127,14 +144,12 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
       item.state.registered = false
       return
     }
+    // 取消旧 id 的交互保持同步；归属校验本身延迟并合并，
+    // 因此一次让所有 GridItem 重新渲染的 flush 只遍历注册表一次。
     if (!Object.is(previousId, item.i) && options.getActiveInteractionId() === previousId) {
       cancelActiveInteraction()
     }
-    if (Object.is(previousId, item.i)) {
-      validate()
-      return
-    }
-    options.scheduleValidation(validate)
+    requestValidation()
   }
 
   return {
