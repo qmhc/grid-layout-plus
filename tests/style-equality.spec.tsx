@@ -318,7 +318,7 @@ describe('GridItem 定位样式直接写入元素', () => {
   })
 
   it('拖拽步进不会启动注册表校验', async () => {
-    const { wrapper } = await mountGrid([
+    const { wrapper, model } = await mountGrid([
       { i: 'a', x: 0, y: 0, w: 2, h: 2 },
       { i: 'b', x: 4, y: 0, w: 2, h: 2 },
       { i: 'c', x: 4, y: 2, w: 2, h: 2 },
@@ -342,6 +342,12 @@ describe('GridItem 定位样式直接写入元素', () => {
     expect(offsetParentReads).toBe(0)
     listener(dragEvent('dragend', b, 850, 20))
     await flush()
+
+    // 阳性对照：调用栈过滤确实能看到注册表的读取，因此上面的零不是调用栈命名注册表模块方式造成的假象。
+    offsetParentReads = 0
+    model.value = model.value.map(item => (item.i === 'a' ? { ...item, y: 6 } : item))
+    await flush()
+    expect(offsetParentReads).toBeGreaterThan(0)
     wrapper.unmount()
   })
 
