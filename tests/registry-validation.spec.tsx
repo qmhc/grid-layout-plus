@@ -174,9 +174,10 @@ describe('300 个单元格时的注册表校验开销', () => {
       view.value = next
       await flush()
 
-      // 外部布局提交后的同步一轮，然后 300 个重新渲染的单元格共用一轮延迟校验（此前：1 + 300）。
-      expect(counters.passes).toBe(2)
-      expect(counters.membership).toBe(2 * size)
+      // 只有外部布局提交后的同步一轮。单元格通过直接写入样式得到新盒子，不会重新渲染，
+      // 也不请求延迟校验（此前：1 + 300，之后为 1 + 1 共用）。
+      expect(counters.passes).toBe(1)
+      expect(counters.membership).toBe(size)
       expect(counters.linearSearches).toBeLessThan(size)
     }
     expect(errors).toEqual([])
