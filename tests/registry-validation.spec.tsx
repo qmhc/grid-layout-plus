@@ -353,6 +353,7 @@ function fakeItem(i: LayoutItem['i'], wrapper: HTMLElement): GridItemRegistratio
     finishDragInteraction: vi.fn(),
     finishResizeInteraction: vi.fn(),
     refreshPositionStyle: vi.fn(),
+    clearPositionStyle: vi.fn(),
     disableInteractionBinding: vi.fn(),
   }
 }
@@ -485,7 +486,7 @@ describe('元素注册表调度', () => {
     expect(fixture.calls).toEqual([])
     fixture.runScheduled()
     expect(fixture.calls).toEqual(['prepare', 'error', 'finish'])
-    expect(a.refreshPositionStyle).toHaveBeenCalledTimes(1)
+    expect(a.clearPositionStyle).toHaveBeenCalledTimes(1)
   })
 
   it('持续存在的错误只上报一次，恢复后再出现才再次上报', () => {

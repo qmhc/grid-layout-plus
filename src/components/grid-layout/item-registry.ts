@@ -95,7 +95,6 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
       // 与原先遍历实时 Set 一致：写入阶段中途被注销的项不再处理。
       if (!registeredItems.has(item)) continue
       const id = item.i
-      const wasRegistered = item.state.registered
       let reason: string | null = facts[index]
       if (reason === null && itemInstances.has(id)) reason = 'duplicate'
 
@@ -108,7 +107,8 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
 
       item.disableInteractionBinding()
       item.resetInteractionState()
-      if (wasRegistered) item.refreshPositionStyle()
+      // 无论此前是否已确认都清空定位样式：待定项可能已带有乐观首帧样式。
+      item.clearPositionStyle()
       const invalidatesActive =
         previousOwners.get(id) === item && options.getActiveInteractionId() === id
       if (invalidatesActive) options.prepareActiveForTerminal()

@@ -123,6 +123,8 @@ const state = reactive({
   rtl: false,
 })
 
+// 首次放置是否仍在等待注册表结论，见 createStyle。
+let placementPending = !props.decorative && !props.internal
 let dragEventSet = false
 let resizeEventSet = false
 
@@ -225,6 +227,7 @@ const instance = reactive({
   finishDragInteraction,
   finishResizeInteraction,
   refreshPositionStyle: createStyle,
+  clearPositionStyle: () => clearPositionStyle(),
   disableInteractionBinding,
 })
 
@@ -446,6 +449,7 @@ watch(
       return
     }
     state.registered = false
+    placementPending = false
     assignStyle({})
     layout.updateItem(instance, previousId)
   },
@@ -686,11 +690,21 @@ watch(
   { flush: 'sync' },
 )
 
+// 首次放置在注册表给出结论之前处于待定状态。待定期间直接使用父布局已提交的位置样式（乐观首帧），
+// 否则元素先以无样式渲染、下一轮才得到 transform，期间任何强制样式计算都会让过渡从原点"飞入"。
+// registered 保持 false：归属映射、交互绑定与 emitContainerResized 等副作用仍只在确认后发生。
+// 注册表拒绝时调用 clearPositionStyle 结束待定并清空样式；id 变化不属于首次放置。
+function clearPositionStyle() {
+  placementPending = false
+  assignStyle({})
+}
+
 function createStyle() {
   if (!state.registered) {
-    assignStyle({})
+    assignStyle(placementPending ? { ...layout.getPositionStyle(props.i) } : {})
     return
   }
+  placementPending = false
 
   // 非装饰且未处于拖拽或缩放状态的元素直接使用父布局原子提交的样式；只有交互暂态和占位项在本地重新计算。
   if (!props.decorative && !state.isDragging && !state.isResizing) {

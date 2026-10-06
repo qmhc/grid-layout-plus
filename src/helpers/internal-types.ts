@@ -22,6 +22,8 @@ export interface GridItemRegistration {
   finishDragInteraction(item: Pick<ReadonlyLayoutItem, 'x' | 'y'> | null): void
   finishResizeInteraction(item: Pick<ReadonlyLayoutItem, 'x' | 'y' | 'w' | 'h'> | null): void
   refreshPositionStyle(): void
+  /** 注册被拒绝：结束首次放置的待定状态并清空定位样式。 */
+  clearPositionStyle(): void
   disableInteractionBinding(type?: 'drag' | 'resize'): void
 }
 
