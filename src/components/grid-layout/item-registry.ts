@@ -73,27 +73,31 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
     if (options.isUnavailable()) return
     const root = options.getRoot()
     if (!root) return
+    // 先一次性读取全部 DOM 归属事实，再进入写入阶段。被拒绝项的写入（重置定位样式、解绑交互、
+    // 上报错误）若夹在读取之间，下一项的 offsetParent 读取会被迫重新计算样式与布局，
+    // 每个被拒绝项各触发一次。读取阶段抛错时注册表状态保持本轮开始前的样子。
+    // 布局成员判断与原先相同先于 DOM 检查，缺失 id 的项不读取 DOM；写入阶段不会增删布局 id。
+    const items = Array.from(registeredItems)
+    const facts = items.map(item => {
+      if (!options.hasLayoutItem(item.i)) return 'missing-id'
+      if (item.internal) return null
+      const node = item.wrapper
+      if (!node || node.ownerDocument !== root.ownerDocument || !root.contains(node)) {
+        return 'outside-root'
+      }
+      return node.offsetParent !== root ? 'invalid-containing-block' : null
+    })
     // 每轮从 registeredItems 重建 id 映射，避免 id 变化或重复项留下过期 owner。
     const previousOwners = new Map(itemInstances)
     itemInstances.clear()
-    for (const item of registeredItems) {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index]
+      // 与原先遍历实时 Set 一致：写入阶段中途被注销的项不再处理。
+      if (!registeredItems.has(item)) continue
       const id = item.i
-      const node = item.wrapper
       const wasRegistered = item.state.registered
-      let reason: string | null = null
-
-      if (!options.hasLayoutItem(id)) {
-        reason = 'missing-id'
-      } else if (
-        !item.internal &&
-        (!node || node.ownerDocument !== root.ownerDocument || !root.contains(node))
-      ) {
-        reason = 'outside-root'
-      } else if (!item.internal && node?.offsetParent !== root) {
-        reason = 'invalid-containing-block'
-      } else if (itemInstances.has(id)) {
-        reason = 'duplicate'
-      }
+      let reason: string | null = facts[index]
+      if (reason === null && itemInstances.has(id)) reason = 'duplicate'
 
       item.state.registered = reason === null
       if (reason === null) {

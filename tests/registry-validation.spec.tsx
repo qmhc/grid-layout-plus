@@ -240,6 +240,55 @@ describe('GridLayout 内的注册表校验', () => {
     wrapper.unmount()
   })
 
+  it('一轮校验先读取所有包含块，再写入被拒绝的元素', async () => {
+    const { wrapper, errors, element, move } = await mountCells(['a', 'b', 'c', 'd'])
+    offsetParentOverrides.set(element('a'), 'detached')
+    offsetParentOverrides.set(element('c'), 'detached')
+
+    // 这里的读取只来自注册表校验（没有拖拽），写入是内联样式修改。
+    const log: Array<'read' | 'write'> = []
+    const style = CSSStyleDeclaration.prototype
+    const setProperty = style.setProperty
+    const removeProperty = style.removeProperty
+    const readParent = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent')!
+    Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
+      configurable: true,
+      get(this: HTMLElement) {
+        log.push('read')
+        return readParent.get!.call(this)
+      },
+    })
+    style.setProperty = function (this: CSSStyleDeclaration, ...args) {
+      log.push('write')
+      return setProperty.apply(this, args)
+    }
+    style.removeProperty = function (this: CSSStyleDeclaration, ...args) {
+      log.push('write')
+      return removeProperty.apply(this, args)
+    }
+    try {
+      move('a', 8)
+      await nextTick()
+    } finally {
+      style.setProperty = setProperty
+      style.removeProperty = removeProperty
+    }
+
+    // 被拒绝元素的样式重置若夹在下一个元素的 `offsetParent` 读取之间，每个被拒绝元素都会
+    // 强制一次样式与布局计算；一轮中的所有读取必须排在前面。
+    const firstRead = log.indexOf('read')
+    const pass = log.slice(firstRead)
+    expect(pass.filter(entry => entry === 'read')).toHaveLength(4)
+    expect(pass.slice(0, 4)).toEqual(['read', 'read', 'read', 'read'])
+    expect(pass.slice(4)).toContain('write')
+    expect(errors.map(error => (error.cause as { id: string }).id)).toEqual(['a', 'c'])
+    expect(errors.map(error => (error.cause as { reason: string }).reason)).toEqual([
+      'invalid-containing-block',
+      'invalid-containing-block',
+    ])
+    wrapper.unmount()
+  })
+
   it('被外部布局更新移除的 id 通过索引判定为 missing-id', async () => {
     const { wrapper, layout, errors } = await mountCells(['a', 'b'])
     resetCounters()
