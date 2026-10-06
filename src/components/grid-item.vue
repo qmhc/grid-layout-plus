@@ -8,6 +8,7 @@
 import {
   computed,
   inject,
+  markRaw,
   onBeforeMount,
   onBeforeUnmount,
   onMounted,
@@ -34,6 +35,7 @@ import { createCoreData, getControlPosition } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
 import { getDocumentDir } from '../helpers/dom'
 import { snapshotInteractOption, snapshotInteractSelector } from '../helpers/interact-options'
+import { sameStyle } from '../helpers/style-equality'
 import { gridToPixelRect, pixelSizeToGridSize, pointerToGridPosition } from '../core/utils'
 
 import interact from 'interactjs'
@@ -121,6 +123,8 @@ const state = reactive({
   rtl: false,
 })
 
+// 首次放置是否仍在等待注册表结论，见 createStyle。
+let placementPending = !props.decorative && !props.internal
 let dragEventSet = false
 let resizeEventSet = false
 
@@ -223,6 +227,7 @@ const instance = reactive({
   finishDragInteraction,
   finishResizeInteraction,
   refreshPositionStyle: createStyle,
+  clearPositionStyle: () => clearPositionStyle(),
   disableInteractionBinding,
 })
 
@@ -444,7 +449,8 @@ watch(
       return
     }
     state.registered = false
-    state.style = {}
+    placementPending = false
+    assignStyle({})
     layout.updateItem(instance, previousId)
   },
 )
@@ -643,15 +649,66 @@ watch(
   },
 )
 
+// 内容相同时保留原样式对象：父布局每次提交都会让所有 GridItem 重新求值样式，
+// 若为盒子未变的元素写入新对象，下方的同步 watcher 会做一次无意义的 DOM 写入。
+function assignStyle(next: Record<string, string>) {
+  if (!sameStyle(state.style, next)) state.style = next
+}
+
+// 定位样式不触发 GridItem 重新渲染：模板绑定的 renderStyle 是非响应式对象，
+// state.style 变化时由同步 watcher 同时改写它与根元素的内联样式。
+// 只有盒子变化时因此没有 render，也没有 onUpdated → 注册表校验（校验读取 offsetParent，
+// 会强制浏览器计算样式与布局）。定位样式的键与值由 validatePositionStyleResult 限定，
+// 改变它们不会改变本元素的 containing block，跳过这一轮校验不削弱归属保证。
+// renderStyle 始终等于已写入的样式：SSR、首次挂载和其他原因引起的重新渲染都输出当前值，
+// Vue 的 style patch（含与父级透传 style 的合并）不会写回过期的定位。
+// 模板根节点以 v-if="renderStyle" 渲染：不在 GridLayout 下时 setup 在此之前抛错，renderStyle 不存在，
+// 组件不输出任何 DOM（E2E-26 契约；此前由模板读取 state.style 时的渲染异常间接保证）。
+const renderStyle: Record<string, string> = markRaw({})
+
+function toCssPropertyName(key: string): string {
+  return key.startsWith('--') ? key : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+}
+
+function writePositionStyle(next: Readonly<Record<string, string>>) {
+  const element = wrapper.value
+  for (const key of Object.keys(renderStyle)) {
+    if (Object.prototype.hasOwnProperty.call(next, key)) continue
+    delete renderStyle[key]
+    element?.style.removeProperty(toCssPropertyName(key))
+  }
+  for (const [key, value] of Object.entries(next)) {
+    if (renderStyle[key] === value) continue
+    renderStyle[key] = value
+    element?.style.setProperty(toCssPropertyName(key), value)
+  }
+}
+
+watch(
+  () => state.style,
+  next => writePositionStyle(next),
+  { flush: 'sync' },
+)
+
+// 首次放置在注册表给出结论之前处于待定状态。待定期间直接使用父布局已提交的位置样式（乐观首帧），
+// 否则元素先以无样式渲染、下一轮才得到 transform，期间任何强制样式计算都会让过渡从原点"飞入"。
+// registered 保持 false：归属映射、交互绑定与 emitContainerResized 等副作用仍只在确认后发生。
+// 注册表拒绝时调用 clearPositionStyle 结束待定并清空样式；id 变化不属于首次放置。
+function clearPositionStyle() {
+  placementPending = false
+  assignStyle({})
+}
+
 function createStyle() {
   if (!state.registered) {
-    state.style = {}
+    assignStyle(placementPending ? { ...layout.getPositionStyle(props.i) } : {})
     return
   }
+  placementPending = false
 
   // 非装饰且未处于拖拽或缩放状态的元素直接使用父布局原子提交的样式；只有交互暂态和占位项在本地重新计算。
   if (!props.decorative && !state.isDragging && !state.isResizing) {
-    state.style = { ...layout.getPositionStyle(props.i) }
+    assignStyle({ ...layout.getPositionStyle(props.i) })
     return
   }
   const renderedWidth = resolvedContainerWidth()
@@ -666,7 +723,7 @@ function createStyle() {
         !Number.isSafeInteger(effectiveH.value) ||
         effectiveH.value <= 0))
   ) {
-    state.style = {}
+    assignStyle({})
     return
   }
 
@@ -724,7 +781,7 @@ function createStyle() {
       value => typeof value === 'number' && Number.isFinite(value),
     )
   ) {
-    state.style = props.decorative ? {} : { ...layout.getPositionStyle(props.i) }
+    assignStyle(props.decorative ? {} : { ...layout.getPositionStyle(props.i) })
     return
   }
   const direction = renderRtl.value ? 'rtl' : 'ltr'
@@ -757,7 +814,7 @@ function createStyle() {
     }
   }
 
-  state.style = style
+  assignStyle(style)
 }
 
 function resetInteractionState(type?: 'drag' | 'resize'): void {
@@ -1619,7 +1676,12 @@ function syncAutoHeightTarget(): void {
 </script>
 
 <template>
-  <section ref="wrapper" :class="className" :style="state.style">
+  <section
+    v-if="renderStyle"
+    ref="wrapper"
+    :class="className"
+    :style="renderStyle"
+  >
     <slot></slot>
     <template v-if="resizableAndNotStatic">
       <span

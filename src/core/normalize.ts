@@ -1,4 +1,5 @@
 import { cloneLayout } from '../helpers/common'
+import { hasAnyCollision } from './collision-sweep'
 import { noCompactor, verticalCompactor } from './compactors'
 import { GridLayoutExtensionError, GridLayoutValidationError } from './errors'
 import { assertPositiveSafeInteger, readPlainDataObject, snapshotCompactor } from './validation'
@@ -233,10 +234,12 @@ function validateCompactorResult(
     }
   }
 
-  for (let index = 0; index < output.length; index++) {
-    for (let otherIndex = 0; otherIndex < index; otherIndex++) {
-      if (collides(output[index], output[otherIndex])) {
-        extensionFailure('extension-invalid-result', result)
+  if (hasAnyCollision(output)) {
+    for (let index = 0; index < output.length; index++) {
+      for (let otherIndex = 0; otherIndex < index; otherIndex++) {
+        if (collides(output[index], output[otherIndex])) {
+          extensionFailure('extension-invalid-result', result)
+        }
       }
     }
   }
@@ -310,10 +313,11 @@ export function normalizeLayout(
   if (collisionMode === 'overlap') return normalized
 
   // `prevent` 在压缩前直接拒绝碰撞；`push` 则先建立无碰撞放置，再交给扩展压缩。
-  for (let index = 0; index < normalized.length; index++) {
-    for (let otherIndex = 0; otherIndex < index; otherIndex++) {
-      if (collides(normalized[index], normalized[otherIndex])) {
-        if (collisionMode === 'prevent') {
+  // 逐对循环只在 `prevent` 下起作用，且只负责指出第一个碰撞项；是否存在碰撞由扫描判定。
+  if (collisionMode === 'prevent' && hasAnyCollision(normalized)) {
+    for (let index = 0; index < normalized.length; index++) {
+      for (let otherIndex = 0; otherIndex < index; otherIndex++) {
+        if (collides(normalized[index], normalized[otherIndex])) {
           failLayout(`layout[${index}]`, normalized[index])
         }
       }
