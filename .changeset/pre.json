@@ -7,15 +7,22 @@
   "changesets": [
     "add-layout-composables",
     "align-grid-item-contracts",
+    "coalesce-registry-validation",
     "commit-external-drops",
+    "copy-sealed-layouts",
     "draw-grid-background",
     "expand-interaction-workflows",
     "expose-headless-core",
     "extend-layout-strategies",
+    "fix-rtl-resize-edges",
+    "keep-equal-item-styles",
     "modern-grids-shift",
     "observe-content-height",
     "publish-component-styles",
+    "report-registry-validation-errors",
     "resize-from-all-directions",
+    "same-tick-col-num",
+    "sweep-collision-checks",
     "tidy-config-migration",
     "validate-layout-contracts"
   ]

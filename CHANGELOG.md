@@ -1,5 +1,24 @@
 # grid-layout-plus
 
+## 2.0.0-beta.1
+
+### Patch Changes
+
+- [#73](https://github.com/qmhc/grid-layout-plus/pull/73) [`8208270`](https://github.com/qmhc/grid-layout-plus/commit/82082707161bd07d14148bc2f1f8c3f7980b6ea7) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Coalesce GridItem registry validation into one pass per flush and look up layout items by id, removing a cubic slowdown with many items.
+
+- [#72](https://github.com/qmhc/grid-layout-plus/pull/72) [`c3fa7f7`](https://github.com/qmhc/grid-layout-plus/commit/c3fa7f756a08bffe0c6e9166e6d30bc1f3a3a9cc) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Copy the engine's internal frozen layouts without re-validating every item, reducing per-drag-step cloning cost.
+
+- [`6b65e95`](https://github.com/qmhc/grid-layout-plus/commit/6b65e9592aa3c596c5b16875bfd2c4a5da485bf9) Thanks [@qmhc](https://github.com/qmhc)! - Bind mirrored resize handles to their rendered physical edges so RTL and mirrored grids resize from
+  the expected side.
+
+- [#72](https://github.com/qmhc/grid-layout-plus/pull/72) [`c3fa7f7`](https://github.com/qmhc/grid-layout-plus/commit/c3fa7f756a08bffe0c6e9166e6d30bc1f3a3a9cc) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Keep the previous style object when a GridItem's computed position style is unchanged, so moving one item no longer re-renders every item.
+
+- [#73](https://github.com/qmhc/grid-layout-plus/pull/73) [`8208270`](https://github.com/qmhc/grid-layout-plus/commit/82082707161bd07d14148bc2f1f8c3f7980b6ea7) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Report deferred registry validation errors through the application error handler without interrupting Vue's scheduler.
+
+- [#72](https://github.com/qmhc/grid-layout-plus/pull/72) [`c3fa7f7`](https://github.com/qmhc/grid-layout-plus/commit/c3fa7f756a08bffe0c6e9166e6d30bc1f3a3a9cc) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Validate a layout that changes in the same tick as `colNum` against the incoming column count, avoiding transient `invalid-layout` and `invalid-registration` errors.
+
+- [#72](https://github.com/qmhc/grid-layout-plus/pull/72) [`c3fa7f7`](https://github.com/qmhc/grid-layout-plus/commit/c3fa7f756a08bffe0c6e9166e6d30bc1f3a3a9cc) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Speed up overlap detection with a top-edge sweep before the pairwise diagnostic loop, especially for vertically stacked collision-free layouts.
+
 ## 2.0.0-beta.0
 
 ### Major Changes
