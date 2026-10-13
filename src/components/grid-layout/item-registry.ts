@@ -56,7 +56,20 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
     options.finishActiveForExternalUpdate()
   }
 
+  // 每个注册表最多排队一轮延迟校验。一轮校验会遍历全部注册项，同一次 flush 中的注册与重新渲染共用它；
+  // 同步校验会消费掉尚未执行的延迟校验。
+  let validationPending = false
+
+  function requestValidation(): void {
+    if (validationPending) return
+    validationPending = true
+    options.scheduleValidation(() => {
+      if (validationPending) validate()
+    })
+  }
+
   function validate(): void {
+    validationPending = false
     if (options.isUnavailable()) return
     const root = options.getRoot()
     if (!root) return
@@ -106,7 +119,7 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
       return
     }
     registeredItems.add(item)
-    options.scheduleValidation(validate)
+    requestValidation()
   }
 
   function decrease(item: GridItemRegistration): void {
@@ -119,7 +132,7 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
     registeredItems.delete(item)
     if (itemInstances.get(item.i) === item) itemInstances.delete(item.i)
     registrationEpisodes.delete(item)
-    if (!options.isUnavailable()) options.scheduleValidation(validate)
+    if (!options.isUnavailable()) requestValidation()
   }
 
   function update(item: GridItemRegistration, previousId: LayoutItem['i']): void {
@@ -127,14 +140,12 @@ export function createGridItemRegistry(options: GridItemRegistryOptions): GridIt
       item.state.registered = false
       return
     }
+    // 取消旧 id 的交互保持同步；归属校验本身延迟并合并，
+    // 因此一次让所有 GridItem 重新渲染的 flush 只遍历注册表一次。
     if (!Object.is(previousId, item.i) && options.getActiveInteractionId() === previousId) {
       cancelActiveInteraction()
     }
-    if (Object.is(previousId, item.i)) {
-      validate()
-      return
-    }
-    options.scheduleValidation(validate)
+    requestValidation()
   }
 
   return {
