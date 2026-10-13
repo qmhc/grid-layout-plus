@@ -1,4 +1,5 @@
-import { cloneLayout } from '../helpers/common'
+import { cloneLayout, sealLayout } from '../helpers/common'
+import { hasAnyCollision } from './collision-sweep'
 import { noCompactor, verticalCompactor } from './compactors'
 import { GridLayoutExtensionError, GridLayoutValidationError } from './errors'
 import { normalizeLayout } from './normalize'
@@ -153,11 +154,11 @@ interface InternalLayoutEngineInitializationOptions extends LayoutReplacementOpt
  */
 interface EvaluationRecord {
   readonly evaluation: LayoutEngineEvaluation
-  readonly nextLayout: Layout
+  readonly nextLayout: ReadonlyLayout
   readonly nextConfig: InternalEffectiveConfig
   readonly changesConfig: boolean
   interactionRecord?: SessionRecord
-  previousWorking?: Layout
+  previousWorking?: ReadonlyLayout
   previousWorkingEvaluation?: LayoutEngineEvaluation | null
   previousLayerIntent?: boolean
   state: 'pending' | 'confirmed' | 'rolled-back'
@@ -169,8 +170,8 @@ interface SessionRecord {
   readonly session: InternalInteractionSession
   readonly type: 'drag' | 'resize'
   readonly id: LayoutItem['i']
-  baseLayout: Layout
-  latestWorking: Layout
+  baseLayout: ReadonlyLayout
+  latestWorking: ReadonlyLayout
   workingEvaluation: LayoutEngineEvaluation | null
   active: boolean
   layerIntent: boolean
@@ -178,7 +179,7 @@ interface SessionRecord {
 
 interface OperationAttempt {
   readonly result: LayoutOperationResult
-  readonly nextLayout: Layout
+  readonly nextLayout: ReadonlyLayout
   readonly nextConfig: InternalEffectiveConfig
   readonly metrics: InternalContainerMetrics
   readonly failure: InternalEngineFailure | null
@@ -516,7 +517,7 @@ function snapshotLayout(
     }
   }
 
-  if (!allowCollisions && config.collisionMode !== 'overlap') {
+  if (!allowCollisions && config.collisionMode !== 'overlap' && hasAnyCollision(layout)) {
     for (let index = 0; index < layout.length; index++) {
       for (let otherIndex = 0; otherIndex < index; otherIndex++) {
         if (collides(layout[index], layout[otherIndex])) {
@@ -737,12 +738,11 @@ function propagateActive(
 }
 
 function hasCollision(layout: ReadonlyLayout): boolean {
-  return layout.some((item, index) => layout.slice(0, index).some(other => collides(item, other)))
+  return hasAnyCollision(layout)
 }
 
 function hasStaticCollision(layout: ReadonlyLayout): boolean {
-  const statics = layout.filter(item => item.static)
-  return statics.some((item, index) => statics.slice(0, index).some(other => collides(item, other)))
+  return hasAnyCollision(layout.filter(item => item.static))
 }
 
 function normalizeFullLayout(layout: ReadonlyLayout, config: InternalEffectiveConfig): Layout {
@@ -1108,6 +1108,8 @@ function evaluateCommandLayout(
     }
 
     const status = layoutsSemanticallyEqual(nextLayout, compareLayout) ? 'unchanged' : 'accepted'
+    // 先校验克隆并封存一次：结果物化与评估记录共用它，结果侧只需快速复制。
+    const sealedNext = sealLayout(cloneLayout(nextLayout))
     return {
       result: materializeResult(
         status,
@@ -1115,12 +1117,12 @@ function evaluateCommandLayout(
         operation,
         id,
         publicPrevious,
-        nextLayout,
+        sealedNext,
         command.type === 'set' || command.type === 'config' || command.type === 'auto-resize'
           ? null
           : candidate,
       ),
-      nextLayout: cloneLayout(nextLayout),
+      nextLayout: sealedNext,
       nextConfig,
       metrics,
       failure: null,
@@ -1191,11 +1193,15 @@ function createLayoutEngineInternal(
   options: InternalLayoutEngineInitializationOptions = {},
 ): LayoutEnginePort {
   let committedConfig = snapshotEffectiveConfig(initialConfig)
-  let committedLayout = snapshotLayout(
-    initialLayout,
-    committedConfig,
-    options.deferHorizontalBounds ?? false,
-    options.allowInitialCollisions ?? false,
+  // 闭包内的已提交布局、会话基线与工作副本均为封存（深度冻结）布局：它们从不直接外泄，
+  // 对外一律经 cloneLayout 复制，封存后的复制跳过重复校验；内部误写会因冻结立即抛错。
+  let committedLayout = sealLayout(
+    snapshotLayout(
+      initialLayout,
+      committedConfig,
+      options.deferHorizontalBounds ?? false,
+      options.allowInitialCollisions ?? false,
+    ),
   )
   let version = 1
   let sessionSequence = 0
@@ -1217,7 +1223,7 @@ function createLayoutEngineInternal(
     }
     evaluations.set(evaluation, {
       evaluation,
-      nextLayout: attempt.nextLayout,
+      nextLayout: sealLayout(attempt.nextLayout as Layout),
       nextConfig: attempt.nextConfig,
       changesConfig: !configEqual(committedConfig, attempt.nextConfig),
       state: 'pending',
@@ -1253,7 +1259,7 @@ function createLayoutEngineInternal(
       previousEvaluation = previousRecord.previousWorkingEvaluation
       previousRecord = previousEvaluation ? evaluations.get(previousEvaluation) : undefined
     }
-    interaction.latestWorking = cloneLayout(previousWorking)
+    interaction.latestWorking = previousWorking
     interaction.layerIntent = previousLayerIntent ?? interaction.layerIntent
     interaction.workingEvaluation =
       previousEvaluation && previousRecord?.state === 'pending' ? previousEvaluation : null
@@ -1270,7 +1276,7 @@ function createLayoutEngineInternal(
         return makeEvaluation(
           {
             result,
-            nextLayout: cloneLayout(committedLayout),
+            nextLayout: committedLayout,
             nextConfig: committedConfig,
             metrics: calculateContainerMetrics(committedLayout, committedConfig),
             failure: null,
@@ -1339,8 +1345,8 @@ function createLayoutEngineInternal(
         session,
         type: command.type,
         id: command.id,
-        baseLayout: cloneLayout(committedLayout),
-        latestWorking: cloneLayout(committedLayout),
+        baseLayout: committedLayout,
+        latestWorking: committedLayout,
         workingEvaluation: null,
         active: true,
         layerIntent:
@@ -1360,7 +1366,7 @@ function createLayoutEngineInternal(
         return makeEvaluation(
           {
             result: rejectedResult(operation, null, committedLayout, 'cancelled'),
-            nextLayout: cloneLayout(committedLayout),
+            nextLayout: committedLayout,
             nextConfig: committedConfig,
             metrics: calculateContainerMetrics(committedLayout, committedConfig),
             failure: null,
@@ -1372,7 +1378,7 @@ function createLayoutEngineInternal(
         return makeEvaluation(
           {
             result: rejectedResult(operation, record.id, committedLayout, 'invalid-input'),
-            nextLayout: cloneLayout(committedLayout),
+            nextLayout: committedLayout,
             nextConfig: committedConfig,
             metrics: calculateContainerMetrics(committedLayout, committedConfig),
             failure: null,
@@ -1391,7 +1397,7 @@ function createLayoutEngineInternal(
               w: command.w,
               h: command.h,
             }
-      const previousWorking = cloneLayout(record.latestWorking)
+      const previousWorking = record.latestWorking
       const previousWorkingEvaluation = record.workingEvaluation
       const previousLayerIntent = record.layerIntent
       const algorithmBase =
@@ -1415,10 +1421,10 @@ function createLayoutEngineInternal(
       }
       const evaluation = makeEvaluation(attempt, baseVersion)
       if (attempt.result.status === 'accepted') {
-        record.latestWorking = cloneLayout(attempt.nextLayout)
+        const evaluationRecord = evaluations.get(evaluation)!
+        record.latestWorking = evaluationRecord.nextLayout
         record.workingEvaluation = evaluation
         record.layerIntent = false
-        const evaluationRecord = evaluations.get(evaluation)!
         evaluationRecord.interactionRecord = record
         evaluationRecord.previousWorking = previousWorking
         evaluationRecord.previousWorkingEvaluation = previousWorkingEvaluation
@@ -1460,7 +1466,7 @@ function createLayoutEngineInternal(
         null,
       )
       if (changed) {
-        committedLayout = cloneLayout(nextLayout)
+        committedLayout = sealLayout(nextLayout)
         committedConfig = nextConfig
         version = nextVersion(version)
       }
@@ -1468,11 +1474,13 @@ function createLayoutEngineInternal(
     },
 
     mergeExternalMetadata(layout) {
-      const next = mergeLayoutMetadata(committedLayout, layout)
+      const next = sealLayout(mergeLayoutMetadata(committedLayout, layout))
       committedLayout = next
       if (activeSession) {
-        activeSession.baseLayout = mergeLayoutMetadata(activeSession.baseLayout, next)
-        activeSession.latestWorking = mergeLayoutMetadata(activeSession.latestWorking, next)
+        activeSession.baseLayout = sealLayout(mergeLayoutMetadata(activeSession.baseLayout, next))
+        activeSession.latestWorking = sealLayout(
+          mergeLayoutMetadata(activeSession.latestWorking, next),
+        )
       }
       version = nextVersion(version)
       return cloneLayout(committedLayout)
@@ -1503,7 +1511,7 @@ function createLayoutEngineInternal(
         return record.finalResult
       }
       if (evaluation.result.status === 'accepted' || record.changesConfig) {
-        committedLayout = cloneLayout(record.nextLayout)
+        committedLayout = record.nextLayout
         committedConfig = record.nextConfig
         version = nextVersion(version)
       }

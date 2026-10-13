@@ -245,11 +245,74 @@ function cloneLayoutItemAt(
   return result as unknown as LayoutItem
 }
 
+// 仅记录由本库校验克隆产出、随后被深度冻结的布局数组。外部传入的数组从不进入此集合：
+// 标记只在 sealLayout 中添加，而 sealLayout 只接收库内部刚克隆出的布局。
+const sealedLayouts = new WeakSet<object>()
+
+function freezeMetadataValue(value: unknown): void {
+  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return
+  for (const key of Object.keys(value)) {
+    freezeMetadataValue((value as Record<string, unknown>)[key])
+  }
+  Object.freeze(value)
+}
+
+/**
+ * 深度冻结并标记一个由 cloneLayout（或同等校验克隆）新产出的内部布局。
+ * 调用方必须保证该数组及其所有项从未暴露给外部，且之后不再修改；冻结保证任何遗漏的写入立即抛错。
+ */
+export function sealLayout(layout: Layout): ReadonlyLayout {
+  if (sealedLayouts.has(layout)) return layout
+  for (const item of layout) freezeMetadataValue(item)
+  Object.freeze(layout)
+  sealedLayouts.add(layout)
+  return layout
+}
+
+export function isSealedLayout(layout: unknown): boolean {
+  return typeof layout === 'object' && layout !== null && sealedLayouts.has(layout)
+}
+
+// 已封存的数据只可能来自校验克隆的结果，因此无需再次按 descriptor 校验，只做结构复制：
+// 保持键顺序、原型（metadata 可能为 null 原型）与冻结的 resizeHandles 语义。
+function copySealedMetadata(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  if (Array.isArray(value)) return value.map(copySealedMetadata)
+  const result: Record<string, unknown> =
+    Object.getPrototypeOf(value) === null ? Object.create(null) : {}
+  for (const key of Object.keys(value)) {
+    defineDataProperty(result, key, copySealedMetadata((value as Record<string, unknown>)[key]))
+  }
+  return result
+}
+
+function copySealedItem(item: ReadonlyLayoutItem): LayoutItem {
+  const result: Record<string, unknown> = {}
+  for (const key of Object.keys(item)) {
+    const value = (item as unknown as Record<string, unknown>)[key]
+    defineDataProperty(
+      result,
+      key,
+      KNOWN_LAYOUT_ITEM_KEYS.has(key)
+        ? key === 'resizeHandles'
+          ? Object.freeze(Array.from(value as readonly string[]))
+          : value
+        : copySealedMetadata(value),
+    )
+  }
+  return result as unknown as LayoutItem
+}
+
 function snapshotLayout(
   value: unknown,
   contextName = 'layout',
   options: Readonly<{ allowNegativeX?: boolean }> = {},
 ): LayoutSnapshot {
+  if (isSealedLayout(value)) {
+    // 封存布局的 x 均非负，因此同时满足 allowNegativeX 的两种取值。
+    const sealed = value as ReadonlyLayout
+    return { layout: sealed.map(copySealedItem), sources: Array.from(sealed) }
+  }
   if (!Array.isArray(value)) failLayout(contextName, value)
 
   const lengthDescriptor = getOwnDescriptor(value, 'length', 'invalid-layout', contextName)

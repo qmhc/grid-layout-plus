@@ -118,7 +118,8 @@ export function useGridLayoutSync<B extends string>(
     const transactionController = options.getTransactionController()
     const pending = transactionController.getPending()
     try {
-      const config = pending?.evaluation.nextConfig ?? options.getEngineConfig()
+      // 与 acceptExternalLayout 使用同一份下一配置校验，同 tick 的配置变化不被旧配置误判。
+      const config = pending?.evaluation.nextConfig ?? options.resolveEngineConfig()
       return options.isResponsive() && options.state.width === null
         ? snapshotUnresolvedLayout(options.getLayout(), config)
         : snapshotStrictLayout(options.getLayout(), config)

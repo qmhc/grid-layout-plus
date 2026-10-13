@@ -34,6 +34,7 @@ import { createCoreData, getControlPosition } from '../helpers/draggable'
 import { getColsFromBreakpoint } from '../helpers/responsive'
 import { getDocumentDir } from '../helpers/dom'
 import { snapshotInteractOption, snapshotInteractSelector } from '../helpers/interact-options'
+import { sameStyle } from '../helpers/style-equality'
 import { gridToPixelRect, pixelSizeToGridSize, pointerToGridPosition } from '../core/utils'
 
 import interact from 'interactjs'
@@ -444,7 +445,7 @@ watch(
       return
     }
     state.registered = false
-    state.style = {}
+    assignStyle({})
     layout.updateItem(instance, previousId)
   },
 )
@@ -643,15 +644,21 @@ watch(
   },
 )
 
+// 内容相同时保留原样式对象：父布局每次提交都会让所有 GridItem 重新求值样式，
+// 若为盒子未变的元素写入新对象，响应式会触发一次无意义的重新渲染。
+function assignStyle(next: Record<string, string>) {
+  if (!sameStyle(state.style, next)) state.style = next
+}
+
 function createStyle() {
   if (!state.registered) {
-    state.style = {}
+    assignStyle({})
     return
   }
 
   // 非装饰且未处于拖拽或缩放状态的元素直接使用父布局原子提交的样式；只有交互暂态和占位项在本地重新计算。
   if (!props.decorative && !state.isDragging && !state.isResizing) {
-    state.style = { ...layout.getPositionStyle(props.i) }
+    assignStyle({ ...layout.getPositionStyle(props.i) })
     return
   }
   const renderedWidth = resolvedContainerWidth()
@@ -666,7 +673,7 @@ function createStyle() {
         !Number.isSafeInteger(effectiveH.value) ||
         effectiveH.value <= 0))
   ) {
-    state.style = {}
+    assignStyle({})
     return
   }
 
@@ -724,7 +731,7 @@ function createStyle() {
       value => typeof value === 'number' && Number.isFinite(value),
     )
   ) {
-    state.style = props.decorative ? {} : { ...layout.getPositionStyle(props.i) }
+    assignStyle(props.decorative ? {} : { ...layout.getPositionStyle(props.i) })
     return
   }
   const direction = renderRtl.value ? 'rtl' : 'ltr'
@@ -757,7 +764,7 @@ function createStyle() {
     }
   }
 
-  state.style = style
+  assignStyle(style)
 }
 
 function resetInteractionState(type?: 'drag' | 'resize'): void {
