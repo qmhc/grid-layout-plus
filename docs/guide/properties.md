@@ -631,6 +631,10 @@ Programmatic layout and layer operations are documented in [Methods](./methods).
 
 `GridItem` must be a descendant of `GridLayout`. Its `i` prop associates it with the matching `LayoutItem`; the parent Layout owns geometry, constraints, static state, per-item drag and resize flags, resize handles, and layer order.
 
+HTML `class` and `style` attributes are forwarded to the root element. Custom styles keep Vue's
+fallthrough precedence during layout updates and do not change the stored layout geometry.
+New items appear without an initial positioning transition; later position changes animate normally.
+
 ### i
 
 - type: `number | string`

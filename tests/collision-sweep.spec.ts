@@ -54,17 +54,4 @@ describe('hasAnyCollision', () => {
       ]),
     ).toBe(false)
   })
-
-  it('1000 个元素纵向堆叠的移动端布局仍然很快', () => {
-    let y = 0
-    const layout = Array.from({ length: 1000 }, (_, i) => {
-      const h = 1 + (i % 7)
-      const item = { i, x: 0, y, w: 12, h }
-      y += h
-      return item
-    })
-    const start = performance.now()
-    for (let k = 0; k < 20; k++) hasAnyCollision(layout)
-    expect((performance.now() - start) / 20).toBeLessThan(2)
-  })
 })

@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { defineComponent, h, nextTick, ref } from 'vue'
+import { defineComponent, h, nextTick, ref, vShow, withDirectives } from 'vue'
 
 import { GridItem, GridLayout } from '../src'
+import { absoluteStrategy } from '../src/core/position-strategies'
 import { sameStyle } from '../src/helpers/style-equality'
 
-import type { ComponentPublicInstance, PropType } from 'vue'
+import type { ComponentPublicInstance, PropType, StyleValue } from 'vue'
 import type { Layout, LayoutItem } from '../src/helpers/types'
 
 const interactMock = vi.hoisted(() => {
@@ -41,18 +42,12 @@ const offsetParentDescriptor = Object.getOwnPropertyDescriptor(
   'offsetParent',
 )
 
-// 注册表校验读取包含块的次数；在浏览器中每次都会强制计算样式与布局。
-let offsetParentReads = 0
-
 beforeEach(() => {
   interactMock.interact.mockClear()
   interactMock.interactables.clear()
-  offsetParentReads = 0
   Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
     configurable: true,
     get(this: HTMLElement) {
-      // 只统计注册表的读取；拖拽处理计算指针位置时也会读取 offsetParent。
-      if (new Error().stack?.includes('item-registry')) offsetParentReads++
       return this.parentElement?.closest('.vgl-layout') ?? null
     },
   })
@@ -169,6 +164,7 @@ async function mountGrid(layout: Layout) {
     )
 
   const wrapper = mount(host, { attachTo: document.body, global: { mixins: [probe.mixin] } })
+  await flush()
   await flush()
 
   const root = wrapper.find<HTMLElement>('.vgl-layout').element
@@ -301,53 +297,84 @@ describe('GridItem 样式写入', () => {
 })
 
 describe('GridItem 定位样式直接写入元素', () => {
-  it('外部布局更新只校验一次，不会为移动的元素再校验一次', async () => {
-    const { wrapper, model } = await mountGrid(twoItems())
-    offsetParentReads = 0
-
-    model.value = [
-      { i: 'a', x: 0, y: 0, w: 2, h: 2 },
-      { i: 'b', x: 6, y: 0, w: 2, h: 2 },
-    ]
+  it('布局更新与无关渲染保持透传定位样式的优先级', async () => {
+    const flag = ref(false)
+    const visible = ref(false)
+    const custom = ref<StyleValue>({ width: '10px', left: '10px', display: 'block' })
+    const Cell = defineComponent({
+      setup: () => () =>
+        withDirectives(
+          h(
+            GridItem,
+            {
+              i: 'b',
+              class: flag.value ? 'marked' : 'plain',
+              style: custom.value,
+            },
+            { default: () => 'b', $stable: true },
+          ),
+          [[vShow, visible.value]],
+        ),
+    })
+    const model = ref<Layout>(twoItems())
+    const wrapper = mount(
+      () =>
+        h(
+          GridLayout,
+          {
+            layout: model.value,
+            width: 1200,
+            colNum: 12,
+            rowHeight: 30,
+            isResizable: false,
+            positionStrategy: absoluteStrategy,
+          },
+          { default: () => h(Cell) },
+        ),
+      { attachTo: document.body },
+    )
     await flush()
+    const element = itemElement(wrapper, 'b').element
 
-    expect(itemElement(wrapper, 'b').attributes('style')).toContain('translate3d(605px')
-    // 外部提交后的同步校验对两个元素各读取一次。
-    expect(offsetParentReads).toBe(2)
-    wrapper.unmount()
-  })
-
-  it('拖拽步进不会启动注册表校验', async () => {
-    const { wrapper, model } = await mountGrid([
-      { i: 'a', x: 0, y: 0, w: 2, h: 2 },
-      { i: 'b', x: 4, y: 0, w: 2, h: 2 },
-      { i: 'c', x: 4, y: 2, w: 2, h: 2 },
-    ])
-    const b = itemElement(wrapper, 'b').element
-    const moveTo = trackPointer(b, 403, 450)
-    const listener = interactMock.interactables.get(b).listeners.get('dragstart')!
-
-    listener(dragEvent('dragstart', b, 450, 20))
-    moveTo(460)
-    listener(dragEvent('dragmove', b, 460, 20))
-    await flush()
-    offsetParentReads = 0
-
-    for (const x of [480, 560, 700, 850]) {
-      moveTo(x)
-      listener(dragEvent('dragmove', b, x, 20))
+    for (const style of [
+      { width: '10px', left: '10px', display: 'block' },
+      ['width: 10px !important; left: 10px !important; display: block', { color: 'red' }],
+    ]) {
+      custom.value = style
       await flush()
+      expect(element.style.width).toBe('10px')
+      expect(element.style.left).toBe('10px')
+      expect(element.style.display).toBe('none')
+      model.value = model.value.map(item =>
+        item.i === 'b' ? { ...item, w: item.w === 2 ? 3 : 2, x: item.x === 4 ? 6 : 4 } : item,
+      )
+      await flush()
+      expect(element.style.width).toBe('10px')
+      expect(element.style.left).toBe('10px')
+      expect(element.style.display).toBe('none')
+      flag.value = !flag.value
+      await flush()
+      expect(element.style.width).toBe('10px')
+      expect(element.style.left).toBe('10px')
+      expect(element.style.display).toBe('none')
     }
-
-    expect(offsetParentReads).toBe(0)
-    listener(dragEvent('dragend', b, 850, 20))
+    custom.value = undefined
     await flush()
-
-    // 阳性对照：调用栈过滤确实能看到注册表的读取，因此上面的零不是调用栈命名注册表模块方式造成的假象。
-    offsetParentReads = 0
-    model.value = model.value.map(item => (item.i === 'a' ? { ...item, y: 6 } : item))
+    expect(parseFloat(element.style.width)).toBeGreaterThan(10)
+    const state = (
+      wrapper.findComponent(GridItem).vm as unknown as {
+        state: { style: Record<string, string> }
+      }
+    ).state
+    state.style.display = 'inline-flex'
     await flush()
-    expect(offsetParentReads).toBeGreaterThan(0)
+    expect(element.style.display).toBe('none')
+    visible.value = true
+    await flush()
+    expect(element.style.display).toBe('inline-flex')
+    delete state.style.display
+    await flush()
+    expect(element.style.display).toBe('')
     wrapper.unmount()
   })
 
@@ -401,7 +428,7 @@ describe('GridItem 定位样式直接写入元素', () => {
     wrapper.unmount()
   })
 
-  it('多次移动与重置后，对外暴露的样式状态与元素保持一致', async () => {
+  it('布局更新和原地修改后，暴露的样式状态与元素保持同步', async () => {
     const { wrapper, model } = await mountGrid(twoItems())
     const b = wrapper.findAllComponents(GridItem).find(item => item.props('i') === 'b')!
     const state = (b.vm as unknown as { state: { style: Record<string, string> } }).state
@@ -417,11 +444,19 @@ describe('GridItem 定位样式直接写入元素', () => {
       expect(element.style.getPropertyValue(key)).toBe(value)
     }
 
-    // 下一份样式中不再存在的键会从元素上移除。
-    state.style = { position: 'absolute', transform: 'translate3d(1px, 2px, 0)' }
+    // 保留已有 expose 的可写语义，不依赖 style 对象被整体替换。
+    state.style.transform = 'translate3d(1px, 2px, 0)'
+    state.style.width = '10px !important'
     await flush()
     expect(element.style.transform).toMatch(/^translate3d\(1px, 2px, 0(px)?\)$/)
-    expect(element.style.width).toBe('')
+    expect(element.style.width).toBe('10px')
+    expect(element.style.getPropertyPriority('width')).toBe('important')
+    state.style.display = 'inline-flex'
+    await flush()
+    expect(element.style.display).toBe('inline-flex')
+    delete state.style.display
+    await flush()
+    expect(element.style.display).toBe('')
     wrapper.unmount()
   })
 

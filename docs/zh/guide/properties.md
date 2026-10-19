@@ -626,6 +626,9 @@ interface DropConfig<B extends string = DefaultBreakpoint> {
 
 `GridItem` 必须位于 `GridLayout` 内。它通过 `i` 属性关联对应的 `LayoutItem`；几何信息、约束、静态状态、单项拖拽和缩放开关、缩放手柄以及层级顺序都由父级 Layout 维护。
 
+HTML `class` 和 `style` 属性会透传到根元素。自定义样式在布局更新期间保留 Vue 的透传优先级，
+并保持已存储的布局几何信息不变。新元素首次定位时直接出现，之后的位置变化保留正常过渡动画。
+
 ### i
 
 - 类型：`number | string`

@@ -234,14 +234,9 @@ function validateCompactorResult(
     }
   }
 
+  // 此处统一报告压缩器结果无效，无需定位具体冲突项，发现碰撞即可直接拒绝。
   if (hasAnyCollision(output)) {
-    for (let index = 0; index < output.length; index++) {
-      for (let otherIndex = 0; otherIndex < index; otherIndex++) {
-        if (collides(output[index], output[otherIndex])) {
-          extensionFailure('extension-invalid-result', result)
-        }
-      }
-    }
+    extensionFailure('extension-invalid-result', result)
   }
   return output
 }

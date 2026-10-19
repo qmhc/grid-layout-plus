@@ -458,7 +458,12 @@ export interface GridLayoutProps<B extends string = DefaultBreakpoint> {
   transferConfig?: TransferConfig
 }
 
-/** Props accepted by the `GridItem` component. */
+/**
+ * Props accepted by the `GridItem` component.
+ *
+ * HTML style attributes retain Vue's fallthrough precedence without changing layout geometry.
+ * Initial placement does not animate; later position changes use the component's CSS transitions.
+ */
 export interface GridItemProps {
   /** The id of the matching item in the parent layout. */
   i: number | string

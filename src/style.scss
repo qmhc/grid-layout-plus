@@ -57,6 +57,10 @@
     left: auto;
   }
 
+  &--placing {
+    transition: none;
+  }
+
   &--resizing {
     z-index: max(
       calc(var(--vgl-item-z-index, 0) + 1),
