@@ -99,3 +99,8 @@ function moveSummary() {
 ## 组件方法还是组合式函数？
 
 由 `GridLayout` 渲染界面时使用这些组件方法。无头状态使用 [`useGridLayout`](./composables#usegridlayout)：它的单次操作会同步提交并返回 `LayoutOperationResult`，所以状态是 `accepted`，而不是 `pending`。
+
+## GridItem 组件引用
+
+`GridItem` 暴露根元素 `wrapper` 和响应式 `state`。修改 `state.style`（包括单个属性）会同步到 DOM，
+并保留相同的透传样式优先级。布局更新可能替换 `state.style`；需要持续生效的展示覆盖请使用 `style` 属性。

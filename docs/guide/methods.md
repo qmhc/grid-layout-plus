@@ -99,3 +99,9 @@ The component emits the current Layout and the complete breakpoint map with the 
 ## Component methods or composables?
 
 Use these methods when `GridLayout` renders the UI. Use [`useGridLayout`](./composables#usegridlayout) for headless state: its one-off methods commit synchronously and return `LayoutOperationResult`, so they use `accepted` instead of `pending`.
+
+## GridItem component ref
+
+`GridItem` exposes `wrapper`, its root element, and reactive `state`. Changes to `state.style`,
+including individual properties, are reflected in the DOM with the same fallthrough-style precedence.
+Layout updates may replace `state.style`; use the `style` attribute for persistent presentation overrides.

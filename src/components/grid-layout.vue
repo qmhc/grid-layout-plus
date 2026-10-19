@@ -735,8 +735,8 @@ const itemRegistry = createGridItemRegistry({
   finishActiveForExternalUpdate: () => {
     finishInteraction('cancelled', 'external-update', { nativeEvent: null })
   },
-  // 在当前 flush 的 post 阶段末尾执行（排在本轮所有 updated/mounted 钩子之后），
-  // 校验结果触发的 watcher 仍在同一次 flush 内完成，与原先 onUpdated 内同步校验的时序一致。
+  // 在当前 flush 的 post 阶段合并执行；校验结果触发的 watcher 仍在同一次 flush 内完成。
+  // 与各生命周期钩子的先后顺序取决于入队时机，不保证排在所有 mounted/updated 钩子之后。
   // Vue 执行 post 回调时没有 try/finally：回调抛出会让调度器停在 post 阶段，页面上所有应用的
   // updated/mounted 钩子和 flush: 'post' watcher 都不再执行。因此异常在此捕获并交给应用的 errorHandler。
   scheduleValidation: callback => {

@@ -9,6 +9,7 @@ import {
   computed,
   inject,
   markRaw,
+  normalizeStyle,
   onBeforeMount,
   onBeforeUnmount,
   onMounted,
@@ -18,6 +19,7 @@ import {
   shallowRef,
   toRaw,
   toRef,
+  useAttrs,
   watch,
   watchEffect,
 } from 'vue'
@@ -68,6 +70,7 @@ const props = withDefaults(defineProps<GridItemProps>(), {
   decorative: false,
 })
 
+const attrs = useAttrs()
 const emit = defineEmits<GridItemEmits>()
 defineSlots<GridItemSlots>()
 
@@ -125,6 +128,9 @@ const state = reactive({
 
 // 首次放置是否仍在等待注册表结论，见 createStyle。
 let placementPending = !props.decorative && !props.internal
+// 动态新增项可能先挂载、后接纳布局；首个有效位置绘制后再开启该项的过渡。
+const firstPositionPending = ref(!props.decorative)
+let firstPositionFrame: number | undefined
 let dragEventSet = false
 let resizeEventSet = false
 
@@ -227,7 +233,7 @@ const instance = reactive({
   finishDragInteraction,
   finishResizeInteraction,
   refreshPositionStyle: createStyle,
-  clearPositionStyle: () => clearPositionStyle(),
+  clearPositionStyle,
   disableInteractionBinding,
 })
 
@@ -313,6 +319,7 @@ onBeforeMount(() => {
 })
 
 onMounted(() => {
+  if (Object.keys(state.style).length) finishFirstPosition()
   if (!props.decorative) layout.increaseItem(instance)
   if (layout.responsive && layout.lastBreakpoint) {
     state.cols = getColsFromBreakpoint(layout.lastBreakpoint, layout.cols)
@@ -365,6 +372,7 @@ onUpdated(() => {
 })
 
 onBeforeUnmount(() => {
+  if (firstPositionFrame !== undefined) cancelAnimationFrame(firstPositionFrame)
   emitter.off('updateWidth', updateWidthHandler)
   emitter.off('compact', compactHandler)
   emitter.off('setDraggable', setDraggableHandler)
@@ -386,7 +394,12 @@ onBeforeUnmount(() => {
   }
 })
 
-defineExpose({ state, wrapper })
+defineExpose({
+  /** Reactive item state. Changes to `style` are reflected in the DOM; layout updates may replace it. */
+  state,
+  /** The component root element, available after mounting. */
+  wrapper,
+})
 
 const isAndroid =
   typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase().includes('android') : false
@@ -421,6 +434,7 @@ const className = computed(() => {
     [nh.b()]: true,
     [nh.bm('resizable')]: resizableAndNotStatic.value,
     [nh.bm('static')]: effectiveStatic.value,
+    [nh.bm('placing')]: firstPositionPending.value,
     [nh.bm('auto-height')]: effectiveAutoHeight.value,
     [nh.bm('resizing')]: state.isResizing,
     [nh.bm('dragging')]: state.isDragging,
@@ -655,7 +669,7 @@ function assignStyle(next: Record<string, string>) {
   if (!sameStyle(state.style, next)) state.style = next
 }
 
-// 定位样式不触发 GridItem 重新渲染：模板绑定的 renderStyle 是非响应式对象，
+// 定位样式不触发 GridItem 重新渲染：renderStyle 使用浅层引用，普通定位只修改其非响应式内容，
 // state.style 变化时由同步 watcher 同时改写它与根元素的内联样式。
 // 只有盒子变化时因此没有 render，也没有 onUpdated → 注册表校验（校验读取 offsetParent，
 // 会强制浏览器计算样式与布局）。定位样式的键与值由 validatePositionStyleResult 限定，
@@ -664,30 +678,80 @@ function assignStyle(next: Record<string, string>) {
 // Vue 的 style patch（含与父级透传 style 的合并）不会写回过期的定位。
 // 模板根节点以 v-if="renderStyle" 渲染：不在 GridLayout 下时 setup 在此之前抛错，renderStyle 不存在，
 // 组件不输出任何 DOM（E2E-26 契约；此前由模板读取 state.style 时的渲染异常间接保证）。
-const renderStyle: Record<string, string> = markRaw({})
+const renderStyle = shallowRef<Record<string, string>>({})
 
 function toCssPropertyName(key: string): string {
   return key.startsWith('--') ? key : key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
 }
 
+function setStyleProperty(style: CSSStyleDeclaration, key: string, value: unknown) {
+  if (Array.isArray(value)) {
+    value.forEach(entry => setStyleProperty(style, key, entry))
+    return
+  }
+  const text = value == null ? '' : String(value)
+  const important = !key.startsWith('--') && /\s*!important$/.test(text)
+  style.setProperty(
+    toCssPropertyName(key),
+    important ? text.replace(/\s*!important$/, '') : text,
+    important ? 'important' : '',
+  )
+}
+
 function writePositionStyle(next: Readonly<Record<string, string>>) {
   const element = wrapper.value
-  for (const key of Object.keys(renderStyle)) {
+  const displayChanged = renderStyle.value.display !== next.display
+  // 需要 Vue 接管时保留旧渲染快照，让 style patch 能识别被删除的 display。
+  const current = displayChanged ? { ...renderStyle.value } : renderStyle.value
+  // 与模板的透传样式保持同一优先级；数组包装同时归一化对象、字符串和样式数组。
+  const normalized = normalizeStyle([attrs.style])
+  const overrides = typeof normalized === 'object' && normalized !== null ? normalized : {}
+  for (const key of Object.keys(current)) {
     if (Object.prototype.hasOwnProperty.call(next, key)) continue
-    delete renderStyle[key]
-    element?.style.removeProperty(toCssPropertyName(key))
+    delete current[key]
+    if (key !== 'display') element?.style.removeProperty(toCssPropertyName(key))
   }
   for (const [key, value] of Object.entries(next)) {
-    if (renderStyle[key] === value) continue
-    renderStyle[key] = value
-    element?.style.setProperty(toCssPropertyName(key), value)
+    if (current[key] === value) continue
+    current[key] = value
+    if (element && key !== 'display') setStyleProperty(element.style, key, value)
   }
+  // display 的显隐状态交给 Vue/v-show；只有该值变化时才需要一次组件渲染。
+  if (displayChanged) renderStyle.value = current
+  if (element && attrs.style) {
+    // 简写（如 inset）也可能覆盖定位属性，因此在布局写入后统一恢复透传样式。
+    // display 由 Vue/v-show 管理；定位更新保持已有显隐状态。
+    const display = element.style.display
+    const priority = element.style.getPropertyPriority('display')
+    for (const [key, value] of Object.entries(overrides)) {
+      if (key !== 'display') setStyleProperty(element.style, key, value)
+    }
+    element.style.setProperty('display', display, priority)
+  }
+  if (Object.keys(next).length) {
+    finishFirstPosition()
+  } else if (firstPositionFrame !== undefined) {
+    cancelAnimationFrame(firstPositionFrame)
+    firstPositionFrame = undefined
+  }
+}
+
+function finishFirstPosition(): void {
+  // setup 读到的已提交位置可能仍会在本轮挂载后更新，统一等首帧绘制后再开启过渡。
+  if (!firstPositionPending.value || !wrapper.value) return
+  if (firstPositionFrame !== undefined) return
+  firstPositionFrame = requestAnimationFrame(() => {
+    firstPositionFrame = requestAnimationFrame(() => {
+      firstPositionFrame = undefined
+      firstPositionPending.value = false
+    })
+  })
 }
 
 watch(
   () => state.style,
   next => writePositionStyle(next),
-  { flush: 'sync' },
+  { flush: 'sync', deep: true },
 )
 
 // 首次放置在注册表给出结论之前处于待定状态。待定期间直接使用父布局已提交的位置样式（乐观首帧），

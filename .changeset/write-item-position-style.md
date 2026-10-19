@@ -2,4 +2,4 @@
 'grid-layout-plus': patch
 ---
 
-Write GridItem position styles directly to the element instead of re-rendering the component on every move.
+Avoid `GridItem` re-renders caused only by position changes while preserving custom style overrides.

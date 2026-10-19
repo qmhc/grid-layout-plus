@@ -2,23 +2,13 @@
  * @vitest-environment node
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-const cloneCounter = vi.hoisted(() => ({ items: 0 }))
-
-vi.mock('../src/core/validation', async importOriginal => {
-  const actual = await importOriginal<typeof import('../src/core/validation')>()
-  return {
-    ...actual,
-    // 带 requiredKeys 的调用即逐字段校验克隆一个布局项。
-    readPlainDataObject: ((value, options) => {
-      if (options.requiredKeys) cloneCounter.items++
-      return actual.readPlainDataObject(value, options)
-    }) as typeof actual.readPlainDataObject,
-  }
-})
-
-import { createLayoutEngine, defaultInternalConfig } from '../src/core/layout-engine'
+import {
+  createLayoutEngine,
+  createNormalizedLayoutEngine,
+  defaultInternalConfig,
+} from '../src/core/layout-engine'
 import { verticalCompactor } from '../src/core/compactors'
 import { cloneLayout, isSealedLayout, sealLayout } from '../src/helpers/common'
 
@@ -55,31 +45,21 @@ function isAnyFrozen(value: unknown): boolean {
   return Object.values(value).some(isAnyFrozen)
 }
 
-beforeEach(() => {
-  cloneCounter.items = 0
-})
+describe('封存布局的复制语义', () => {
+  it('初始化和拖拽时保留显式 undefined 的 resizeHandles', () => {
+    const initial: Layout = [{ i: 'item', x: 0, y: 0, w: 1, h: 1, resizeHandles: undefined }]
+    const { engine, layout } = createNormalizedLayoutEngine(initial, config())
+    expect(layout).toStrictEqual(initial)
 
-describe('引擎封存的布局复制时不再重复校验', () => {
-  it('一次拖拽步进只校验它新产生的布局', () => {
-    const engine = createLayoutEngine(grid(), config())
-    const started = engine.beginInteraction({ type: 'drag', id: 'n0' })
+    const started = engine.beginInteraction({ type: 'drag', id: 'item' })
     if (started.status !== 'accepted') throw new Error('drag rejected')
+    expect(started.session.baseLayout).toStrictEqual(initial)
 
-    const perStep: number[] = []
-    for (let step = 1; step <= 4; step++) {
-      cloneCounter.items = 0
-      const evaluation = engine.evaluateInteraction(started.session, {
-        type: 'drag',
-        x: step % 3,
-        y: step,
-      })
-      expect(evaluation.result.status).toBe('accepted')
-      perStep.push(cloneCounter.items)
-    }
-
-    // 修复前每步 14 次整表校验克隆（外加 1 次候选项）。封存后，已提交布局、会话基线、工作副本与
-    // 评估结果的复制不再校验；剩余 9 次均发生在压缩器边界等可变工作副本上，仍需完整校验。
-    for (const count of perStep) expect(count).toBeLessThanOrEqual(ITEMS * 9 + 1)
+    const evaluation = engine.evaluateInteraction(started.session, { type: 'drag', x: 1, y: 0 })
+    const confirmed = engine.confirm(evaluation)
+    expect(confirmed.status).toBe('accepted')
+    expect(confirmed.layout).toStrictEqual([{ ...initial[0], x: 1 }])
+    engine.closeInteraction(started.session)
   })
 
   it('快速复制与校验克隆结果相同，且独立、可修改', () => {

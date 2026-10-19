@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 import ContractFixture from './e2e/contract-fixture.vue'
+import PlacementFixture from './e2e/placement-fixture.vue'
 
 document.title = 'dev | Grid Layout Plus'
 
@@ -9,6 +10,12 @@ const demos = import.meta.glob('../docs/demos/*.vue')
 export const router = createRouter({
   history: createWebHashHistory('/'),
   routes: [
+    {
+      path: '/__e2e/placement',
+      name: 'placement-fixture',
+      component: PlacementFixture,
+      meta: { internal: true },
+    },
     {
       path: '/__e2e/contracts/:phase',
       name: 'contract-fixture',

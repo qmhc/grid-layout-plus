@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks'
 
+import { hasAnyCollision } from '../src/core/collision-sweep'
 import {
   fastHorizontalCompactor,
   fastVerticalCompactor,
@@ -96,6 +97,16 @@ function highCandidateVertical(): Layout {
   }))
 }
 
+function stackedVertical(): Layout {
+  let y = 0
+  return Array.from({ length: itemCount }, (_, index) => {
+    const h = 1 + (index % 7)
+    const item = { i: `stacked-${index}`, x: 0, y, w: 12, h }
+    y += h
+    return item
+  })
+}
+
 const cases: BenchmarkCase[] = [
   {
     name: 'vertical / sparse',
@@ -155,15 +166,15 @@ function resultChecksum(layout: Layout): number {
   return checksum
 }
 
-function measure(run: () => Layout): TimingResult {
+function measure<T>(run: () => T, checksumFor: (result: T) => number): TimingResult {
   for (let index = 0; index < warmups; index++) run()
 
   let checksum = 0
   const durations = Array.from({ length: samples }, () => {
     const start = performance.now()
-    const layout = run()
+    const result = run()
     const duration = performance.now() - start
-    checksum ^= resultChecksum(layout)
+    checksum ^= checksumFor(result)
     return duration
   }).sort((first, second) => first - second)
 
@@ -181,8 +192,8 @@ function rounded(value: number): number {
 
 function runCompactorBenchmarks(): void {
   const rows = cases.flatMap(entry => {
-    const standard = measure(() => entry.standard.compact(entry.layout, entry.cols))
-    const indexed = measure(() => entry.indexed.compact(entry.layout, entry.cols))
+    const standard = measure(() => entry.standard.compact(entry.layout, entry.cols), resultChecksum)
+    const indexed = measure(() => entry.indexed.compact(entry.layout, entry.cols), resultChecksum)
     return [
       {
         dataset: entry.name,
@@ -207,6 +218,24 @@ function runCompactorBenchmarks(): void {
 
   console.log(`\nCompactor benchmark (${itemCount} items, ${warmups} warmups, ${samples} samples)`)
   console.table(rows)
+}
+
+function runCollisionBenchmark(): void {
+  const layout = stackedVertical()
+  const timing = measure(() => hasAnyCollision(layout), Number)
+
+  console.log(
+    `\nCollision sweep benchmark (${itemCount} items, ${warmups} warmups, ${samples} samples)`,
+  )
+  console.table([
+    {
+      dataset: 'vertical / stacked',
+      medianMs: rounded(timing.medianMs),
+      p95Ms: rounded(timing.p95Ms),
+      minMs: rounded(timing.minMs),
+      checksum: timing.checksum,
+    },
+  ])
 }
 
 function heapUsed(): number {
@@ -293,4 +322,5 @@ function runInteractionBenchmark(): void {
 console.log(`Grid Layout Plus benchmark profile: ${quick ? 'quick' : 'full'}`)
 console.log('Results are evidence only and do not enforce machine-dependent timing thresholds.')
 runCompactorBenchmarks()
+runCollisionBenchmark()
 runInteractionBenchmark()

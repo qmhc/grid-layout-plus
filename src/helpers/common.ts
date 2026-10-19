@@ -294,7 +294,7 @@ function copySealedItem(item: ReadonlyLayoutItem): LayoutItem {
       result,
       key,
       KNOWN_LAYOUT_ITEM_KEYS.has(key)
-        ? key === 'resizeHandles'
+        ? key === 'resizeHandles' && value !== undefined
           ? Object.freeze(Array.from(value as readonly string[]))
           : value
         : copySealedMetadata(value),

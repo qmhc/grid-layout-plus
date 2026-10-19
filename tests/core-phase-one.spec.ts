@@ -532,6 +532,21 @@ describe('Phase 1 normalizeLayout and Compactor boundary', () => {
     )
     expect(invalid.cause).toBe(invalidResult)
 
+    const overlapping = [item({ i: 'a' }), item({ i: 'b' })]
+    const collision = expectExtension(
+      () =>
+        normalizeLayout([item({ i: 'a' }), item({ i: 'b', y: 1 })], {
+          cols: 2,
+          compactor: {
+            compact() {
+              return overlapping
+            },
+          },
+        }),
+      'extension-invalid-result',
+    )
+    expect(collision.cause).toBe(overlapping)
+
     expectExtension(
       () =>
         normalizeLayout([item()], {

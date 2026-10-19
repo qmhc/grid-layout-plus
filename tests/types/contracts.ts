@@ -1,4 +1,7 @@
+import { h } from 'vue'
+
 import {
+  GridItem,
   GridLayoutExtensionError,
   GridLayoutValidationError,
   compact as compactLayout,
@@ -215,6 +218,11 @@ const publicGridItemProps: GridItemProps = {
 }
 publicGridItemProps.x satisfies number | undefined
 publicGridItemProps.autoHeight satisfies boolean | undefined
+
+h(GridItem, { i: 'item', style: [{ width: '10px' }, 'color: red'] })
+declare const publicGridItem: InstanceType<typeof GridItem>
+publicGridItem.state.style.transform = 'translate3d(0px, 0px, 0)'
+
 // @ts-expect-error interact option 是 readonly 输入
 publicGridItemProps.dragOption!.lockAxis = 'x'
 
