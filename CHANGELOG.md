@@ -1,5 +1,31 @@
 # grid-layout-plus
 
+## 2.0.0-beta.1
+
+### Patch Changes
+
+- [#76](https://github.com/qmhc/grid-layout-plus/pull/76) [`947bb43`](https://github.com/qmhc/grid-layout-plus/commit/947bb430edaf6a5ecf41e05c35ce0c9ed4eeb5bd) Thanks [@qmhc](https://github.com/qmhc)! - Reduce repeated browser layout calculations when validating item registration.
+
+- [#73](https://github.com/qmhc/grid-layout-plus/pull/73) [`8208270`](https://github.com/qmhc/grid-layout-plus/commit/82082707161bd07d14148bc2f1f8c3f7980b6ea7) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Reduce mounting and layout update overhead for grids with many items.
+
+- [#72](https://github.com/qmhc/grid-layout-plus/pull/72) [`c3fa7f7`](https://github.com/qmhc/grid-layout-plus/commit/c3fa7f756a08bffe0c6e9166e6d30bc1f3a3a9cc) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Reduce per-drag-step cloning cost by avoiding repeated validation of layouts already checked by
+  the engine.
+
+- [`6b65e95`](https://github.com/qmhc/grid-layout-plus/commit/6b65e9592aa3c596c5b16875bfd2c4a5da485bf9) Thanks [@qmhc](https://github.com/qmhc)! - Bind mirrored resize handles to their rendered physical edges so RTL and mirrored grids resize from
+  the expected side.
+
+- [#72](https://github.com/qmhc/grid-layout-plus/pull/72) [`c3fa7f7`](https://github.com/qmhc/grid-layout-plus/commit/c3fa7f756a08bffe0c6e9166e6d30bc1f3a3a9cc) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Avoid `GridItem` re-renders caused by unchanged position styles when another item moves.
+
+- [#76](https://github.com/qmhc/grid-layout-plus/pull/76) [`ac3a6e9`](https://github.com/qmhc/grid-layout-plus/commit/ac3a6e9ad555a706fc090de7ebf9fe6c0da89caf) Thanks [@qmhc](https://github.com/qmhc)! - Render a newly mounted GridItem at its committed position from the first frame, so items no longer fly in from the container corner.
+
+- [#72](https://github.com/qmhc/grid-layout-plus/pull/72) [`c3fa7f7`](https://github.com/qmhc/grid-layout-plus/commit/c3fa7f756a08bffe0c6e9166e6d30bc1f3a3a9cc) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Validate a layout that changes in the same tick as `colNum` against the incoming column count
+  when `responsive` is disabled, avoiding transient `invalid-layout` and `invalid-registration`
+  errors.
+
+- [#72](https://github.com/qmhc/grid-layout-plus/pull/72) [`c3fa7f7`](https://github.com/qmhc/grid-layout-plus/commit/c3fa7f756a08bffe0c6e9166e6d30bc1f3a3a9cc) Thanks [@zahidzorbaz](https://github.com/zahidzorbaz)! - Speed up overlap detection, especially for vertically stacked collision-free layouts.
+
+- [#76](https://github.com/qmhc/grid-layout-plus/pull/76) [`aa33745`](https://github.com/qmhc/grid-layout-plus/commit/aa337450e351191b3e50bc82b9960e17cde5be75) Thanks [@qmhc](https://github.com/qmhc)! - Avoid `GridItem` re-renders caused only by position changes while preserving custom style overrides.
+
 ## 2.0.0-beta.0
 
 ### Major Changes
